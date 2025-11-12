@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"time"
 )
 
 //go:embed templates/*
@@ -58,11 +59,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	// Pass engines to template
+	// Pass engines and cache buster to template
 	data := struct {
-		Engines []EngineInfo
+		Engines     []EngineInfo
+		CacheBuster int64
 	}{
-		Engines: s.engines,
+		Engines:     s.engines,
+		CacheBuster: time.Now().UnixNano(),
 	}
 	
 	if err := tmpl.Execute(w, data); err != nil {
