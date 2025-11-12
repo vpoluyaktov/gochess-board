@@ -114,8 +114,14 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 		return "", err
 	}
 	
-	// Wait for bestmove
-	deadline := time.Now().Add(moveTime + 2*time.Second)
+	// Wait for the movetime to elapse, then send stop
+	time.Sleep(moveTime)
+	if err := e.sendCommand("stop"); err != nil {
+		return "", err
+	}
+	
+	// Wait for bestmove response
+	deadline := time.Now().Add(2 * time.Second)
 	
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
