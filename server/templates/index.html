@@ -139,12 +139,16 @@
         <div class="player-selection">
             <select id="whitePlayer">
                 <option value="human">Human</option>
-                <option value="stockfish">Stockfish</option>
+                {{range .Engines}}
+                <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                {{end}}
             </select>
             <span class="vs-text">vs</span>
             <select id="blackPlayer">
                 <option value="human">Human</option>
-                <option value="stockfish" selected>Stockfish</option>
+                {{range .Engines}}
+                <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                {{end}}
             </select>
         </div>
         <div id="myBoard"></div>
@@ -213,19 +217,33 @@
             return game.turn() === 'w' ? getWhitePlayer() : getBlackPlayer();
         }
 
+        function isHuman(playerValue) {
+            return playerValue === 'human';
+        }
+
+        function getPlayerName(playerValue) {
+            if (playerValue === 'human') return 'Human';
+            const select = document.getElementById('whitePlayer');
+            const option = Array.from(select.options).find(opt => opt.value === playerValue);
+            return option ? option.textContent : 'Engine';
+        }
+
         function updateInfoText() {
             const whitePlayer = getWhitePlayer();
             const blackPlayer = getBlackPlayer();
             const infoDiv = document.querySelector('.info');
             
-            if (whitePlayer === 'human' && blackPlayer === 'human') {
+            const whiteName = getPlayerName(whitePlayer);
+            const blackName = getPlayerName(blackPlayer);
+            
+            if (isHuman(whitePlayer) && isHuman(blackPlayer)) {
                 infoDiv.textContent = 'Human vs Human - Make your move!';
-            } else if (whitePlayer === 'stockfish' && blackPlayer === 'stockfish') {
-                infoDiv.textContent = 'Stockfish vs Stockfish - Watch the AI battle!';
-            } else if (whitePlayer === 'human') {
-                infoDiv.textContent = 'You play as White vs Stockfish AI. Make your move!';
+            } else if (!isHuman(whitePlayer) && !isHuman(blackPlayer)) {
+                infoDiv.textContent = `${whiteName} vs ${blackName} - Watch the AI battle!`;
+            } else if (isHuman(whitePlayer)) {
+                infoDiv.textContent = `You play as White vs ${blackName}. Make your move!`;
             } else {
-                infoDiv.textContent = 'You play as Black vs Stockfish AI. Make your move!';
+                infoDiv.textContent = `You play as Black vs ${whiteName}. Make your move!`;
             }
         }
 
@@ -238,7 +256,7 @@
 
             // Check if current player is human
             const currentPlayer = getCurrentPlayer();
-            if (currentPlayer === 'stockfish') return false;
+            if (!isHuman(currentPlayer)) return false;
 
             // Check if the piece belongs to the current turn
             const turn = game.turn();
@@ -253,7 +271,7 @@
             
             // Check if current player should be computer
             const currentPlayer = getCurrentPlayer();
-            if (currentPlayer !== 'stockfish') return;
+            if (isHuman(currentPlayer)) return;
 
             // Check if game is over
             if (game.game_over()) {
@@ -273,7 +291,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ fen: fen })
+                    body: JSON.stringify({ 
+                        fen: fen,
+                        enginePath: currentPlayer
+                    })
                 });
 
                 const data = await response.json();
@@ -369,11 +390,21 @@
             const savedWhite = localStorage.getItem('whitePlayer');
             const savedBlack = localStorage.getItem('blackPlayer');
             
-            if (savedWhite) {
-                document.getElementById('whitePlayer').value = savedWhite;
+            const whiteSelect = document.getElementById('whitePlayer');
+            const blackSelect = document.getElementById('blackPlayer');
+            
+            // Check if saved value exists in dropdown options
+            if (savedWhite && Array.from(whiteSelect.options).some(opt => opt.value === savedWhite)) {
+                whiteSelect.value = savedWhite;
             }
-            if (savedBlack) {
-                document.getElementById('blackPlayer').value = savedBlack;
+            if (savedBlack && Array.from(blackSelect.options).some(opt => opt.value === savedBlack)) {
+                blackSelect.value = savedBlack;
+            } else {
+                // Default: select first engine for black if available
+                const firstEngine = Array.from(blackSelect.options).find(opt => opt.value !== 'human');
+                if (firstEngine) {
+                    blackSelect.value = firstEngine.value;
+                }
             }
         }
 

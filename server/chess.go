@@ -16,7 +16,8 @@ const (
 
 // MoveRequest represents a move request from the client
 type MoveRequest struct {
-	FEN string `json:"fen"`
+	FEN        string `json:"fen"`
+	EnginePath string `json:"enginePath"` // Path to the chess engine to use
 }
 
 // MoveResponse represents the server's move response
@@ -78,17 +79,24 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Initialize Stockfish engine
-	engine, err := NewUCIEngine(stockfishPath)
+	// Determine which engine to use
+	enginePath := req.EnginePath
+	if enginePath == "" {
+		// Default to stockfish if no engine specified
+		enginePath = stockfishPath
+	}
+
+	// Initialize chess engine
+	engine, err := NewUCIEngine(enginePath)
 	if err != nil {
-		log.Printf("Failed to initialize Stockfish: %v", err)
+		log.Printf("Failed to initialize engine %s: %v", enginePath, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
 		return
 	}
 	defer engine.Close()
 
-	// Get best move from Stockfish (track time)
+	// Get best move from engine (track time)
 	startTime := time.Now()
 	bestMoveUCI, err := engine.GetBestMove(req.FEN, moveTime)
 	thinkTime := time.Since(startTime)

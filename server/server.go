@@ -15,12 +15,22 @@ var assetsFS embed.FS
 
 // Server represents the HTTP server
 type Server struct {
-	addr string
+	addr    string
+	engines []EngineInfo
 }
 
 // New creates a new server instance
 func New(addr string) *Server {
-	return &Server{addr: addr}
+	// Discover available chess engines
+	engines := DiscoverEngines()
+	if len(engines) == 0 {
+		log.Println("Warning: No UCI chess engines found")
+	}
+	
+	return &Server{
+		addr:    addr,
+		engines: engines,
+	}
 }
 
 // Start starts the HTTP server
@@ -48,7 +58,14 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	
-	if err := tmpl.Execute(w, nil); err != nil {
+	// Pass engines to template
+	data := struct {
+		Engines []EngineInfo
+	}{
+		Engines: s.engines,
+	}
+	
+	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
 		log.Printf("Render error: %v", err)
 	}
