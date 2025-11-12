@@ -68,20 +68,121 @@
             text-align: center;
             color: #666;
         }
+        
+        .stats {
+            margin-top: 15px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-radius: 5px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 14px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px;
+        }
+        
+        .stat-label {
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .stat-value {
+            color: #333;
+        }
+        
+        .player-selection {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            font-size: 18px;
+        }
+        
+        .player-selection select {
+            padding: 8px 15px;
+            font-size: 16px;
+            border: 2px solid #667eea;
+            border-radius: 5px;
+            background: white;
+            color: #333;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .player-selection select:hover {
+            border-color: #5568d3;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+        }
+        
+        .player-selection select:focus {
+            outline: none;
+            border-color: #5568d3;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .vs-text {
+            font-weight: bold;
+            color: #667eea;
+            font-size: 20px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>♟️ Chess vs Stockfish ♟️</h1>
+        <h1>♟️ Chess Game ♟️</h1>
+        <div class="player-selection">
+            <select id="whitePlayer">
+                <option value="human">Human</option>
+                <option value="stockfish">Stockfish</option>
+            </select>
+            <span class="vs-text">vs</span>
+            <select id="blackPlayer">
+                <option value="human">Human</option>
+                <option value="stockfish" selected>Stockfish</option>
+            </select>
+        </div>
         <div id="myBoard"></div>
         
         <div class="controls">
             <button onclick="location.reload()">New Game</button>
-            <button onclick="board.flip()">Flip Board</button>
+            <button onclick="flipBoard()">Flip Board</button>
         </div>
         
         <div class="info">
             You play as White vs Stockfish AI. Make your move!
+        </div>
+        
+        <div class="stats">
+            <div class="stat-item">
+                <span class="stat-label">⚪ White Moves:</span>
+                <span class="stat-value" id="whiteMoves">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">⚫ Black Moves:</span>
+                <span class="stat-value" id="blackMoves">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">⚪ White Time:</span>
+                <span class="stat-value" id="whiteTime">0s</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">⚫ Black Time:</span>
+                <span class="stat-value" id="blackTime">0s</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">📊 Total Moves:</span>
+                <span class="stat-value" id="totalMoves">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">⏱️ Game Duration:</span>
+                <span class="stat-value" id="gameDuration">0s</span>
+            </div>
         </div>
     </div>
 
@@ -97,16 +198,71 @@
     <script>
         var board = null;
         var game = new Chess();
+        var isComputerThinking = false;
+
+        // Get current player configuration
+        function getWhitePlayer() {
+            return document.getElementById('whitePlayer').value;
+        }
+
+        function getBlackPlayer() {
+            return document.getElementById('blackPlayer').value;
+        }
+
+        function getCurrentPlayer() {
+            return game.turn() === 'w' ? getWhitePlayer() : getBlackPlayer();
+        }
+
+        function updateInfoText() {
+            const whitePlayer = getWhitePlayer();
+            const blackPlayer = getBlackPlayer();
+            const infoDiv = document.querySelector('.info');
+            
+            if (whitePlayer === 'human' && blackPlayer === 'human') {
+                infoDiv.textContent = 'Human vs Human - Make your move!';
+            } else if (whitePlayer === 'stockfish' && blackPlayer === 'stockfish') {
+                infoDiv.textContent = 'Stockfish vs Stockfish - Watch the AI battle!';
+            } else if (whitePlayer === 'human') {
+                infoDiv.textContent = 'You play as White vs Stockfish AI. Make your move!';
+            } else {
+                infoDiv.textContent = 'You play as Black vs Stockfish AI. Make your move!';
+            }
+        }
 
         function onDragStart(source, piece, position, orientation) {
             // do not pick up pieces if the game is over
             if (game.game_over()) return false;
 
-            // only pick up pieces for White
-            if (piece.search(/^b/) !== -1) return false;
+            // don't allow moves while computer is thinking
+            if (isComputerThinking) return false;
+
+            // Check if current player is human
+            const currentPlayer = getCurrentPlayer();
+            if (currentPlayer === 'stockfish') return false;
+
+            // Check if the piece belongs to the current turn
+            const turn = game.turn();
+            if ((turn === 'w' && piece.search(/^b/) !== -1) ||
+                (turn === 'b' && piece.search(/^w/) !== -1)) {
+                return false;
+            }
         }
 
         async function makeComputerMove() {
+            if (isComputerThinking) return;
+            
+            // Check if current player should be computer
+            const currentPlayer = getCurrentPlayer();
+            if (currentPlayer !== 'stockfish') return;
+
+            // Check if game is over
+            if (game.game_over()) {
+                console.log('Game over');
+                return;
+            }
+
+            isComputerThinking = true;
+            
             // Get current FEN position
             var fen = game.fen();
             
@@ -124,6 +280,7 @@
                 
                 if (data.error) {
                     console.log('Game over or no legal moves');
+                    isComputerThinking = false;
                     return;
                 }
 
@@ -131,8 +288,21 @@
                 game.load(data.fen);
                 board.position(game.fen());
                 
+                isComputerThinking = false;
+                
+                // Check if next player is also computer (Stockfish vs Stockfish)
+                window.setTimeout(checkForComputerMove, 250);
+                
             } catch (error) {
                 console.error('Error getting computer move:', error);
+                isComputerThinking = false;
+            }
+        }
+
+        function checkForComputerMove() {
+            const currentPlayer = getCurrentPlayer();
+            if (currentPlayer === 'stockfish' && !game.game_over()) {
+                makeComputerMove();
             }
         }
 
@@ -147,8 +317,8 @@
             // illegal move
             if (move === null) return 'snapback';
 
-            // make computer move for black
-            window.setTimeout(makeComputerMove, 250);
+            // Check if next player is computer
+            window.setTimeout(checkForComputerMove, 250);
         }
 
         // update the board position after the piece snap
@@ -172,6 +342,88 @@
         $(window).resize(function() {
             board.resize();
         });
+        
+        // Update stats periodically
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+                
+                document.getElementById('whiteMoves').textContent = stats.whiteMoves;
+                document.getElementById('blackMoves').textContent = stats.blackMoves;
+                document.getElementById('totalMoves').textContent = stats.totalMoves;
+                document.getElementById('whiteTime').textContent = stats.whiteTime;
+                document.getElementById('blackTime').textContent = stats.blackTime;
+                document.getElementById('gameDuration').textContent = stats.gameDuration;
+            } catch (error) {
+                console.error('Error fetching stats:', error);
+            }
+        }
+        
+        // Update stats every second
+        setInterval(updateStats, 1000);
+        updateStats(); // Initial update
+
+        // Restore player selections from localStorage
+        function restorePlayerSelections() {
+            const savedWhite = localStorage.getItem('whitePlayer');
+            const savedBlack = localStorage.getItem('blackPlayer');
+            
+            if (savedWhite) {
+                document.getElementById('whitePlayer').value = savedWhite;
+            }
+            if (savedBlack) {
+                document.getElementById('blackPlayer').value = savedBlack;
+            }
+        }
+
+        // Save player selections to localStorage
+        function savePlayerSelections() {
+            localStorage.setItem('whitePlayer', document.getElementById('whitePlayer').value);
+            localStorage.setItem('blackPlayer', document.getElementById('blackPlayer').value);
+        }
+
+        // Flip board and swap player assignments
+        function flipBoard() {
+            board.flip();
+            
+            // Swap player assignments
+            const whitePlayer = document.getElementById('whitePlayer').value;
+            const blackPlayer = document.getElementById('blackPlayer').value;
+            
+            document.getElementById('whitePlayer').value = blackPlayer;
+            document.getElementById('blackPlayer').value = whitePlayer;
+            
+            savePlayerSelections();
+            updateInfoText();
+            
+            // After flipping, check if computer should move
+            window.setTimeout(checkForComputerMove, 250);
+        }
+
+        // Handle player selection changes
+        document.getElementById('whitePlayer').addEventListener('change', function() {
+            savePlayerSelections();
+            updateInfoText();
+            // Check if computer should move now
+            window.setTimeout(checkForComputerMove, 250);
+        });
+
+        document.getElementById('blackPlayer').addEventListener('change', function() {
+            savePlayerSelections();
+            updateInfoText();
+            // Check if computer should move now
+            window.setTimeout(checkForComputerMove, 250);
+        });
+
+        // Restore selections on page load
+        restorePlayerSelections();
+
+        // Initialize info text
+        updateInfoText();
+
+        // Start computer move if White is Stockfish
+        window.setTimeout(checkForComputerMove, 500);
     </script>
 </body>
 </html>

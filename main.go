@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	defaultPort = "8080"
+	defaultPort = "35256"
 )
 
 func main() {
@@ -23,8 +23,8 @@ func main() {
 	noTUI := flag.Bool("no-tui", false, "Don't show TUI interface")
 	flag.Parse()
 
-	addr := fmt.Sprintf("localhost:%s", *port)
-	url := fmt.Sprintf("http://%s", addr)
+	addr := fmt.Sprintf(":%s", *port)
+	url := fmt.Sprintf("http://localhost:%s", *port)
 
 	// Start the web server in a goroutine
 	srv := server.New(addr)

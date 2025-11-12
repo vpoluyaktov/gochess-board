@@ -87,7 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	moves, lastMove, lastMoveTime, stockfishTime, fen, _, whiteMoves, blackMoves := m.gameState.GetStats()
+	moves, lastMove, lastMoveTime, stockfishTime, fen, _, whiteMoves, blackMoves, whiteTime, blackTime := m.gameState.GetStats()
 	
 	// Title
 	title := titleStyle.Render("♟️  CHESS vs STOCKFISH  ♟️")
@@ -103,7 +103,9 @@ func (m model) View() string {
 		labelStyle.Render("Total Moves:  ") + valueStyle.Render(fmt.Sprintf("%d", moves)) + "\n" +
 		labelStyle.Render("White Moves:  ") + valueStyle.Render(fmt.Sprintf("%d", whiteMoves)) + "\n" +
 		labelStyle.Render("Black Moves:  ") + valueStyle.Render(fmt.Sprintf("%d", blackMoves)) + "\n" +
-		labelStyle.Render("Duration:     ") + valueStyle.Render(uptime.String()),
+		labelStyle.Render("Duration:     ") + valueStyle.Render(uptime.String()) + "\n" +
+		labelStyle.Render("White Time:   ") + valueStyle.Render(whiteTime.Round(time.Second).String()) + "\n" +
+		labelStyle.Render("Black Time:   ") + valueStyle.Render(blackTime.Round(time.Second).String()),
 	)
 	
 	// Stockfish Info (middle column)
