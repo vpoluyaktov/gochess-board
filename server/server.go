@@ -2,6 +2,7 @@ package server
 
 import (
 	"embed"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -27,11 +28,11 @@ func InitDebugLogging(filename string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Log only to file to avoid breaking TUI layout
 	log.SetOutput(logFile)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-	
+
 	return nil
 }
 
@@ -42,7 +43,7 @@ func New(addr string) *Server {
 	if len(engines) == 0 {
 		log.Println("Warning: No UCI chess engines found")
 	}
-	
+
 	return &Server{
 		addr:    addr,
 		engines: engines,
@@ -53,7 +54,7 @@ func New(addr string) *Server {
 func (s *Server) Start() error {
 	// Serve static assets
 	http.Handle("/assets/", http.FileServer(http.FS(assetsFS)))
-	
+
 	// API endpoints
 	http.HandleFunc("/api/computer-move", s.handleComputerMove)
 	http.HandleFunc("/api/stats", s.handleStats)
@@ -63,10 +64,11 @@ func (s *Server) Start() error {
 	http.HandleFunc("/api/clock/start", s.handleStartClock)
 	http.HandleFunc("/api/move-history", s.handleGetMoveHistory)
 	http.HandleFunc("/api/reset", s.handleReset)
-	
+	http.HandleFunc("/api/engines", s.handleGetEngines)
+
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)
-	
+
 	log.Printf("Server starting on %s", s.addr)
 	return http.ListenAndServe(s.addr, nil)
 }
@@ -79,7 +81,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Template error: %v", err)
 		return
 	}
-	
+
 	// Pass engines and cache buster to template
 	data := struct {
 		Engines     []EngineInfo
@@ -88,11 +90,24 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Engines:     s.engines,
 		CacheBuster: time.Now().UnixNano(),
 	}
-	
+
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
 		log.Printf("Render error: %v", err)
 	}
+}
+
+// handleGetEngines returns the list of discovered engines with their capabilities
+func (s *Server) handleGetEngines(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	engines := s.engines
+	if engines == nil {
+		engines = []EngineInfo{}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(engines)
 }
 
 // GetAddr returns the server address
