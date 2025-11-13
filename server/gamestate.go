@@ -92,6 +92,20 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 		// Complete the last entry with black's move
 		gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black = move
 		gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Timestamp = time.Now()
+	} else {
+		// No white move entry exists (engine vs engine case) - create a new entry with just black's move
+		// This happens when white is also an engine and didn't go through IncrementRequests
+		moveNum := (len(gs.MoveHistory) + 1) / 2
+		// Check if we need to add the white move from history
+		if len(gs.MoveHistory) >= 2 {
+			whiteMove := gs.MoveHistory[len(gs.MoveHistory)-2]
+			gs.MoveHistoryDisplay = append(gs.MoveHistoryDisplay, MoveHistoryEntry{
+				MoveNumber: moveNum,
+				White:      whiteMove,
+				Black:      move,
+				Timestamp:  time.Now(),
+			})
+		}
 	}
 	
 	// Switch to white's turn

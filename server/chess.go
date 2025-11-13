@@ -73,10 +73,19 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Track player's move in game state
+	// Track player's move in game state (if provided)
 	gameState := GetGameState()
 	if req.LastMove != "" {
-		gameState.IncrementRequests(req.LastMove)
+		log.Printf("Recording player move: %s (turn was: %v)", req.LastMove, gameState.IsWhiteTurn)
+		// Add the move to history based on current turn
+		if gameState.IsWhiteTurn {
+			gameState.IncrementRequests(req.LastMove)
+		} else {
+			// This shouldn't happen in normal flow, but handle it
+			gameState.MoveHistory = append(gameState.MoveHistory, req.LastMove)
+		}
+	} else {
+		log.Printf("No lastMove provided - this is normal for engine vs engine or first move")
 	}
 
 	// Parse the FEN position
