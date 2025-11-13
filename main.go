@@ -23,6 +23,11 @@ func main() {
 	noTUI := flag.Bool("no-tui", false, "Don't show TUI interface")
 	flag.Parse()
 
+	// Initialize debug logging to file
+	if err := server.InitDebugLogging("chess-debug.log"); err != nil {
+		fmt.Printf("Warning: Failed to initialize debug logging: %v\n", err)
+	}
+
 	addr := fmt.Sprintf(":%s", *port)
 	url := fmt.Sprintf("http://localhost:%s", *port)
 

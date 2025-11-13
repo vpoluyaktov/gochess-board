@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -18,6 +19,20 @@ var assetsFS embed.FS
 type Server struct {
 	addr    string
 	engines []EngineInfo
+}
+
+// InitDebugLogging sets up logging to a file only (no stdout to avoid breaking TUI)
+func InitDebugLogging(filename string) error {
+	logFile, err := os.OpenFile(filename, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+	
+	// Log only to file to avoid breaking TUI layout
+	log.SetOutput(logFile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+	
+	return nil
 }
 
 // New creates a new server instance
