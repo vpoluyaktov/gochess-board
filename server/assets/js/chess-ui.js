@@ -526,7 +526,7 @@ function updateClockDisplay() {
     document.getElementById('whiteClockTime').textContent = formatTime(whiteTimeMs);
     document.getElementById('blackClockTime').textContent = formatTime(blackTimeMs);
     
-    // Update active clock styling
+    // Update active clock styling (now using clock-compact class)
     var whiteClock = document.getElementById('whiteClock');
     var blackClock = document.getElementById('blackClock');
     

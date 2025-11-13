@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>♟️ Chess Game ♟️</h1>
+        <h1>♟️ Go Chess Board ♟️</h1>
         
         <!-- Time Control Selection -->
         <div class="time-control-selection">
@@ -38,35 +38,33 @@
             </select>
         </div>
         
-        <div class="player-selection">
-            <select id="whitePlayer">
+        <!-- Black Player (Top) -->
+        <div class="player-info top-player">
+            <select id="blackPlayer" class="player-select">
                 <option value="human">Human</option>
                 {{range .Engines}}
                 <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
                 {{end}}
             </select>
-            <span class="vs-text">vs</span>
-            <select id="blackPlayer">
-                <option value="human">Human</option>
-                {{range .Engines}}
-                <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
-                {{end}}
-            </select>
-        </div>
-        
-        <!-- Chess Clocks -->
-        <div class="chess-clocks">
-            <div class="clock white-clock" id="whiteClock">
-                <div class="clock-label">⚪ White</div>
-                <div class="clock-time" id="whiteClockTime">5:00</div>
-            </div>
-            <div class="clock black-clock" id="blackClock">
-                <div class="clock-label">⚫ Black</div>
+            <div class="clock-compact" id="blackClock">
                 <div class="clock-time" id="blackClockTime">5:00</div>
             </div>
         </div>
         
         <div id="myBoard"></div>
+        
+        <!-- White Player (Bottom) -->
+        <div class="player-info bottom-player">
+            <select id="whitePlayer" class="player-select">
+                <option value="human">Human</option>
+                {{range .Engines}}
+                <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                {{end}}
+            </select>
+            <div class="clock-compact" id="whiteClock">
+                <div class="clock-time" id="whiteClockTime">5:00</div>
+            </div>
+        </div>
         
         <div class="controls">
             <button onclick="location.reload()">New Game</button>
