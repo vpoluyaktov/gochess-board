@@ -18,6 +18,7 @@ const (
 type MoveRequest struct {
 	FEN        string `json:"fen"`
 	EnginePath string `json:"enginePath"` // Path to the chess engine to use
+	LastMove   string `json:"lastMove"`   // The player's last move in UCI notation (e.g., "e2e4")
 }
 
 // MoveResponse represents the server's move response
@@ -59,10 +60,6 @@ type ClockResponse struct {
 func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	// Track request
-	gameState := GetGameState()
-	gameState.IncrementRequests()
-
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
@@ -74,6 +71,12 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
 		return
+	}
+
+	// Track player's move in game state
+	gameState := GetGameState()
+	if req.LastMove != "" {
+		gameState.IncrementRequests(req.LastMove)
 	}
 
 	// Parse the FEN position
@@ -110,10 +113,11 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 	defer engine.Close()
 
-	// Get clock times from game state
+	// Get clock times and move history from game state
 	whiteTime, blackTime, _ := gameState.GetClockTimes()
 	whiteInc := gameState.TimeControl.Increment
 	blackInc := gameState.TimeControl.Increment
+	moveHistory := gameState.GetMoveHistory()
 	
 	// Get best move from engine (track time)
 	startTime := time.Now()
@@ -121,7 +125,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	
 	// Use clock-based time management if time control is active (not unlimited)
 	if gameState.TimeControl.InitialTime > 0 {
-		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, whiteTime, blackTime, whiteInc, blackInc)
+		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, moveHistory, whiteTime, blackTime, whiteInc, blackInc)
 	} else {
 		// Fallback to fixed time for unlimited games
 		bestMoveUCI, err = engine.GetBestMove(req.FEN, moveTime)
@@ -245,4 +249,15 @@ func (s *Server) handleStartClock(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// handleGetMoveHistory returns the move history
+func (s *Server) handleGetMoveHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	gameState := GetGameState()
+	history := gameState.GetMoveHistoryDisplay()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(history)
 }

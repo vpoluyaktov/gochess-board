@@ -46,6 +46,7 @@ func (s *Server) Start() error {
 	http.HandleFunc("/api/clock/set", s.handleSetTimeControl)
 	http.HandleFunc("/api/clock/get", s.handleGetClock)
 	http.HandleFunc("/api/clock/start", s.handleStartClock)
+	http.HandleFunc("/api/move-history", s.handleGetMoveHistory)
 	
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)

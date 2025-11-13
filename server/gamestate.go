@@ -11,6 +11,16 @@ type TimeControl struct {
 	Increment   time.Duration // Time added after each move (e.g., 5 seconds)
 }
 
+// MoveHistoryEntry represents a single move in the game
+type MoveHistoryEntry struct {
+	MoveNumber int       // Move number (1, 2, 3, ...)
+	White      string    // White's move in UCI notation (e.g., "e2e4")
+	Black      string    // Black's move in UCI notation (e.g., "e7e5")
+	WhiteSAN   string    // White's move in SAN notation (e.g., "e4")
+	BlackSAN   string    // Black's move in SAN notation (e.g., "e5")
+	Timestamp  time.Time // When the move pair was completed
+}
+
 // GameState tracks the current game statistics
 type GameState struct {
 	mu              sync.RWMutex
@@ -33,6 +43,10 @@ type GameState struct {
 	WhiteTimeLeft   time.Duration // Remaining time for white
 	BlackTimeLeft   time.Duration // Remaining time for black
 	ClockRunning    bool          // Is the clock currently running
+	
+	// Move History
+	MoveHistory     []string             // UCI move list (e.g., ["e2e4", "e7e5", ...])
+	MoveHistoryDisplay []MoveHistoryEntry // Formatted move history for display
 }
 
 var globalGameState = &GameState{
@@ -70,6 +84,16 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	gs.CurrentFEN = fen
 	gs.BlackMoves++
 	
+	// Add move to history
+	gs.MoveHistory = append(gs.MoveHistory, move)
+	
+	// Update display history (black's move completes a move pair)
+	if len(gs.MoveHistoryDisplay) > 0 && gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black == "" {
+		// Complete the last entry with black's move
+		gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black = move
+		gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Timestamp = time.Now()
+	}
+	
 	// Switch to white's turn
 	gs.IsWhiteTurn = true
 	gs.CurrentTurnStart = time.Now()
@@ -82,8 +106,8 @@ func (gs *GameState) UpdatePlayerMove() {
 	gs.WhiteMoves++
 }
 
-// IncrementRequests increments the total request counter
-func (gs *GameState) IncrementRequests() {
+// IncrementRequests increments the total request counter and tracks white's move
+func (gs *GameState) IncrementRequests(move string) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 	
@@ -98,6 +122,17 @@ func (gs *GameState) IncrementRequests() {
 	gs.TotalRequests++
 	// Each request means the player made a move (white)
 	gs.WhiteMoves++
+	
+	// Add white's move to history
+	gs.MoveHistory = append(gs.MoveHistory, move)
+	
+	// Create new display entry for white's move
+	moveNum := (len(gs.MoveHistory) + 1) / 2
+	gs.MoveHistoryDisplay = append(gs.MoveHistoryDisplay, MoveHistoryEntry{
+		MoveNumber: moveNum,
+		White:      move,
+		Black:      "", // Will be filled when black moves
+	})
 	
 	// Switch to black's turn
 	gs.IsWhiteTurn = false
@@ -145,6 +180,24 @@ func (gs *GameState) Reset() {
 	gs.WhiteTimeLeft = gs.TimeControl.InitialTime
 	gs.BlackTimeLeft = gs.TimeControl.InitialTime
 	gs.ClockRunning = false
+	
+	// Reset move history
+	gs.MoveHistory = []string{}
+	gs.MoveHistoryDisplay = []MoveHistoryEntry{}
+}
+
+// GetMoveHistory returns the UCI move list for sending to engine
+func (gs *GameState) GetMoveHistory() []string {
+	gs.mu.RLock()
+	defer gs.mu.RUnlock()
+	return gs.MoveHistory
+}
+
+// GetMoveHistoryDisplay returns the formatted move history for UI display
+func (gs *GameState) GetMoveHistoryDisplay() []MoveHistoryEntry {
+	gs.mu.RLock()
+	defer gs.mu.RUnlock()
+	return gs.MoveHistoryDisplay
 }
 
 // SetTimeControl sets the time control for the game

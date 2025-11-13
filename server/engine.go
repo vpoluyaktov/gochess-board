@@ -142,9 +142,18 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 
 // GetBestMoveWithClock gets the best move using chess clock time management
 // The engine will manage its own time based on remaining time and increment
-func (e *UCIEngine) GetBestMoveWithClock(fen string, whiteTime, blackTime, whiteInc, blackInc time.Duration) (string, error) {
-	// Set position
-	if err := e.sendCommand(fmt.Sprintf("position fen %s", fen)); err != nil {
+func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, whiteTime, blackTime, whiteInc, blackInc time.Duration) (string, error) {
+	// Set position with move history
+	var posCmd string
+	if len(moveHistory) > 0 {
+		// Send starting position + move list
+		posCmd = "position startpos moves " + strings.Join(moveHistory, " ")
+	} else {
+		// No moves yet, just starting position
+		posCmd = "position startpos"
+	}
+	
+	if err := e.sendCommand(posCmd); err != nil {
 		return "", err
 	}
 	

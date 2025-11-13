@@ -6,6 +6,7 @@ var game = new Chess();
 var isComputerThinking = false;
 var lastMoveSquares = { from: null, to: null };
 var squareClass = 'square-55d63';
+var lastPlayerMove = ''; // Track last move in UCI notation
 
 // Analysis WebSocket connections
 var whiteAnalysisWs = null;
@@ -110,6 +111,12 @@ function onDrop(source, target) {
 
     highlightLastMove(source, target);
     
+    // Track the move in UCI notation
+    lastPlayerMove = source + target;
+    if (move.promotion) {
+        lastPlayerMove += move.promotion;
+    }
+    
     // Start clock on first move
     if (!clockRunning && currentTimeControl.initial > 0) {
         startClock();
@@ -121,6 +128,9 @@ function onDrop(source, target) {
         addIncrement(wasWhiteTurn);
         updateClockDisplay();
     }
+
+    // Update move history display
+    updateMoveHistory();
 
     // Clear arrow and update analyses with new position
     board.clearArrow();
@@ -180,7 +190,8 @@ async function makeComputerMove() {
             },
             body: JSON.stringify({ 
                 fen: fen,
-                enginePath: currentPlayer
+                enginePath: currentPlayer,
+                lastMove: lastPlayerMove
             })
         });
 
@@ -211,6 +222,9 @@ async function makeComputerMove() {
             addIncrement(wasBlackTurn);
             updateClockDisplay();
         }
+        
+        // Update move history
+        updateMoveHistory();
         
         isComputerThinking = false;
         window.setTimeout(checkForComputerMove, 250);
@@ -252,22 +266,36 @@ makeComputerMove = async function() {
 };
 
 // -------------------------------------------------------------------------
-// Stats Update
+// Move History Update
 // -------------------------------------------------------------------------
 
-async function updateStats() {
+async function updateMoveHistory() {
     try {
-        const response = await fetch('/api/stats');
-        const stats = await response.json();
+        const response = await fetch('/api/move-history');
+        const history = await response.json();
         
-        document.getElementById('whiteMoves').textContent = stats.whiteMoves;
-        document.getElementById('blackMoves').textContent = stats.blackMoves;
-        document.getElementById('totalMoves').textContent = stats.totalMoves;
-        document.getElementById('whiteTime').textContent = stats.whiteTime;
-        document.getElementById('blackTime').textContent = stats.blackTime;
-        document.getElementById('gameDuration').textContent = stats.gameDuration;
+        const listEl = document.getElementById('moveHistoryList');
+        
+        if (!history || history.length === 0) {
+            listEl.innerHTML = '<div class="move-history-empty">No moves yet</div>';
+            return;
+        }
+        
+        let html = '';
+        history.forEach(function(entry) {
+            html += '<div class="move-pair">';
+            html += '<div class="move-number">' + entry.moveNumber + '.</div>';
+            html += '<div class="move-white">' + (entry.white || '') + '</div>';
+            html += '<div class="move-black">' + (entry.black || '') + '</div>';
+            html += '</div>';
+        });
+        
+        listEl.innerHTML = html;
+        
+        // Auto-scroll to bottom
+        listEl.scrollTop = listEl.scrollHeight;
     } catch (error) {
-        console.error('Error fetching stats:', error);
+        console.error('Error fetching move history:', error);
     }
 }
 
@@ -669,9 +697,9 @@ $(document).ready(function() {
         board.resize();
     });
     
-    // Update stats every second
-    setInterval(updateStats, 1000);
-    updateStats();
+    // Update move history every 2 seconds
+    setInterval(updateMoveHistory, 2000);
+    updateMoveHistory();
     
     // Player selection event handlers
     document.getElementById('whitePlayer').addEventListener('change', function() {
