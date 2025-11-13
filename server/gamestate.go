@@ -112,6 +112,7 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	if isWhiteMove {
 		// White's move - create new entry
 		moveNum := (len(gs.MoveHistory) + 1) / 2
+		log.Printf("Creating new move entry #%d: White=%s", moveNum, move)
 		gs.MoveHistoryDisplay = append(gs.MoveHistoryDisplay, MoveHistoryEntry{
 			MoveNumber: moveNum,
 			White:      move,
@@ -120,8 +121,14 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	} else {
 		// Black's move - complete the last entry
 		if len(gs.MoveHistoryDisplay) > 0 {
+			log.Printf("Completing move entry #%d: Black=%s (was White=%s)", 
+				gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].MoveNumber,
+				move,
+				gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].White)
 			gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black = move
 			gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Timestamp = time.Now()
+		} else {
+			log.Printf("WARNING: Black move %s but no white entry to complete!", move)
 		}
 	}
 	
