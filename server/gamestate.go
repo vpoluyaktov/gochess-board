@@ -64,17 +64,31 @@ func GetGameState() *GameState {
 	return globalGameState
 }
 
-// UpdateMove updates the game state with a new move (Stockfish/Black)
+// UpdateMove updates the game state with a new move (Engine move - could be white or black)
 func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration) {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 	
-	// Update chess clock for black's move
-	if !gs.IsWhiteTurn && gs.ClockRunning {
+	isWhiteMove := gs.IsWhiteTurn
+	
+	// Auto-start clock on first move if time control is active
+	if !gs.ClockRunning && gs.TimeControl.InitialTime > 0 && gs.MovesPlayed == 0 {
+		gs.ClockRunning = true
+		gs.CurrentTurnStart = time.Now()
+	}
+	
+	// Update chess clock
+	if gs.ClockRunning {
 		elapsed := time.Since(gs.CurrentTurnStart)
-		gs.BlackTimeLeft -= elapsed
-		gs.BlackTimeLeft += gs.TimeControl.Increment
-		gs.BlackPlayTime += elapsed
+		if isWhiteMove {
+			gs.WhiteTimeLeft -= elapsed
+			gs.WhiteTimeLeft += gs.TimeControl.Increment
+			gs.WhitePlayTime += elapsed
+		} else {
+			gs.BlackTimeLeft -= elapsed
+			gs.BlackTimeLeft += gs.TimeControl.Increment
+			gs.BlackPlayTime += elapsed
+		}
 	}
 	
 	gs.MovesPlayed++
@@ -82,34 +96,35 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	gs.LastMoveTime = time.Now()
 	gs.StockfishTime = thinkTime
 	gs.CurrentFEN = fen
-	gs.BlackMoves++
+	
+	if isWhiteMove {
+		gs.WhiteMoves++
+	} else {
+		gs.BlackMoves++
+	}
 	
 	// Add move to history
 	gs.MoveHistory = append(gs.MoveHistory, move)
 	
-	// Update display history (black's move completes a move pair)
-	if len(gs.MoveHistoryDisplay) > 0 && gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black == "" {
-		// Complete the last entry with black's move
-		gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black = move
-		gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Timestamp = time.Now()
-	} else {
-		// No white move entry exists (engine vs engine case) - create a new entry with just black's move
-		// This happens when white is also an engine and didn't go through IncrementRequests
+	// Update display history
+	if isWhiteMove {
+		// White's move - create new entry
 		moveNum := (len(gs.MoveHistory) + 1) / 2
-		// Check if we need to add the white move from history
-		if len(gs.MoveHistory) >= 2 {
-			whiteMove := gs.MoveHistory[len(gs.MoveHistory)-2]
-			gs.MoveHistoryDisplay = append(gs.MoveHistoryDisplay, MoveHistoryEntry{
-				MoveNumber: moveNum,
-				White:      whiteMove,
-				Black:      move,
-				Timestamp:  time.Now(),
-			})
+		gs.MoveHistoryDisplay = append(gs.MoveHistoryDisplay, MoveHistoryEntry{
+			MoveNumber: moveNum,
+			White:      move,
+			Black:      "",
+		})
+	} else {
+		// Black's move - complete the last entry
+		if len(gs.MoveHistoryDisplay) > 0 {
+			gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Black = move
+			gs.MoveHistoryDisplay[len(gs.MoveHistoryDisplay)-1].Timestamp = time.Now()
 		}
 	}
 	
-	// Switch to white's turn
-	gs.IsWhiteTurn = true
+	// Switch turns
+	gs.IsWhiteTurn = !gs.IsWhiteTurn
 	gs.CurrentTurnStart = time.Now()
 }
 
