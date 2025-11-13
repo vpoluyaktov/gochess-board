@@ -102,7 +102,7 @@ func (e *UCIEngine) waitForResponse(expected string, timeout time.Duration) erro
 	return fmt.Errorf("timeout waiting for: %s", expected)
 }
 
-// GetBestMove gets the best move for the current position
+// GetBestMove gets the best move for the current position using fixed time
 func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, error) {
 	// Set position
 	if err := e.sendCommand(fmt.Sprintf("position fen %s", fen)); err != nil {
@@ -122,6 +122,53 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 	
 	// Wait for bestmove response
 	deadline := time.Now().Add(2 * time.Second)
+	
+	for time.Now().Before(deadline) {
+		line, err := e.readLine()
+		if err != nil {
+			return "", err
+		}
+		
+		if strings.HasPrefix(line, "bestmove") {
+			parts := strings.Fields(line)
+			if len(parts) >= 2 {
+				return parts[1], nil
+			}
+		}
+	}
+	
+	return "", fmt.Errorf("timeout waiting for bestmove")
+}
+
+// GetBestMoveWithClock gets the best move using chess clock time management
+// The engine will manage its own time based on remaining time and increment
+func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, whiteTime, blackTime, whiteInc, blackInc time.Duration) (string, error) {
+	// Set position using FEN (most reliable way to ensure correct position)
+	posCmd := fmt.Sprintf("position fen %s", fen)
+	
+	if err := e.sendCommand(posCmd); err != nil {
+		return "", err
+	}
+	
+	// Build go command with time controls
+	// Format: go wtime <ms> btime <ms> winc <ms> binc <ms>
+	goCmd := fmt.Sprintf("go wtime %d btime %d winc %d binc %d",
+		whiteTime.Milliseconds(),
+		blackTime.Milliseconds(),
+		whiteInc.Milliseconds(),
+		blackInc.Milliseconds())
+	
+	if err := e.sendCommand(goCmd); err != nil {
+		return "", err
+	}
+	
+	// Wait for bestmove response (engine manages its own time)
+	// Give it a generous timeout (max of remaining time + 5 seconds)
+	maxTime := whiteTime
+	if blackTime > maxTime {
+		maxTime = blackTime
+	}
+	deadline := time.Now().Add(maxTime + 5*time.Second)
 	
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()

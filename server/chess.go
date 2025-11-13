@@ -18,6 +18,7 @@ const (
 type MoveRequest struct {
 	FEN        string `json:"fen"`
 	EnginePath string `json:"enginePath"` // Path to the chess engine to use
+	LastMove   string `json:"lastMove"`   // The player's last move in UCI notation (e.g., "e2e4")
 }
 
 // MoveResponse represents the server's move response
@@ -41,13 +42,23 @@ type StatsResponse struct {
 	GameDuration  string `json:"gameDuration"`
 }
 
+// ClockRequest represents a request to set time control
+type ClockRequest struct {
+	InitialMinutes   int `json:"initialMinutes"`
+	IncrementSeconds int `json:"incrementSeconds"`
+}
+
+// ClockResponse represents the current clock state
+type ClockResponse struct {
+	WhiteTimeLeft int  `json:"whiteTimeLeft"` // milliseconds
+	BlackTimeLeft int  `json:"blackTimeLeft"` // milliseconds
+	IsWhiteTurn   bool `json:"isWhiteTurn"`
+	ClockRunning  bool `json:"clockRunning"`
+}
+
 // handleComputerMove handles the computer move calculation
 func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-
-	// Track request
-	gameState := GetGameState()
-	gameState.IncrementRequests()
 
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -62,6 +73,21 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Track player's move in game state (if provided)
+	gameState := GetGameState()
+	if req.LastMove != "" {
+		log.Printf("Recording player move: %s (turn was: %v)", req.LastMove, gameState.IsWhiteTurn)
+		// Add the move to history based on current turn
+		if gameState.IsWhiteTurn {
+			gameState.IncrementRequests(req.LastMove)
+		} else {
+			// This shouldn't happen in normal flow, but handle it
+			gameState.MoveHistory = append(gameState.MoveHistory, req.LastMove)
+		}
+	} else {
+		log.Printf("No lastMove provided - this is normal for engine vs engine or first move")
+	}
+
 	// Parse the FEN position
 	fen, err := chess.FEN(req.FEN)
 	if err != nil {
@@ -71,6 +97,10 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game := chess.NewGame(fen)
+	
+	// Log the current state for debugging
+	log.Printf("Computer move request: FEN=%s, Turn in FEN=%v, GameState.IsWhiteTurn=%v", 
+		req.FEN, game.Position().Turn() == chess.White, gameState.IsWhiteTurn)
 
 	// Check if game is over
 	if game.Outcome() != chess.NoOutcome {
@@ -96,9 +126,23 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 	defer engine.Close()
 
+	// Get clock times and move history from game state
+	whiteTime, blackTime, _ := gameState.GetClockTimes()
+	whiteInc := gameState.TimeControl.Increment
+	blackInc := gameState.TimeControl.Increment
+	moveHistory := gameState.GetMoveHistory()
+	
 	// Get best move from engine (track time)
 	startTime := time.Now()
-	bestMoveUCI, err := engine.GetBestMove(req.FEN, moveTime)
+	var bestMoveUCI string
+	
+	// Use clock-based time management if time control is active (not unlimited)
+	if gameState.TimeControl.InitialTime > 0 {
+		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, moveHistory, whiteTime, blackTime, whiteInc, blackInc)
+	} else {
+		// Fallback to fixed time for unlimited games
+		bestMoveUCI, err = engine.GetBestMove(req.FEN, moveTime)
+	}
 	thinkTime := time.Since(startTime)
 	
 	if err != nil {
@@ -159,4 +203,91 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleSetTimeControl sets the time control for the game
+func (s *Server) handleSetTimeControl(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	var req ClockRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
+		return
+	}
+
+	gameState := GetGameState()
+	gameState.SetTimeControl(req.InitialMinutes, req.IncrementSeconds)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// handleGetClock returns the current clock state
+func (s *Server) handleGetClock(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	gameState := GetGameState()
+	whiteTime, blackTime, isWhiteTurn := gameState.GetClockTimes()
+
+	response := ClockResponse{
+		WhiteTimeLeft: int(whiteTime.Milliseconds()),
+		BlackTimeLeft: int(blackTime.Milliseconds()),
+		IsWhiteTurn:   isWhiteTurn,
+		ClockRunning:  gameState.ClockRunning,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleStartClock starts the chess clock
+func (s *Server) handleStartClock(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	gameState := GetGameState()
+	gameState.StartClock()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// handleGetMoveHistory returns the move history
+func (s *Server) handleGetMoveHistory(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	gameState := GetGameState()
+	history := gameState.GetMoveHistoryDisplay()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(history)
+}
+
+// handleReset resets the game state
+func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	gameState := GetGameState()
+	gameState.Reset()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
