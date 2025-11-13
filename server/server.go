@@ -2,6 +2,7 @@ package server
 
 import (
 	"embed"
+	"encoding/json"
 	"html/template"
 	"log"
 	"net/http"
@@ -27,20 +28,20 @@ func InitDebugLogging(filename string) error {
 	if err != nil {
 		return err
 	}
-	
+
 	// Log only to file to avoid breaking TUI layout
 	log.SetOutput(logFile)
 	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
-	
+
 	return nil
 }
 
-// New creates a new server instance
+// New creates a new chess server
 func New(addr string) *Server {
-	// Discover available chess engines
 	engines := DiscoverEngines()
-	if len(engines) == 0 {
-		log.Println("Warning: No UCI chess engines found")
+	log.Printf("Discovered %d chess engines", len(engines))
+	for _, engine := range engines {
+		log.Printf("  - %s (%s)", engine.Name, engine.Path)
 	}
 	
 	return &Server{
@@ -49,24 +50,24 @@ func New(addr string) *Server {
 	}
 }
 
+// GetEngines returns the list of discovered engines
+func (s *Server) GetEngines() []EngineInfo {
+	return s.engines
+}
+
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	// Serve static assets
 	http.Handle("/assets/", http.FileServer(http.FS(assetsFS)))
-	
+
 	// API endpoints
 	http.HandleFunc("/api/computer-move", s.handleComputerMove)
-	http.HandleFunc("/api/stats", s.handleStats)
 	http.HandleFunc("/api/analysis", s.handleAnalysisWebSocket)
-	http.HandleFunc("/api/clock/set", s.handleSetTimeControl)
-	http.HandleFunc("/api/clock/get", s.handleGetClock)
-	http.HandleFunc("/api/clock/start", s.handleStartClock)
-	http.HandleFunc("/api/move-history", s.handleGetMoveHistory)
-	http.HandleFunc("/api/reset", s.handleReset)
-	
+	http.HandleFunc("/api/engines", s.handleGetEngines)
+
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)
-	
+
 	log.Printf("Server starting on %s", s.addr)
 	return http.ListenAndServe(s.addr, nil)
 }
@@ -79,7 +80,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Template error: %v", err)
 		return
 	}
-	
+
 	// Pass engines and cache buster to template
 	data := struct {
 		Engines     []EngineInfo
@@ -88,11 +89,24 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 		Engines:     s.engines,
 		CacheBuster: time.Now().UnixNano(),
 	}
-	
+
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
 		log.Printf("Render error: %v", err)
 	}
+}
+
+// handleGetEngines returns the list of discovered engines with their capabilities
+func (s *Server) handleGetEngines(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	engines := s.engines
+	if engines == nil {
+		engines = []EngineInfo{}
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(engines)
 }
 
 // GetAddr returns the server address

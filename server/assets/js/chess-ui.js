@@ -6,7 +6,6 @@ var game = new Chess();
 var isComputerThinking = false;
 var lastMoveSquares = { from: null, to: null };
 var squareClass = 'square-55d63';
-var lastPlayerMove = ''; // Track last move in UCI notation
 
 // Analysis WebSocket connections
 var whiteAnalysisWs = null;
@@ -14,12 +13,84 @@ var blackAnalysisWs = null;
 var whiteAnalysisActive = false;
 var blackAnalysisActive = false;
 
-// Chess Clock variables
-var clockInterval = null;
-var clockRunning = false;
-var whiteTimeMs = 300000; // 5 minutes in milliseconds
-var blackTimeMs = 300000;
-var currentTimeControl = { initial: 5, increment: 5 };
+// -------------------------------------------------------------------------
+// Game State Management (Client-side)
+// -------------------------------------------------------------------------
+
+var gameState = {
+    moveHistory: [],           // UCI move list (e.g., ["e2e4", "e7e5"])
+    moveHistoryDisplay: [],    // Formatted for display
+    whiteTimeMs: 300000,       // 5 minutes default
+    blackTimeMs: 300000,
+    timeControl: {
+        initial: 5,            // minutes
+        increment: 5           // seconds
+    },
+    clockRunning: false,
+    clockInterval: null,
+    lastClockUpdate: null,
+    gameStartTime: Date.now(),
+    whiteMoves: 0,
+    blackMoves: 0
+};
+
+// Save game state to localStorage
+function saveGameState() {
+    try {
+        localStorage.setItem('chessGameState', JSON.stringify({
+            fen: game.fen(),
+            moveHistory: gameState.moveHistory,
+            moveHistoryDisplay: gameState.moveHistoryDisplay,
+            whiteTimeMs: gameState.whiteTimeMs,
+            blackTimeMs: gameState.blackTimeMs,
+            timeControl: gameState.timeControl,
+            clockRunning: gameState.clockRunning,
+            gameStartTime: gameState.gameStartTime
+        }));
+    } catch (e) {
+        console.error('Failed to save game state:', e);
+    }
+}
+
+// Load game state from localStorage
+function loadGameState() {
+    try {
+        const saved = localStorage.getItem('chessGameState');
+        if (saved) {
+            const state = JSON.parse(saved);
+            game.load(state.fen);
+            board.position(state.fen);
+            gameState.moveHistory = state.moveHistory || [];
+            gameState.moveHistoryDisplay = state.moveHistoryDisplay || [];
+            gameState.whiteTimeMs = state.whiteTimeMs || 300000;
+            gameState.blackTimeMs = state.blackTimeMs || 300000;
+            gameState.timeControl = state.timeControl || { initial: 5, increment: 5 };
+            gameState.clockRunning = state.clockRunning || false;
+            gameState.gameStartTime = state.gameStartTime || Date.now();
+            updateMoveHistoryDisplay();
+            updateClockDisplay();
+            
+            // Restart clock if it was running
+            if (gameState.clockRunning) {
+                startClockInterval();
+            }
+            
+            return true;
+        }
+    } catch (e) {
+        console.error('Failed to load game state:', e);
+    }
+    return false;
+}
+
+// Clear saved game state
+function clearGameState() {
+    try {
+        localStorage.removeItem('chessGameState');
+    } catch (e) {
+        console.error('Failed to clear game state:', e);
+    }
+}
 
 // -------------------------------------------------------------------------
 // Last Move Highlighting
@@ -68,6 +139,15 @@ function updateInfoText() {
     const blackPlayer = getBlackPlayer();
     const infoDiv = document.getElementById('gameInfo');
     
+    // Hide info text after first move to save space
+    if (gameState.moveHistory.length > 0) {
+        infoDiv.style.display = 'none';
+        // Update player controls visibility
+        updatePlayerControls();
+        return;
+    }
+    
+    infoDiv.style.display = 'block';
     const whiteName = getPlayerName(whitePlayer);
     const blackName = getPlayerName(blackPlayer);
     
@@ -79,6 +159,26 @@ function updateInfoText() {
         infoDiv.textContent = `You play as White vs ${blackName}. Make your move!`;
     } else {
         infoDiv.textContent = `You play as Black vs ${whiteName}. Make your move!`;
+    }
+    
+    // Update player controls visibility
+    updatePlayerControls();
+}
+
+function updatePlayerControls() {
+    const whitePlayer = getWhitePlayer();
+    const blackPlayer = getBlackPlayer();
+    
+    // Show/hide white player controls
+    const whiteControls = document.getElementById('whitePlayerControls');
+    if (whiteControls) {
+        whiteControls.style.display = isHuman(whitePlayer) ? 'block' : 'none';
+    }
+    
+    // Show/hide black player controls
+    const blackControls = document.getElementById('blackPlayerControls');
+    if (blackControls) {
+        blackControls.style.display = isHuman(blackPlayer) ? 'block' : 'none';
     }
 }
 
@@ -111,26 +211,46 @@ function onDrop(source, target) {
 
     highlightLastMove(source, target);
     
-    // Track the move in UCI notation
-    lastPlayerMove = source + target;
+    // Track the move in UCI notation and add to history
+    var uciMove = source + target;
     if (move.promotion) {
-        lastPlayerMove += move.promotion;
+        uciMove += move.promotion;
+    }
+    gameState.moveHistory.push(uciMove);
+    
+    // Update move history display
+    var isWhiteMove = move.color === 'w';
+    if (isWhiteMove) {
+        gameState.moveHistoryDisplay.push({
+            moveNumber: Math.floor(gameState.moveHistory.length / 2) + 1,
+            white: uciMove,
+            black: ''
+        });
+    } else {
+        if (gameState.moveHistoryDisplay.length > 0) {
+            gameState.moveHistoryDisplay[gameState.moveHistoryDisplay.length - 1].black = uciMove;
+        }
     }
     
-    // Start clock on first move
-    if (!clockRunning && currentTimeControl.initial > 0) {
+    // Auto-start clock on first move if not already running
+    if (!gameState.clockRunning && gameState.timeControl.initial > 0 && gameState.moveHistory.length === 1) {
         startClock();
     }
     
-    // Add increment to the player who just moved
-    if (clockRunning) {
-        var wasWhiteTurn = move.color === 'w';
-        addIncrement(wasWhiteTurn);
+    // Add increment to the player who just moved (only if clock is running)
+    if (gameState.clockRunning) {
+        if (isWhiteMove) {
+            gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
+        } else {
+            gameState.blackTimeMs += gameState.timeControl.increment * 1000;
+        }
         updateClockDisplay();
     }
 
-    // Update move history display
-    updateMoveHistory();
+    // Update display
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    saveGameState();
 
     // Clear arrow and update analyses with new position
     board.clearArrow();
@@ -177,22 +297,40 @@ async function makeComputerMove() {
         console.log('Game over');
         return;
     }
+    
+    // Don't make computer moves if clock is paused (game is paused)
+    // Exception: Allow first move even if clock not started yet
+    if (!gameState.clockRunning && gameState.moveHistory.length > 0) {
+        console.log('Game is paused - computer waiting');
+        return;
+    }
 
     isComputerThinking = true;
     var fen = game.fen();
+    var isWhiteTurn = game.turn() === 'w';
     
     try {
         console.log('Making move with engine:', currentPlayer);
+        
+        // Build request with all game state
+        const requestBody = {
+            fen: fen,
+            moves: gameState.moveHistory,
+            enginePath: currentPlayer,
+            moveTime: 0, // Use clock-based if available
+            whiteTime: gameState.whiteTimeMs,
+            blackTime: gameState.blackTimeMs,
+            whiteIncrement: gameState.timeControl.increment * 1000,
+            blackIncrement: gameState.timeControl.increment * 1000,
+            engineOptions: {} // Can add ELO settings here later
+        };
+        
         const response = await fetch('/api/computer-move', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ 
-                fen: fen,
-                enginePath: currentPlayer,
-                lastMove: lastPlayerMove
-            })
+            body: JSON.stringify(requestBody)
         });
 
         const data = await response.json();
@@ -204,8 +342,27 @@ async function makeComputerMove() {
             return;
         }
 
-        console.log('Applying move:', data.move);
+        console.log('Applying move:', data.move, 'think time:', data.thinkTime, 'ms');
         
+        // Update move history
+        gameState.moveHistory.push(data.move);
+        
+        // Update move history display
+        if (isWhiteTurn) {
+            // White's move - create new entry
+            gameState.moveHistoryDisplay.push({
+                moveNumber: Math.floor(gameState.moveHistory.length / 2) + 1,
+                white: data.move,
+                black: ''
+            });
+        } else {
+            // Black's move - complete last entry
+            if (gameState.moveHistoryDisplay.length > 0) {
+                gameState.moveHistoryDisplay[gameState.moveHistoryDisplay.length - 1].black = data.move;
+            }
+        }
+        
+        // Highlight move
         var moveStr = data.move;
         if (moveStr && moveStr.length >= 4) {
             var from = moveStr.substring(0, 2);
@@ -213,18 +370,32 @@ async function makeComputerMove() {
             highlightLastMove(from, to);
         }
         
+        // Apply move to board
         game.load(data.fen);
         board.position(game.fen());
         
-        // Add increment for computer's move
-        if (clockRunning) {
-            var wasBlackTurn = game.turn() === 'w'; // After move, turn switches
-            addIncrement(wasBlackTurn);
+        // Auto-start clock on first move if not already running
+        if (!gameState.clockRunning && gameState.timeControl.initial > 0 && gameState.moveHistory.length === 1) {
+            startClock();
+        }
+        
+        // Update clock (only if running)
+        if (gameState.clockRunning) {
+            // Deduct time spent thinking
+            if (isWhiteTurn) {
+                gameState.whiteTimeMs -= data.thinkTime;
+                gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
+            } else {
+                gameState.blackTimeMs -= data.thinkTime;
+                gameState.blackTimeMs += gameState.timeControl.increment * 1000;
+            }
             updateClockDisplay();
         }
         
-        // Update move history
-        updateMoveHistory();
+        // Update display
+        updateMoveHistoryDisplay();
+        updateInfoText();
+        saveGameState();
         
         isComputerThinking = false;
         window.setTimeout(checkForComputerMove, 250);
@@ -266,59 +437,125 @@ makeComputerMove = async function() {
 };
 
 // -------------------------------------------------------------------------
-// Move History Update
+// Move History Update (Client-side)
 // -------------------------------------------------------------------------
 
-async function updateMoveHistory() {
-    try {
-        const response = await fetch('/api/move-history');
-        const history = await response.json();
-        
-        const listEl = document.getElementById('moveHistoryList');
-        
-        if (!history || history.length === 0) {
-            listEl.innerHTML = '<div class="move-history-empty">No moves yet</div>';
-            return;
-        }
-        
-        let html = '';
-        history.forEach(function(entry) {
-            html += '<div class="move-pair">';
-            html += '<div class="move-number">' + entry.moveNumber + '.</div>';
-            html += '<div class="move-white">' + (entry.white || '') + '</div>';
-            html += '<div class="move-black">' + (entry.black || '') + '</div>';
-            html += '</div>';
-        });
-        
-        listEl.innerHTML = html;
-        
-        // Auto-scroll to bottom
-        listEl.scrollTop = listEl.scrollHeight;
-    } catch (error) {
-        console.error('Error fetching move history:', error);
+function updateMoveHistoryDisplay() {
+    const listEl = document.getElementById('moveHistoryList');
+    
+    if (!gameState.moveHistoryDisplay || gameState.moveHistoryDisplay.length === 0) {
+        listEl.innerHTML = '<div class="move-history-empty">No moves yet</div>';
+        return;
     }
+    
+    let html = '';
+    gameState.moveHistoryDisplay.forEach(function(entry) {
+        html += '<div class="move-pair">';
+        html += '<div class="move-number">' + entry.moveNumber + '.</div>';
+        html += '<div class="move-white">' + (entry.white || '') + '</div>';
+        html += '<div class="move-black">' + (entry.black || '') + '</div>';
+        html += '</div>';
+    });
+    
+    listEl.innerHTML = html;
+    
+    // Auto-scroll to bottom
+    listEl.scrollTop = listEl.scrollHeight;
 }
 
 // -------------------------------------------------------------------------
 // Game Control Functions
 // -------------------------------------------------------------------------
 
-async function newGame() {
-    try {
-        // Reset backend state
-        await fetch('/api/reset', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-        
-        // Reload the page to reset frontend
-        location.reload();
-    } catch (error) {
-        console.error('Error resetting game:', error);
-        // Fallback to just reloading
-        location.reload();
+function newGame() {
+    // Reset game state
+    game.reset();
+    board.position('start');
+    gameState.moveHistory = [];
+    gameState.moveHistoryDisplay = [];
+    gameState.whiteTimeMs = gameState.timeControl.initial * 60 * 1000;
+    gameState.blackTimeMs = gameState.timeControl.initial * 60 * 1000;
+    gameState.clockRunning = false;
+    gameState.gameStartTime = Date.now();
+    
+    // Stop clock if running
+    if (gameState.clockInterval) {
+        clearInterval(gameState.clockInterval);
+        gameState.clockInterval = null;
+    }
+    
+    // Clear highlights
+    clearLastMoveHighlight();
+    
+    // Update displays
+    updateMoveHistoryDisplay();
+    updateClockDisplay();
+    updateInfoText();
+    
+    // Clear saved state
+    clearGameState();
+    
+    // Update start/pause button
+    updateStartPauseButton();
+    
+    // Check if computer should move first
+    window.setTimeout(checkForComputerMove, 500);
+}
+
+// -------------------------------------------------------------------------
+// Clock Control Functions (FIDE Rules)
+// -------------------------------------------------------------------------
+
+function toggleClock() {
+    if (gameState.clockRunning) {
+        pauseClock();
+    } else {
+        startClock();
+    }
+}
+
+function pauseClock() {
+    stopClock();
+    updateStartPauseButton();
+    saveGameState();
+}
+
+function updateStartPauseButton() {
+    const btn = document.getElementById('startPauseBtn');
+    if (gameState.clockRunning) {
+        btn.textContent = '⏸️ Pause Game';
+        btn.style.background = '#ff9800';
+    } else {
+        btn.textContent = '▶️ Start Game';
+        btn.style.background = '#4caf50';
+    }
+}
+
+// -------------------------------------------------------------------------
+// Game Result Functions
+// -------------------------------------------------------------------------
+
+function resignWhite() {
+    if (confirm('White resigns. Black wins!')) {
+        stopClock();
+        alert('Game Over: Black wins by resignation');
+        // Optionally start a new game or disable moves
+    }
+}
+
+function resignBlack() {
+    if (confirm('Black resigns. White wins!')) {
+        stopClock();
+        alert('Game Over: White wins by resignation');
+        // Optionally start a new game or disable moves
+    }
+}
+
+function offerDraw() {
+    if (confirm('Offer a draw?')) {
+        stopClock();
+        alert('Game Over: Draw by agreement');
+        // Optionally start a new game
     }
 }
 
@@ -349,6 +586,7 @@ function restorePlayerSelections() {
 function savePlayerSelections() {
     localStorage.setItem('whitePlayer', document.getElementById('whitePlayer').value);
     localStorage.setItem('blackPlayer', document.getElementById('blackPlayer').value);
+    updatePlayerControls();
 }
 
 function flipBoard() {
@@ -574,14 +812,14 @@ function pad(num) {
 }
 
 function updateClockDisplay() {
-    document.getElementById('whiteClockTime').textContent = formatTime(whiteTimeMs);
-    document.getElementById('blackClockTime').textContent = formatTime(blackTimeMs);
+    document.getElementById('whiteClockTime').textContent = formatTime(gameState.whiteTimeMs);
+    document.getElementById('blackClockTime').textContent = formatTime(gameState.blackTimeMs);
     
-    // Update active clock styling (now using clock-compact class)
+    // Update active clock styling
     var whiteClock = document.getElementById('whiteClock');
     var blackClock = document.getElementById('blackClock');
     
-    if (clockRunning) {
+    if (gameState.clockRunning) {
         if (game.turn() === 'w') {
             whiteClock.classList.add('active');
             blackClock.classList.remove('active');
@@ -598,121 +836,82 @@ function updateClockDisplay() {
     whiteClock.classList.remove('time-low', 'time-critical');
     blackClock.classList.remove('time-low', 'time-critical');
     
-    if (whiteTimeMs < 60000 && whiteTimeMs > 10000) {
+    if (gameState.whiteTimeMs < 60000 && gameState.whiteTimeMs > 10000) {
         whiteClock.classList.add('time-low');
-    } else if (whiteTimeMs <= 10000) {
+    } else if (gameState.whiteTimeMs <= 10000) {
         whiteClock.classList.add('time-critical');
     }
     
-    if (blackTimeMs < 60000 && blackTimeMs > 10000) {
+    if (gameState.blackTimeMs < 60000 && gameState.blackTimeMs > 10000) {
         blackClock.classList.add('time-low');
-    } else if (blackTimeMs <= 10000) {
+    } else if (gameState.blackTimeMs <= 10000) {
         blackClock.classList.add('time-critical');
     }
     
     // Check for time out
-    if (whiteTimeMs <= 0) {
+    if (gameState.whiteTimeMs <= 0) {
         stopClock();
         alert('Time out! Black wins!');
-    } else if (blackTimeMs <= 0) {
+    } else if (gameState.blackTimeMs <= 0) {
         stopClock();
         alert('Time out! White wins!');
     }
 }
 
 function startClockInterval() {
-    if (clockInterval) return; // Already running
+    if (gameState.clockInterval) return; // Already running
+    
+    gameState.lastClockUpdate = Date.now();
     
     // Start the interval
-    clockInterval = setInterval(function() {
-        var elapsed = 100; // 100ms
+    gameState.clockInterval = setInterval(function() {
+        var now = Date.now();
+        var elapsed = now - gameState.lastClockUpdate;
+        gameState.lastClockUpdate = now;
         
         if (game.turn() === 'w') {
-            whiteTimeMs -= elapsed;
+            gameState.whiteTimeMs -= elapsed;
         } else {
-            blackTimeMs -= elapsed;
+            gameState.blackTimeMs -= elapsed;
         }
         
         updateClockDisplay();
+        saveGameState();
     }, 100); // Update every 100ms for smooth display
 }
 
 function startClock() {
-    if (clockRunning) return; // Already running
+    if (gameState.clockRunning) return; // Already running
     
-    clockRunning = true;
-    
-    // Notify server
-    fetch('/api/clock/start', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        }
-    }).catch(err => console.error('Error starting clock:', err));
-    
+    gameState.clockRunning = true;
     startClockInterval();
+    updateClockDisplay();
+    updateStartPauseButton();
+    saveGameState();
+    
+    // Resume computer play if it's a computer's turn
+    window.setTimeout(checkForComputerMove, 250);
 }
 
 function stopClock() {
-    if (!clockRunning) return;
+    if (!gameState.clockRunning) return;
     
-    clockRunning = false;
-    if (clockInterval) {
-        clearInterval(clockInterval);
-        clockInterval = null;
+    gameState.clockRunning = false;
+    if (gameState.clockInterval) {
+        clearInterval(gameState.clockInterval);
+        gameState.clockInterval = null;
     }
     updateClockDisplay();
-}
-
-function addIncrement(isWhite) {
-    var incrementMs = currentTimeControl.increment * 1000;
-    if (isWhite) {
-        whiteTimeMs += incrementMs;
-    } else {
-        blackTimeMs += incrementMs;
-    }
+    saveGameState();
 }
 
 function setTimeControl(initialMinutes, incrementSeconds) {
-    currentTimeControl = { initial: initialMinutes, increment: incrementSeconds };
-    whiteTimeMs = initialMinutes * 60 * 1000;
-    blackTimeMs = initialMinutes * 60 * 1000;
-    
-    // Send to backend
-    fetch('/api/clock/set', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            initialMinutes: initialMinutes,
-            incrementSeconds: incrementSeconds
-        })
-    }).catch(err => console.error('Error setting time control:', err));
-    
+    gameState.timeControl = { initial: initialMinutes, increment: incrementSeconds };
+    gameState.whiteTimeMs = initialMinutes * 60 * 1000;
+    gameState.blackTimeMs = initialMinutes * 60 * 1000;
+    stopClock();
     updateClockDisplay();
-}
-
-function syncClockWithServer() {
-    fetch('/api/clock/get')
-        .then(response => response.json())
-        .then(data => {
-            whiteTimeMs = data.whiteTimeLeft;
-            blackTimeMs = data.blackTimeLeft;
-            
-            // Sync clock running state
-            if (data.clockRunning && !clockRunning) {
-                // Backend started the clock, start frontend too
-                clockRunning = true;
-                startClockInterval();
-            } else if (!data.clockRunning && clockRunning) {
-                // Backend stopped the clock
-                stopClock();
-            }
-            
-            updateClockDisplay();
-        })
-        .catch(err => console.error('Error syncing clock:', err));
+    saveGameState();
 }
 
 // -------------------------------------------------------------------------
@@ -737,10 +936,6 @@ $(document).ready(function() {
     $(window).resize(function() {
         board.resize();
     });
-    
-    // Update move history every 2 seconds
-    setInterval(updateMoveHistory, 2000);
-    updateMoveHistory();
     
     // Player selection event handlers
     document.getElementById('whitePlayer').addEventListener('change', function() {
@@ -782,12 +977,18 @@ $(document).ready(function() {
     
     // Initialize
     restorePlayerSelections();
+    
+    // Try to load saved game state
+    var loaded = loadGameState();
+    if (!loaded) {
+        // No saved state, start fresh
+        updateMoveHistoryDisplay();
+        updateClockDisplay();
+    }
+    
     updateInfoText();
-    updateClockDisplay();
+    updateStartPauseButton();
     
-    // Sync clock with server periodically (every 2 seconds)
-    setInterval(syncClockWithServer, 2000);
-    syncClockWithServer(); // Initial sync
-    
+    // Check if computer should move
     window.setTimeout(checkForComputerMove, 500);
 });
