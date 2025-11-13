@@ -42,6 +42,7 @@ func (s *Server) Start() error {
 	// API endpoints
 	http.HandleFunc("/api/computer-move", s.handleComputerMove)
 	http.HandleFunc("/api/stats", s.handleStats)
+	http.HandleFunc("/api/analysis", s.handleAnalysisWebSocket)
 	
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)

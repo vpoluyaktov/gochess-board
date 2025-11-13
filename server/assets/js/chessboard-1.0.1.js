@@ -7,7 +7,12 @@
 //
 // -------------------------------------------------------------
 // v1.0.1 (modified by https://github.com/vpoluyaktov)
-// Modified to add click-to-select and click-to-move functionality
+// Modifications:
+// - Added click-to-select and click-to-move functionality
+// - Added SVG arrow drawing for engine analysis visualization
+//   - board.drawArrow(from, to, color) - Draw arrow between squares
+//   - board.clearArrow() - Remove arrow
+//   - board.getArrow() - Get current arrow info
 
 // start anonymous scope
 ;(function () {
@@ -1586,6 +1591,189 @@
     // set the starting position
     widget.start = function (useAnimation) {
       widget.position('start', useAnimation)
+    }
+
+    // -------------------------------------------------------------------------
+    // Arrow Drawing (v1.0.1 addition)
+    // -------------------------------------------------------------------------
+
+    var $arrowSvg = null
+    var currentArrow = null
+
+    function initArrowSvg () {
+      if ($arrowSvg) return
+
+      // Create SVG overlay
+      var svgId = 'arrow-svg-' + uuid()
+      var markerId = 'arrowhead-' + uuid()
+      var svgHTML = '<svg id="' + svgId + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100 !important; overflow: visible;">' +
+        '<defs>' +
+        '<marker id="' + markerId + '" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">' +
+        '<polygon points="0 0, 10 3, 0 6" fill="rgba(50, 150, 255, 0.8)" />' +
+        '</marker>' +
+        '</defs>' +
+        '</svg>'
+      
+      // Ensure container has position relative
+      if ($container.css('position') === 'static') {
+        $container.css('position', 'relative')
+      }
+      
+      // Get board position and size for SVG positioning
+      var boardOffset = $board.position()
+      var boardWidth = $board.width()
+      var boardHeight = $board.height()
+      
+      // Create SVG using DOM methods with proper namespace
+      var svgNS = 'http://www.w3.org/2000/svg'
+      var svg = document.createElementNS(svgNS, 'svg')
+      svg.setAttribute('id', svgId)
+      svg.setAttribute('width', boardWidth)
+      svg.setAttribute('height', boardHeight)
+      svg.style.position = 'absolute'
+      svg.style.top = boardOffset.top + 'px'
+      svg.style.left = boardOffset.left + 'px'
+      svg.style.pointerEvents = 'none'
+      svg.style.zIndex = '9999'  // Very high z-index
+      svg.style.overflow = 'visible'
+      
+      // Create defs with two markers - one for each color
+      var defs = document.createElementNS(svgNS, 'defs')
+      
+      // Blue marker for White
+      var blueMarkerId = 'arrowhead-blue-' + uuid()
+      var blueMarker = document.createElementNS(svgNS, 'marker')
+      blueMarker.setAttribute('id', blueMarkerId)
+      blueMarker.setAttribute('markerWidth', '4')
+      blueMarker.setAttribute('markerHeight', '4')
+      blueMarker.setAttribute('refX', '3.5')
+      blueMarker.setAttribute('refY', '1.5')
+      blueMarker.setAttribute('orient', 'auto')
+      blueMarker.setAttribute('markerUnits', 'strokeWidth')
+      
+      var bluePolygon = document.createElementNS(svgNS, 'polygon')
+      bluePolygon.setAttribute('points', '0 0, 4 1.5, 0 3')
+      bluePolygon.setAttribute('fill', '#3296FF')
+      bluePolygon.setAttribute('fill-opacity', '0.8')
+      
+      blueMarker.appendChild(bluePolygon)
+      defs.appendChild(blueMarker)
+      
+      // Red marker for Black
+      var redMarkerId = 'arrowhead-red-' + uuid()
+      var redMarker = document.createElementNS(svgNS, 'marker')
+      redMarker.setAttribute('id', redMarkerId)
+      redMarker.setAttribute('markerWidth', '4')
+      redMarker.setAttribute('markerHeight', '4')
+      redMarker.setAttribute('refX', '3.5')
+      redMarker.setAttribute('refY', '1.5')
+      redMarker.setAttribute('orient', 'auto')
+      redMarker.setAttribute('markerUnits', 'strokeWidth')
+      
+      var redPolygon = document.createElementNS(svgNS, 'polygon')
+      redPolygon.setAttribute('points', '0 0, 4 1.5, 0 3')
+      redPolygon.setAttribute('fill', '#FF6B6B')
+      redPolygon.setAttribute('fill-opacity', '0.8')
+      
+      redMarker.appendChild(redPolygon)
+      defs.appendChild(redMarker)
+      
+      svg.appendChild(defs)
+      
+      $container[0].appendChild(svg)
+      $arrowSvg = $('#' + svgId)
+      $arrowSvg.data('blueMarkerId', blueMarkerId)
+      $arrowSvg.data('redMarkerId', redMarkerId)
+      
+      console.log('SVG element created successfully')
+      console.log('SVG dimensions:', svg.getAttribute('width'), 'x', svg.getAttribute('height'))
+      console.log('SVG bounding rect:', svg.getBoundingClientRect())
+    }
+
+    function getSquareCenter (square) {
+      var squareEl = $('#' + squareElsIds[square])
+      if (!squareEl.length) return null
+
+      var offset = squareEl.position()
+      return {
+        x: offset.left + squareSize / 2,
+        y: offset.top + squareSize / 2
+      }
+    }
+
+    widget.drawArrow = function (fromSquare, toSquare, color) {
+      if (!validSquare(fromSquare) || !validSquare(toSquare)) {
+        return
+      }
+
+      initArrowSvg()
+
+      var from = getSquareCenter(fromSquare)
+      var to = getSquareCenter(toSquare)
+
+      if (!from || !to) {
+        return
+      }
+
+      // Calculate arrow direction - start from center, shorten only at end for arrowhead
+      var dx = to.x - from.x
+      var dy = to.y - from.y
+      var length = Math.sqrt(dx * dx + dy * dy)
+      
+      var unitX = dx / length
+      var unitY = dy / length
+      
+      // Start from center of source square
+      var startX = from.x
+      var startY = from.y
+      
+      // End slightly before center of destination square to make room for arrowhead
+      var shortenEnd = squareSize * 0.15
+      var endX = to.x - unitX * shortenEnd
+      var endY = to.y - unitY * shortenEnd
+
+      // Remove old arrow lines
+      $arrowSvg.find('line').remove()
+
+      // Default color - solid blue
+      if (!color) color = '#3296FF'
+
+      // Get the correct marker ID based on color
+      var markerId
+      if (color === '#FF6B6B' || color.toLowerCase().includes('red')) {
+        markerId = $arrowSvg.data('redMarkerId')
+      } else {
+        markerId = $arrowSvg.data('blueMarkerId')
+      }
+
+      // Draw new arrow using proper SVG namespace
+      var strokeWidth = squareSize * 0.12  // Slightly thinner
+      var svgNS = 'http://www.w3.org/2000/svg'
+      var line = document.createElementNS(svgNS, 'line')
+      line.setAttribute('x1', startX)
+      line.setAttribute('y1', startY)
+      line.setAttribute('x2', endX)
+      line.setAttribute('y2', endY)
+      line.setAttribute('stroke', color)
+      line.setAttribute('stroke-width', strokeWidth)
+      line.setAttribute('stroke-linecap', 'round')
+      line.setAttribute('opacity', '0.8')
+      line.setAttribute('marker-end', 'url(#' + markerId + ')')
+      
+      $arrowSvg[0].appendChild(line)
+      
+      currentArrow = { from: fromSquare, to: toSquare, color: color }
+    }
+
+    widget.clearArrow = function () {
+      if ($arrowSvg) {
+        $arrowSvg.find('line').remove()
+      }
+      currentArrow = null
+    }
+
+    widget.getArrow = function () {
+      return currentArrow
     }
 
     // -------------------------------------------------------------------------
