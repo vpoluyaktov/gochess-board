@@ -300,6 +300,29 @@ async function updateMoveHistory() {
 }
 
 // -------------------------------------------------------------------------
+// Game Control Functions
+// -------------------------------------------------------------------------
+
+async function newGame() {
+    try {
+        // Reset backend state
+        await fetch('/api/reset', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        // Reload the page to reset frontend
+        location.reload();
+    } catch (error) {
+        console.error('Error resetting game:', error);
+        // Fallback to just reloading
+        location.reload();
+    }
+}
+
+// -------------------------------------------------------------------------
 // Player Selection Management
 // -------------------------------------------------------------------------
 

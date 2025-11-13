@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log"
 	"sync"
 	"time"
 )
@@ -75,6 +76,7 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	if !gs.ClockRunning && gs.TimeControl.InitialTime > 0 && gs.MovesPlayed == 0 {
 		gs.ClockRunning = true
 		gs.CurrentTurnStart = time.Now()
+		log.Printf("Auto-started clock on first move")
 	}
 	
 	// Update chess clock

@@ -270,3 +270,20 @@ func (s *Server) handleGetMoveHistory(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(history)
 }
+
+// handleReset resets the game state
+func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	gameState := GetGameState()
+	gameState.Reset()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
