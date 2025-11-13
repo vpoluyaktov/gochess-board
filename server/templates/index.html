@@ -38,81 +38,92 @@
             </select>
         </div>
         
-        <!-- Black Player (Top) -->
-        <div class="player-info top-player">
-            <select id="blackPlayer" class="player-select">
-                <option value="human">Human</option>
-                {{range .Engines}}
-                <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
-                {{end}}
-            </select>
-            <div class="clock-compact" id="blackClock">
-                <div class="clock-time" id="blackClockTime">5:00</div>
+        <!-- Main Game Area: Board + Sidebar -->
+        <div class="game-layout">
+            <!-- Left: Board Area -->
+            <div class="board-area">
+                <!-- Black Player (Top) -->
+                <div class="player-info top-player">
+                    <select id="blackPlayer" class="player-select">
+                        <option value="human">Human</option>
+                        {{range .Engines}}
+                        <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                        {{end}}
+                    </select>
+                    <div class="clock-compact" id="blackClock">
+                        <div class="clock-time" id="blackClockTime">5:00</div>
+                    </div>
+                </div>
+                
+                <div id="myBoard"></div>
+                
+                <!-- White Player (Bottom) -->
+                <div class="player-info bottom-player">
+                    <select id="whitePlayer" class="player-select">
+                        <option value="human">Human</option>
+                        {{range .Engines}}
+                        <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                        {{end}}
+                    </select>
+                    <div class="clock-compact" id="whiteClock">
+                        <div class="clock-time" id="whiteClockTime">5:00</div>
+                    </div>
+                </div>
             </div>
-        </div>
-        
-        <div id="myBoard"></div>
-        
-        <!-- White Player (Bottom) -->
-        <div class="player-info bottom-player">
-            <select id="whitePlayer" class="player-select">
-                <option value="human">Human</option>
-                {{range .Engines}}
-                <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
-                {{end}}
-            </select>
-            <div class="clock-compact" id="whiteClock">
-                <div class="clock-time" id="whiteClockTime">5:00</div>
-            </div>
-        </div>
-        
-        <div class="controls">
-            <button onclick="location.reload()">New Game</button>
-            <button onclick="flipBoard()">Flip Board</button>
-            <button id="whiteAnalysisToggle" onclick="toggleWhiteAnalysis()">White Analysis</button>
-            <button id="blackAnalysisToggle" onclick="toggleBlackAnalysis()">Black Analysis</button>
-        </div>
-        
-        <div id="whiteAnalysisInfo" class="info" style="display: none; background: #e3f2fd;">
-            <strong>⚪ White Analysis:</strong> <span id="whiteAnalysisDepth">-</span> depth | 
-            <span id="whiteAnalysisScore">-</span> | 
-            <span id="whiteAnalysisNodes">-</span> nodes
-        </div>
-        
-        <div id="blackAnalysisInfo" class="info" style="display: none; background: #f3e5f5;">
-            <strong>⚫ Black Analysis:</strong> <span id="blackAnalysisDepth">-</span> depth | 
-            <span id="blackAnalysisScore">-</span> | 
-            <span id="blackAnalysisNodes">-</span> nodes
-        </div>
-        
-        <div class="info" id="gameInfo">
-            You play as White vs Stockfish AI. Make your move!
-        </div>
-        
-        <div class="stats">
-            <div class="stat-item">
-                <span class="stat-label">⚪ White Moves:</span>
-                <span class="stat-value" id="whiteMoves">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">⚫ Black Moves:</span>
-                <span class="stat-value" id="blackMoves">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">⚪ White Time:</span>
-                <span class="stat-value" id="whiteTime">0s</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">⚫ Black Time:</span>
-                <span class="stat-value" id="blackTime">0s</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">📊 Total Moves:</span>
-                <span class="stat-value" id="totalMoves">0</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">⏱️ Game Duration:</span>
-                <span class="stat-value" id="gameDuration">0s</span>
+            
+            <!-- Right: Controls & Stats Sidebar -->
+            <div class="sidebar">
+                <div class="controls">
+                    <button onclick="location.reload()">New Game</button>
+                    <button onclick="flipBoard()">Flip Board</button>
+                    <button id="whiteAnalysisToggle" onclick="toggleWhiteAnalysis()">⚪ Analysis</button>
+                    <button id="blackAnalysisToggle" onclick="toggleBlackAnalysis()">⚫ Analysis</button>
+                </div>
+                
+                <div id="whiteAnalysisInfo" class="info" style="display: none; background: #e3f2fd;">
+                    <strong>⚪ White Analysis:</strong><br>
+                    <span id="whiteAnalysisDepth">-</span> depth | 
+                    <span id="whiteAnalysisScore">-</span><br>
+                    <span id="whiteAnalysisNodes">-</span> nodes
+                </div>
+                
+                <div id="blackAnalysisInfo" class="info" style="display: none; background: #f3e5f5;">
+                    <strong>⚫ Black Analysis:</strong><br>
+                    <span id="blackAnalysisDepth">-</span> depth | 
+                    <span id="blackAnalysisScore">-</span><br>
+                    <span id="blackAnalysisNodes">-</span> nodes
+                </div>
+                
+                <div class="info" id="gameInfo">
+                    Make your move!
+                </div>
+                
+                <div class="stats">
+                    <div class="stat-item">
+                        <span class="stat-label">⚪ White:</span>
+                        <span class="stat-value" id="whiteMoves">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">⚫ Black:</span>
+                        <span class="stat-value" id="blackMoves">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">📊 Total:</span>
+                        <span class="stat-value" id="totalMoves">0</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">⏱️ Duration:</span>
+                        <span class="stat-value" id="gameDuration">0s</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">⚪ Time:</span>
+                        <span class="stat-value" id="whiteTime">0s</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">⚫ Time:</span>
+                        <span class="stat-value" id="blackTime">0s</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
