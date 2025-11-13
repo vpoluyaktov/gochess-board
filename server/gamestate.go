@@ -71,6 +71,8 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	defer gs.mu.Unlock()
 	
 	isWhiteMove := gs.IsWhiteTurn
+	log.Printf("UpdateMove called: move=%s, isWhiteMove=%v, MovesPlayed=%d, HistoryLen=%d", 
+		move, isWhiteMove, gs.MovesPlayed, len(gs.MoveHistory))
 	
 	// Auto-start clock on first move if time control is active
 	if !gs.ClockRunning && gs.TimeControl.InitialTime > 0 && gs.MovesPlayed == 0 {

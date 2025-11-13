@@ -36,3 +36,4 @@ Thumbs.db
 *.001
 game.*
 log.*
+chess-debug.log

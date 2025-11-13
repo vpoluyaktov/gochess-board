@@ -97,6 +97,10 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	game := chess.NewGame(fen)
+	
+	// Log the current state for debugging
+	log.Printf("Computer move request: FEN=%s, Turn in FEN=%v, GameState.IsWhiteTurn=%v", 
+		req.FEN, game.Position().Turn() == chess.White, gameState.IsWhiteTurn)
 
 	// Check if game is over
 	if game.Outcome() != chess.NoOutcome {
