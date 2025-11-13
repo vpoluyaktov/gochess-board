@@ -102,6 +102,21 @@ func (e *UCIEngine) waitForResponse(expected string, timeout time.Duration) erro
 	return fmt.Errorf("timeout waiting for: %s", expected)
 }
 
+// SetOption sets a UCI option on the engine
+func (e *UCIEngine) SetOption(name, value string) error {
+	cmd := fmt.Sprintf("setoption name %s value %s", name, value)
+	if err := e.sendCommand(cmd); err != nil {
+		return err
+	}
+	
+	// Wait for engine to be ready after setting option
+	if err := e.sendCommand("isready"); err != nil {
+		return err
+	}
+	
+	return e.waitForResponse("readyok", 2*time.Second)
+}
+
 // GetBestMove gets the best move for the current position using fixed time
 func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, error) {
 	// Set position

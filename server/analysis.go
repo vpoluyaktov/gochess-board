@@ -145,9 +145,8 @@ func parseAnalysisInfo(line string) AnalysisInfo {
 		case "score":
 			if i+2 < len(parts) {
 				info.ScoreType = parts[i+1]
-				if parts[i+1] == "cp" {
-					fmt.Sscanf(parts[i+2], "%d", &info.Score)
-				} else if parts[i+1] == "mate" {
+				switch parts[i+1] {
+				case "cp", "mate":
 					fmt.Sscanf(parts[i+2], "%d", &info.Score)
 				}
 				i += 2
@@ -198,6 +197,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 	log.Println("Analysis WebSocket connected")
 
 	var engine *AnalysisEngine
+	var sessionID string
 	analysisChannel := make(chan AnalysisInfo, 10)
 
 	// Handle incoming messages
@@ -220,6 +220,10 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 			if engine != nil {
 				engine.StopAnalysis()
 				engine.Close()
+				// Unregister old engine
+				if sessionID != "" {
+					GlobalMonitor.UnregisterEngine(sessionID)
+				}
 			}
 
 			// Start new engine
@@ -235,11 +239,35 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 				continue
 			}
 
+			// Register analysis engine in monitor
+			sessionID = fmt.Sprintf("analysis-%s", time.Now().Format("20060102-150405.000000"))
+			engineName := "Unknown"
+			for _, e := range s.engines {
+				if e.Path == enginePath {
+					engineName = e.Name
+					break
+				}
+			}
+			
+			activeEngine := &ActiveEngine{
+				Name:           engineName + " (Analysis)",
+				Path:           enginePath,
+				ELO:            0, // Analysis engines run at full strength
+				WhiteTime:      0,
+				BlackTime:      0,
+				WhiteIncrement: 0,
+				BlackIncrement: 0,
+				StartTime:      time.Now(),
+				SessionID:      sessionID,
+			}
+			GlobalMonitor.RegisterEngine(sessionID, activeEngine)
+
 			// Start analysis
 			err = engine.StartAnalysis(msg.FEN, analysisChannel)
 			if err != nil {
 				log.Printf("Failed to start analysis: %v", err)
 				conn.WriteJSON(map[string]string{"error": err.Error()})
+				GlobalMonitor.UnregisterEngine(sessionID)
 				continue
 			}
 
@@ -271,6 +299,11 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 				engine.Close()
 				engine = nil
 			}
+			// Unregister analysis engine
+			if sessionID != "" {
+				GlobalMonitor.UnregisterEngine(sessionID)
+				sessionID = ""
+			}
 
 		case "update":
 			// Update position for analysis
@@ -286,6 +319,11 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 	if engine != nil {
 		engine.StopAnalysis()
 		engine.Close()
+	}
+	
+	// Unregister analysis engine
+	if sessionID != "" {
+		GlobalMonitor.UnregisterEngine(sessionID)
 	}
 
 	log.Println("Analysis WebSocket disconnected")

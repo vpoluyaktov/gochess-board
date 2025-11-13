@@ -57,7 +57,7 @@ func main() {
 		time.Sleep(1 * time.Second)
 		
 		// Run TUI (blocks until quit)
-		if err := tui.RunTUI(url); err != nil {
+		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor); err != nil {
 			log.Fatalf("TUI error: %v", err)
 		}
 	} else {

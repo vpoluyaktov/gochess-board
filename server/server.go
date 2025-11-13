@@ -36,18 +36,23 @@ func InitDebugLogging(filename string) error {
 	return nil
 }
 
-// New creates a new server instance
+// New creates a new chess server
 func New(addr string) *Server {
-	// Discover available chess engines
 	engines := DiscoverEngines()
-	if len(engines) == 0 {
-		log.Println("Warning: No UCI chess engines found")
+	log.Printf("Discovered %d chess engines", len(engines))
+	for _, engine := range engines {
+		log.Printf("  - %s (%s)", engine.Name, engine.Path)
 	}
-
+	
 	return &Server{
 		addr:    addr,
 		engines: engines,
 	}
+}
+
+// GetEngines returns the list of discovered engines
+func (s *Server) GetEngines() []EngineInfo {
+	return s.engines
 }
 
 // Start starts the HTTP server
@@ -57,13 +62,7 @@ func (s *Server) Start() error {
 
 	// API endpoints
 	http.HandleFunc("/api/computer-move", s.handleComputerMove)
-	http.HandleFunc("/api/stats", s.handleStats)
 	http.HandleFunc("/api/analysis", s.handleAnalysisWebSocket)
-	http.HandleFunc("/api/clock/set", s.handleSetTimeControl)
-	http.HandleFunc("/api/clock/get", s.handleGetClock)
-	http.HandleFunc("/api/clock/start", s.handleStartClock)
-	http.HandleFunc("/api/move-history", s.handleGetMoveHistory)
-	http.HandleFunc("/api/reset", s.handleReset)
 	http.HandleFunc("/api/engines", s.handleGetEngines)
 
 	// Serve main page

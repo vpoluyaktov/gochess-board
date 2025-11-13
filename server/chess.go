@@ -2,6 +2,7 @@ package server
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"time"
@@ -16,15 +17,22 @@ const (
 
 // MoveRequest represents a move request from the client
 type MoveRequest struct {
-	FEN        string `json:"fen"`
-	EnginePath string `json:"enginePath"` // Path to the chess engine to use
-	LastMove   string `json:"lastMove"`   // The player's last move in UCI notation (e.g., "e2e4")
+	FEN            string            `json:"fen"`
+	Moves          []string          `json:"moves"`          // Move history in UCI notation
+	EnginePath     string            `json:"enginePath"`     // Path to the chess engine to use
+	MoveTime       int               `json:"moveTime"`       // Time in milliseconds (0 = use clock-based)
+	WhiteTime      int               `json:"whiteTime"`      // White's remaining time in milliseconds
+	BlackTime      int               `json:"blackTime"`      // Black's remaining time in milliseconds
+	WhiteIncrement int               `json:"whiteIncrement"` // White's increment in milliseconds
+	BlackIncrement int               `json:"blackIncrement"` // Black's increment in milliseconds
+	EngineOptions  map[string]string `json:"engineOptions"`  // UCI engine options (e.g., UCI_Elo, UCI_LimitStrength)
 }
 
 // MoveResponse represents the server's move response
 type MoveResponse struct {
-	Move string `json:"move"`
-	FEN  string `json:"fen"`
+	Move      string `json:"move"`
+	FEN       string `json:"fen"`
+	ThinkTime int    `json:"thinkTime"` // Time engine spent thinking in milliseconds
 }
 
 // ErrorResponse represents an error response
@@ -32,31 +40,7 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-// StatsResponse represents game statistics
-type StatsResponse struct {
-	WhiteMoves    int    `json:"whiteMoves"`
-	BlackMoves    int    `json:"blackMoves"`
-	TotalMoves    int    `json:"totalMoves"`
-	WhiteTime     string `json:"whiteTime"`
-	BlackTime     string `json:"blackTime"`
-	GameDuration  string `json:"gameDuration"`
-}
-
-// ClockRequest represents a request to set time control
-type ClockRequest struct {
-	InitialMinutes   int `json:"initialMinutes"`
-	IncrementSeconds int `json:"incrementSeconds"`
-}
-
-// ClockResponse represents the current clock state
-type ClockResponse struct {
-	WhiteTimeLeft int  `json:"whiteTimeLeft"` // milliseconds
-	BlackTimeLeft int  `json:"blackTimeLeft"` // milliseconds
-	IsWhiteTurn   bool `json:"isWhiteTurn"`
-	ClockRunning  bool `json:"clockRunning"`
-}
-
-// handleComputerMove handles the computer move calculation
+// handleComputerMove handles the computer move calculation (stateless)
 func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
@@ -73,21 +57,6 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Track player's move in game state (if provided)
-	gameState := GetGameState()
-	if req.LastMove != "" {
-		log.Printf("Recording player move: %s (turn was: %v)", req.LastMove, gameState.IsWhiteTurn)
-		// Add the move to history based on current turn
-		if gameState.IsWhiteTurn {
-			gameState.IncrementRequests(req.LastMove)
-		} else {
-			// This shouldn't happen in normal flow, but handle it
-			gameState.MoveHistory = append(gameState.MoveHistory, req.LastMove)
-		}
-	} else {
-		log.Printf("No lastMove provided - this is normal for engine vs engine or first move")
-	}
-
 	// Parse the FEN position
 	fen, err := chess.FEN(req.FEN)
 	if err != nil {
@@ -98,9 +67,9 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 
 	game := chess.NewGame(fen)
 	
-	// Log the current state for debugging
-	log.Printf("Computer move request: FEN=%s, Turn in FEN=%v, GameState.IsWhiteTurn=%v", 
-		req.FEN, game.Position().Turn() == chess.White, gameState.IsWhiteTurn)
+	// Log the request for debugging
+	log.Printf("Computer move request: FEN=%s, Turn=%v, Moves=%d", 
+		req.FEN, game.Position().Turn(), len(req.Moves))
 
 	// Check if game is over
 	if game.Outcome() != chess.NoOutcome {
@@ -116,6 +85,43 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		enginePath = stockfishPath
 	}
 
+	// Generate session ID for tracking
+	sessionID := time.Now().Format("20060102-150405.000000")
+	
+	// Get engine name from discovered engines
+	engineName := "Unknown"
+	eloValue := 0
+	for _, e := range s.engines {
+		if e.Path == enginePath {
+			engineName = e.Name
+			break
+		}
+	}
+	
+	// Extract ELO from engine options
+	if eloStr, ok := req.EngineOptions["UCI_Elo"]; ok {
+		// Parse ELO as integer
+		var elo int
+		if _, err := fmt.Sscanf(eloStr, "%d", &elo); err == nil {
+			eloValue = elo
+		}
+	}
+	
+	// Register engine in monitor
+	activeEngine := &ActiveEngine{
+		Name:           engineName,
+		Path:           enginePath,
+		ELO:            eloValue,
+		WhiteTime:      req.WhiteTime,
+		BlackTime:      req.BlackTime,
+		WhiteIncrement: req.WhiteIncrement,
+		BlackIncrement: req.BlackIncrement,
+		StartTime:      time.Now(),
+		SessionID:      sessionID,
+	}
+	globalMonitor.RegisterEngine(sessionID, activeEngine)
+	defer globalMonitor.UnregisterEngine(sessionID)
+	
 	// Initialize chess engine
 	engine, err := NewUCIEngine(enginePath)
 	if err != nil {
@@ -126,21 +132,32 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 	defer engine.Close()
 
-	// Get clock times and move history from game state
-	whiteTime, blackTime, _ := gameState.GetClockTimes()
-	whiteInc := gameState.TimeControl.Increment
-	blackInc := gameState.TimeControl.Increment
-	moveHistory := gameState.GetMoveHistory()
+	// Apply engine options if provided
+	if len(req.EngineOptions) > 0 {
+		for optionName, optionValue := range req.EngineOptions {
+			if err := engine.SetOption(optionName, optionValue); err != nil {
+				log.Printf("Warning: Failed to set option %s=%s: %v", optionName, optionValue, err)
+			}
+		}
+	}
 	
 	// Get best move from engine (track time)
 	startTime := time.Now()
 	var bestMoveUCI string
 	
-	// Use clock-based time management if time control is active (not unlimited)
-	if gameState.TimeControl.InitialTime > 0 {
-		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, moveHistory, whiteTime, blackTime, whiteInc, blackInc)
+	// Determine time management strategy
+	if req.MoveTime > 0 {
+		// Fixed time per move
+		bestMoveUCI, err = engine.GetBestMove(req.FEN, time.Duration(req.MoveTime)*time.Millisecond)
+	} else if req.WhiteTime > 0 || req.BlackTime > 0 {
+		// Clock-based time management
+		whiteTime := time.Duration(req.WhiteTime) * time.Millisecond
+		blackTime := time.Duration(req.BlackTime) * time.Millisecond
+		whiteInc := time.Duration(req.WhiteIncrement) * time.Millisecond
+		blackInc := time.Duration(req.BlackIncrement) * time.Millisecond
+		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, req.Moves, whiteTime, blackTime, whiteInc, blackInc)
 	} else {
-		// Fallback to fixed time for unlimited games
+		// Default: 1 second per move
 		bestMoveUCI, err = engine.GetBestMove(req.FEN, moveTime)
 	}
 	thinkTime := time.Since(startTime)
@@ -169,125 +186,19 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update game state
+	// Get new FEN after move
 	newFEN := game.FEN()
-	gameState.UpdateMove(bestMoveUCI, newFEN, thinkTime)
+	
+	log.Printf("Engine move: %s, think time: %v", bestMoveUCI, thinkTime)
 
-	// Return the move and new FEN
+	// Return the move, new FEN, and think time
 	response := MoveResponse{
-		Move: bestMoveUCI,
-		FEN:  newFEN,
+		Move:      bestMoveUCI,
+		FEN:       newFEN,
+		ThinkTime: int(thinkTime.Milliseconds()),
 	}
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
 
-// handleStats returns current game statistics
-func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	gameState := GetGameState()
-	_, _, _, _, _, _, whiteMoves, blackMoves, whiteTime, blackTime := gameState.GetStats()
-	
-	gameDuration := time.Since(gameState.GameStarted)
-	
-	response := StatsResponse{
-		WhiteMoves:   whiteMoves,
-		BlackMoves:   blackMoves,
-		TotalMoves:   whiteMoves + blackMoves,
-		WhiteTime:    whiteTime.Round(time.Second).String(),
-		BlackTime:    blackTime.Round(time.Second).String(),
-		GameDuration: gameDuration.Round(time.Second).String(),
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-}
-
-// handleSetTimeControl sets the time control for the game
-func (s *Server) handleSetTimeControl(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-
-	var req ClockRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
-		return
-	}
-
-	gameState := GetGameState()
-	gameState.SetTimeControl(req.InitialMinutes, req.IncrementSeconds)
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
-
-// handleGetClock returns the current clock state
-func (s *Server) handleGetClock(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	gameState := GetGameState()
-	whiteTime, blackTime, isWhiteTurn := gameState.GetClockTimes()
-
-	response := ClockResponse{
-		WhiteTimeLeft: int(whiteTime.Milliseconds()),
-		BlackTimeLeft: int(blackTime.Milliseconds()),
-		IsWhiteTurn:   isWhiteTurn,
-		ClockRunning:  gameState.ClockRunning,
-	}
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
-}
-
-// handleStartClock starts the chess clock
-func (s *Server) handleStartClock(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-
-	gameState := GetGameState()
-	gameState.StartClock()
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
-
-// handleGetMoveHistory returns the move history
-func (s *Server) handleGetMoveHistory(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	gameState := GetGameState()
-	history := gameState.GetMoveHistoryDisplay()
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(history)
-}
-
-// handleReset resets the game state
-func (s *Server) handleReset(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
-		return
-	}
-
-	gameState := GetGameState()
-	gameState.Reset()
-
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
-}
