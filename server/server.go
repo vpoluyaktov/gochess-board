@@ -43,6 +43,9 @@ func (s *Server) Start() error {
 	http.HandleFunc("/api/computer-move", s.handleComputerMove)
 	http.HandleFunc("/api/stats", s.handleStats)
 	http.HandleFunc("/api/analysis", s.handleAnalysisWebSocket)
+	http.HandleFunc("/api/clock/set", s.handleSetTimeControl)
+	http.HandleFunc("/api/clock/get", s.handleGetClock)
+	http.HandleFunc("/api/clock/start", s.handleStartClock)
 	
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)

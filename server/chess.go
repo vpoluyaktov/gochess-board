@@ -41,6 +41,20 @@ type StatsResponse struct {
 	GameDuration  string `json:"gameDuration"`
 }
 
+// ClockRequest represents a request to set time control
+type ClockRequest struct {
+	InitialMinutes   int `json:"initialMinutes"`
+	IncrementSeconds int `json:"incrementSeconds"`
+}
+
+// ClockResponse represents the current clock state
+type ClockResponse struct {
+	WhiteTimeLeft int  `json:"whiteTimeLeft"` // milliseconds
+	BlackTimeLeft int  `json:"blackTimeLeft"` // milliseconds
+	IsWhiteTurn   bool `json:"isWhiteTurn"`
+	ClockRunning  bool `json:"clockRunning"`
+}
+
 // handleComputerMove handles the computer move calculation
 func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -159,4 +173,63 @@ func (s *Server) handleStats(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
+}
+
+// handleSetTimeControl sets the time control for the game
+func (s *Server) handleSetTimeControl(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	var req ClockRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
+		return
+	}
+
+	gameState := GetGameState()
+	gameState.SetTimeControl(req.InitialMinutes, req.IncrementSeconds)
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+}
+
+// handleGetClock returns the current clock state
+func (s *Server) handleGetClock(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	gameState := GetGameState()
+	whiteTime, blackTime, isWhiteTurn := gameState.GetClockTimes()
+
+	response := ClockResponse{
+		WhiteTimeLeft: int(whiteTime.Milliseconds()),
+		BlackTimeLeft: int(blackTime.Milliseconds()),
+		IsWhiteTurn:   isWhiteTurn,
+		ClockRunning:  gameState.ClockRunning,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
+}
+
+// handleStartClock starts the chess clock
+func (s *Server) handleStartClock(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	gameState := GetGameState()
+	gameState.StartClock()
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }

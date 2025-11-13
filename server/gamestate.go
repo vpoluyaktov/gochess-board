@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+// TimeControl represents chess clock settings
+type TimeControl struct {
+	InitialTime time.Duration // Initial time per player (e.g., 5 minutes)
+	Increment   time.Duration // Time added after each move (e.g., 5 seconds)
+}
+
 // GameState tracks the current game statistics
 type GameState struct {
 	mu              sync.RWMutex
@@ -21,12 +27,22 @@ type GameState struct {
 	BlackPlayTime   time.Duration
 	CurrentTurnStart time.Time
 	IsWhiteTurn     bool
+	
+	// Chess Clock fields
+	TimeControl     TimeControl
+	WhiteTimeLeft   time.Duration // Remaining time for white
+	BlackTimeLeft   time.Duration // Remaining time for black
+	ClockRunning    bool          // Is the clock currently running
 }
 
 var globalGameState = &GameState{
 	GameStarted:      time.Now(),
 	CurrentTurnStart: time.Now(),
 	IsWhiteTurn:      true,
+	TimeControl:      TimeControl{InitialTime: 5 * time.Minute, Increment: 5 * time.Second},
+	WhiteTimeLeft:    5 * time.Minute,
+	BlackTimeLeft:    5 * time.Minute,
+	ClockRunning:     false,
 }
 
 // GetGameState returns the global game state
@@ -39,9 +55,12 @@ func (gs *GameState) UpdateMove(move string, fen string, thinkTime time.Duration
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 	
-	// Add elapsed time to black's total
-	if !gs.IsWhiteTurn {
-		gs.BlackPlayTime += time.Since(gs.CurrentTurnStart)
+	// Update chess clock for black's move
+	if !gs.IsWhiteTurn && gs.ClockRunning {
+		elapsed := time.Since(gs.CurrentTurnStart)
+		gs.BlackTimeLeft -= elapsed
+		gs.BlackTimeLeft += gs.TimeControl.Increment
+		gs.BlackPlayTime += elapsed
 	}
 	
 	gs.MovesPlayed++
@@ -68,9 +87,12 @@ func (gs *GameState) IncrementRequests() {
 	gs.mu.Lock()
 	defer gs.mu.Unlock()
 	
-	// Add elapsed time to white's total
-	if gs.IsWhiteTurn {
-		gs.WhitePlayTime += time.Since(gs.CurrentTurnStart)
+	// Update chess clock for white's move
+	if gs.IsWhiteTurn && gs.ClockRunning {
+		elapsed := time.Since(gs.CurrentTurnStart)
+		gs.WhiteTimeLeft -= elapsed
+		gs.WhiteTimeLeft += gs.TimeControl.Increment
+		gs.WhitePlayTime += elapsed
 	}
 	
 	gs.TotalRequests++
@@ -118,4 +140,52 @@ func (gs *GameState) Reset() {
 	gs.BlackPlayTime = 0
 	gs.CurrentTurnStart = time.Now()
 	gs.IsWhiteTurn = true
+	
+	// Reset chess clock
+	gs.WhiteTimeLeft = gs.TimeControl.InitialTime
+	gs.BlackTimeLeft = gs.TimeControl.InitialTime
+	gs.ClockRunning = false
+}
+
+// SetTimeControl sets the time control for the game
+func (gs *GameState) SetTimeControl(initialMinutes int, incrementSeconds int) {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+	
+	gs.TimeControl = TimeControl{
+		InitialTime: time.Duration(initialMinutes) * time.Minute,
+		Increment:   time.Duration(incrementSeconds) * time.Second,
+	}
+	gs.WhiteTimeLeft = gs.TimeControl.InitialTime
+	gs.BlackTimeLeft = gs.TimeControl.InitialTime
+}
+
+// StartClock starts the chess clock
+func (gs *GameState) StartClock() {
+	gs.mu.Lock()
+	defer gs.mu.Unlock()
+	
+	gs.ClockRunning = true
+	gs.CurrentTurnStart = time.Now()
+}
+
+// GetClockTimes returns the current clock times for both players
+func (gs *GameState) GetClockTimes() (whiteTime, blackTime time.Duration, isWhiteTurn bool) {
+	gs.mu.RLock()
+	defer gs.mu.RUnlock()
+	
+	whiteTime = gs.WhiteTimeLeft
+	blackTime = gs.BlackTimeLeft
+	
+	// Subtract elapsed time from current player's clock
+	if gs.ClockRunning {
+		elapsed := time.Since(gs.CurrentTurnStart)
+		if gs.IsWhiteTurn {
+			whiteTime -= elapsed
+		} else {
+			blackTime -= elapsed
+		}
+	}
+	
+	return whiteTime, blackTime, gs.IsWhiteTurn
 }
