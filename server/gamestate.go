@@ -13,12 +13,12 @@ type TimeControl struct {
 
 // MoveHistoryEntry represents a single move in the game
 type MoveHistoryEntry struct {
-	MoveNumber int       // Move number (1, 2, 3, ...)
-	White      string    // White's move in UCI notation (e.g., "e2e4")
-	Black      string    // Black's move in UCI notation (e.g., "e7e5")
-	WhiteSAN   string    // White's move in SAN notation (e.g., "e4")
-	BlackSAN   string    // Black's move in SAN notation (e.g., "e5")
-	Timestamp  time.Time // When the move pair was completed
+	MoveNumber int       `json:"moveNumber"` // Move number (1, 2, 3, ...)
+	White      string    `json:"white"`      // White's move in UCI notation (e.g., "e2e4")
+	Black      string    `json:"black"`      // Black's move in UCI notation (e.g., "e7e5")
+	WhiteSAN   string    `json:"whiteSAN"`   // White's move in SAN notation (e.g., "e4")
+	BlackSAN   string    `json:"blackSAN"`   // Black's move in SAN notation (e.g., "e5")
+	Timestamp  time.Time `json:"timestamp"`  // When the move pair was completed
 }
 
 // GameState tracks the current game statistics
