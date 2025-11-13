@@ -620,21 +620,12 @@ function updateClockDisplay() {
     }
 }
 
-function startClock() {
-    if (clockRunning) return;
+function startClockInterval() {
+    if (clockInterval) return; // Already running
     
-    clockRunning = true;
-    var lastUpdate = Date.now();
-    
-    // Start clock on backend
-    fetch('/api/clock/start', {
-        method: 'POST'
-    }).catch(err => console.error('Error starting clock:', err));
-    
+    // Start the interval
     clockInterval = setInterval(function() {
-        var now = Date.now();
-        var elapsed = now - lastUpdate;
-        lastUpdate = now;
+        var elapsed = 100; // 100ms
         
         if (game.turn() === 'w') {
             whiteTimeMs -= elapsed;
@@ -644,6 +635,22 @@ function startClock() {
         
         updateClockDisplay();
     }, 100); // Update every 100ms for smooth display
+}
+
+function startClock() {
+    if (clockRunning) return; // Already running
+    
+    clockRunning = true;
+    
+    // Notify server
+    fetch('/api/clock/start', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    }).catch(err => console.error('Error starting clock:', err));
+    
+    startClockInterval();
 }
 
 function stopClock() {
@@ -692,6 +699,17 @@ function syncClockWithServer() {
         .then(data => {
             whiteTimeMs = data.whiteTimeLeft;
             blackTimeMs = data.blackTimeLeft;
+            
+            // Sync clock running state
+            if (data.clockRunning && !clockRunning) {
+                // Backend started the clock, start frontend too
+                clockRunning = true;
+                startClockInterval();
+            } else if (!data.clockRunning && clockRunning) {
+                // Backend stopped the clock
+                stopClock();
+            }
+            
             updateClockDisplay();
         })
         .catch(err => console.error('Error syncing clock:', err));
@@ -766,5 +784,10 @@ $(document).ready(function() {
     restorePlayerSelections();
     updateInfoText();
     updateClockDisplay();
+    
+    // Sync clock with server periodically (every 2 seconds)
+    setInterval(syncClockWithServer, 2000);
+    syncClockWithServer(); // Initial sync
+    
     window.setTimeout(checkForComputerMove, 500);
 });
