@@ -110,9 +110,22 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 	defer engine.Close()
 
+	// Get clock times from game state
+	whiteTime, blackTime, _ := gameState.GetClockTimes()
+	whiteInc := gameState.TimeControl.Increment
+	blackInc := gameState.TimeControl.Increment
+	
 	// Get best move from engine (track time)
 	startTime := time.Now()
-	bestMoveUCI, err := engine.GetBestMove(req.FEN, moveTime)
+	var bestMoveUCI string
+	
+	// Use clock-based time management if time control is active (not unlimited)
+	if gameState.TimeControl.InitialTime > 0 {
+		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, whiteTime, blackTime, whiteInc, blackInc)
+	} else {
+		// Fallback to fixed time for unlimited games
+		bestMoveUCI, err = engine.GetBestMove(req.FEN, moveTime)
+	}
 	thinkTime := time.Since(startTime)
 	
 	if err != nil {
