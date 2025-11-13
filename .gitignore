@@ -31,3 +31,8 @@ go-chess-*
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Game and log files
+*.001
+game.*
+log.*

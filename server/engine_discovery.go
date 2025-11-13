@@ -42,30 +42,119 @@ var commonEngineNames = []string{
 
 // DiscoverEngines searches for installed UCI chess engines
 func DiscoverEngines() []EngineInfo {
+	type result struct {
+		info EngineInfo
+		ok   bool
+	}
+	
+	resultChan := make(chan result, len(commonEngineNames))
+	
+	// Probe all engines in parallel
+	for _, engineName := range commonEngineNames {
+		go func(name string) {
+			if engineName, ok := probeUCIEngine(name); ok {
+				id := strings.ToLower(strings.ReplaceAll(engineName, " ", "_"))
+				resultChan <- result{
+					info: EngineInfo{
+						Name: engineName,
+						Path: name,
+						ID:   id,
+					},
+					ok: true,
+				}
+			} else {
+				resultChan <- result{ok: false}
+			}
+		}(engineName)
+	}
+	
+	// Collect results
 	engines := make([]EngineInfo, 0)
 	seen := make(map[string]bool)
-
-	// Try to run each engine and check if it responds to UCI
-	for _, engineName := range commonEngineNames {
-		if seen[engineName] {
-			continue
-		}
-
-		// Try to run the engine and verify it's a UCI engine
-		if isUCIEngine(engineName) {
-			name := getEngineName(engineName, engineName)
-			id := strings.ToLower(strings.ReplaceAll(name, " ", "_"))
-			engines = append(engines, EngineInfo{
-				Name: name,
-				Path: engineName, // Store just the command name
-				ID:   id,
-			})
-			seen[engineName] = true
-			log.Printf("Discovered engine: %s (command: %s)", name, engineName)
+	
+	for i := 0; i < len(commonEngineNames); i++ {
+		res := <-resultChan
+		if res.ok && !seen[res.info.Path] {
+			engines = append(engines, res.info)
+			seen[res.info.Path] = true
+			log.Printf("Discovered engine: %s (command: %s)", res.info.Name, res.info.Path)
 		}
 	}
 
 	return engines
+}
+
+// probeUCIEngine checks if the given path is a valid UCI chess engine and returns its name
+func probeUCIEngine(path string) (string, bool) {
+	cmd := exec.Command(path)
+	
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return "", false
+	}
+	
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", false
+	}
+	
+	if err := cmd.Start(); err != nil {
+		return "", false
+	}
+	
+	// Send UCI command
+	fmt.Fprintln(stdin, "uci")
+	
+	// Read response with timeout
+	resultChan := make(chan struct {
+		name string
+		ok   bool
+	}, 1)
+	
+	go func() {
+		scanner := bufio.NewScanner(stdout)
+		engineName := ""
+		for scanner.Scan() {
+			line := scanner.Text()
+			if strings.HasPrefix(line, "id name ") {
+				engineName = strings.TrimPrefix(line, "id name ")
+			}
+			if strings.HasPrefix(line, "uciok") {
+				if engineName != "" {
+					resultChan <- struct {
+						name string
+						ok   bool
+					}{engineName, true}
+				} else {
+					resultChan <- struct {
+						name string
+						ok   bool
+					}{formatEngineName(path), true}
+				}
+				return
+			}
+		}
+		resultChan <- struct {
+			name string
+			ok   bool
+		}{"", false}
+	}()
+	
+	// Wait for response or timeout
+	select {
+	case result := <-resultChan:
+		stdin.Close()
+		stdout.Close()
+		cmd.Process.Kill()
+		cmd.Wait()
+		return result.name, result.ok
+	case <-time.After(500 * time.Millisecond):
+		stdin.Close()
+		stdout.Close()
+		cmd.Process.Kill()
+		cmd.Wait()
+		return "", false
+	}
 }
 
 // isUCIEngine checks if the given path is a valid UCI chess engine

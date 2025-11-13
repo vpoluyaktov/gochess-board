@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chess Board</title>
     
-    <!-- ChessboardJS CSS -->
-    <link rel="stylesheet" href="/assets/css/chessboard-1.0.0.min.css">
+    <!-- ChessboardJS CSS v1.0.1 -->
+    <link rel="stylesheet" href="/assets/css/chessboard-1.0.1.css?v={{.CacheBuster}}">
     
     <style>
         body {
@@ -156,9 +156,23 @@
         <div class="controls">
             <button onclick="location.reload()">New Game</button>
             <button onclick="flipBoard()">Flip Board</button>
+            <button id="whiteAnalysisToggle" onclick="toggleWhiteAnalysis()">White Analysis</button>
+            <button id="blackAnalysisToggle" onclick="toggleBlackAnalysis()">Black Analysis</button>
         </div>
         
-        <div class="info">
+        <div id="whiteAnalysisInfo" class="info" style="display: none; background: #e3f2fd;">
+            <strong>⚪ White Analysis:</strong> <span id="whiteAnalysisDepth">-</span> depth | 
+            <span id="whiteAnalysisScore">-</span> | 
+            <span id="whiteAnalysisNodes">-</span> nodes
+        </div>
+        
+        <div id="blackAnalysisInfo" class="info" style="display: none; background: #f3e5f5;">
+            <strong>⚫ Black Analysis:</strong> <span id="blackAnalysisDepth">-</span> depth | 
+            <span id="blackAnalysisScore">-</span> | 
+            <span id="blackAnalysisNodes">-</span> nodes
+        </div>
+        
+        <div class="info" id="gameInfo">
             You play as White vs Stockfish AI. Make your move!
         </div>
         
@@ -190,275 +204,16 @@
         </div>
     </div>
 
-    <!-- jQuery -->
-    <script src="/assets/js/jquery-3.5.1.min.js"></script>
+    <!-- jQuery from CDN -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js" integrity="sha256-9/aliU8dGd2tb6OSsuzixeV4y/faTqgFtohetphbbj0=" crossorigin="anonymous"></script>
 
     <!-- Chess.js - Chess game logic -->
-    <script src="/assets/js/chess.min.js"></script>
+    <script src="/assets/js/chess.js?v={{.CacheBuster}}"></script>
 
-    <!-- ChessboardJS -->
-    <script src="/assets/js/chessboard-1.0.0.min.js"></script>
+    <!-- ChessboardJS v1.0.1 (modified with click-to-move) -->
+    <script src="/assets/js/chessboard-1.0.1.js?v={{.CacheBuster}}"></script>
 
-    <script>
-        var board = null;
-        var game = new Chess();
-        var isComputerThinking = false;
-
-        // Get current player configuration
-        function getWhitePlayer() {
-            return document.getElementById('whitePlayer').value;
-        }
-
-        function getBlackPlayer() {
-            return document.getElementById('blackPlayer').value;
-        }
-
-        function getCurrentPlayer() {
-            return game.turn() === 'w' ? getWhitePlayer() : getBlackPlayer();
-        }
-
-        function isHuman(playerValue) {
-            return playerValue === 'human';
-        }
-
-        function getPlayerName(playerValue) {
-            if (playerValue === 'human') return 'Human';
-            const select = document.getElementById('whitePlayer');
-            const option = Array.from(select.options).find(opt => opt.value === playerValue);
-            return option ? option.textContent : 'Engine';
-        }
-
-        function updateInfoText() {
-            const whitePlayer = getWhitePlayer();
-            const blackPlayer = getBlackPlayer();
-            const infoDiv = document.querySelector('.info');
-            
-            const whiteName = getPlayerName(whitePlayer);
-            const blackName = getPlayerName(blackPlayer);
-            
-            if (isHuman(whitePlayer) && isHuman(blackPlayer)) {
-                infoDiv.textContent = 'Human vs Human - Make your move!';
-            } else if (!isHuman(whitePlayer) && !isHuman(blackPlayer)) {
-                infoDiv.textContent = `${whiteName} vs ${blackName} - Watch the AI battle!`;
-            } else if (isHuman(whitePlayer)) {
-                infoDiv.textContent = `You play as White vs ${blackName}. Make your move!`;
-            } else {
-                infoDiv.textContent = `You play as Black vs ${whiteName}. Make your move!`;
-            }
-        }
-
-        function onDragStart(source, piece, position, orientation) {
-            // do not pick up pieces if the game is over
-            if (game.game_over()) return false;
-
-            // don't allow moves while computer is thinking
-            if (isComputerThinking) return false;
-
-            // Check if current player is human
-            const currentPlayer = getCurrentPlayer();
-            if (!isHuman(currentPlayer)) return false;
-
-            // Check if the piece belongs to the current turn
-            const turn = game.turn();
-            if ((turn === 'w' && piece.search(/^b/) !== -1) ||
-                (turn === 'b' && piece.search(/^w/) !== -1)) {
-                return false;
-            }
-        }
-
-        async function makeComputerMove() {
-            if (isComputerThinking) return;
-            
-            // Check if current player should be computer
-            const currentPlayer = getCurrentPlayer();
-            if (isHuman(currentPlayer)) return;
-
-            // Check if game is over
-            if (game.game_over()) {
-                console.log('Game over');
-                return;
-            }
-
-            isComputerThinking = true;
-            
-            // Get current FEN position
-            var fen = game.fen();
-            
-            try {
-                // Call backend API for computer move
-                console.log('Making move with engine:', currentPlayer);
-                const response = await fetch('/api/computer-move', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ 
-                        fen: fen,
-                        enginePath: currentPlayer
-                    })
-                });
-
-                const data = await response.json();
-                console.log('Response:', data);
-                
-                if (data.error) {
-                    console.log('Game over or no legal moves:', data.error);
-                    isComputerThinking = false;
-                    return;
-                }
-
-                // Update game state with the move from backend
-                console.log('Applying move:', data.move);
-                game.load(data.fen);
-                board.position(game.fen());
-                
-                isComputerThinking = false;
-                
-                // Check if next player is also computer (Stockfish vs Stockfish)
-                window.setTimeout(checkForComputerMove, 250);
-                
-            } catch (error) {
-                console.error('Error getting computer move:', error);
-                isComputerThinking = false;
-            }
-        }
-
-        function checkForComputerMove() {
-            const currentPlayer = getCurrentPlayer();
-            console.log('checkForComputerMove - currentPlayer:', currentPlayer, 'isHuman:', isHuman(currentPlayer));
-            if (!isHuman(currentPlayer) && !game.game_over()) {
-                makeComputerMove();
-            }
-        }
-
-        function onDrop(source, target) {
-            // see if the move is legal
-            var move = game.move({
-                from: source,
-                to: target,
-                promotion: 'q' // NOTE: always promote to a queen for example simplicity
-            });
-
-            // illegal move
-            if (move === null) return 'snapback';
-
-            // Check if next player is computer
-            window.setTimeout(checkForComputerMove, 250);
-        }
-
-        // update the board position after the piece snap
-        // for castling, en passant, pawn promotion
-        function onSnapEnd() {
-            board.position(game.fen());
-        }
-
-        var config = {
-            draggable: true,
-            position: 'start',
-            onDragStart: onDragStart,
-            onDrop: onDrop,
-            onSnapEnd: onSnapEnd,
-            pieceTheme: '/assets/chess/pieces/{piece}.png'
-        };
-        
-        board = Chessboard('myBoard', config);
-        
-        // Make board responsive
-        $(window).resize(function() {
-            board.resize();
-        });
-        
-        // Update stats periodically
-        async function updateStats() {
-            try {
-                const response = await fetch('/api/stats');
-                const stats = await response.json();
-                
-                document.getElementById('whiteMoves').textContent = stats.whiteMoves;
-                document.getElementById('blackMoves').textContent = stats.blackMoves;
-                document.getElementById('totalMoves').textContent = stats.totalMoves;
-                document.getElementById('whiteTime').textContent = stats.whiteTime;
-                document.getElementById('blackTime').textContent = stats.blackTime;
-                document.getElementById('gameDuration').textContent = stats.gameDuration;
-            } catch (error) {
-                console.error('Error fetching stats:', error);
-            }
-        }
-        
-        // Update stats every second
-        setInterval(updateStats, 1000);
-        updateStats(); // Initial update
-
-        // Restore player selections from localStorage
-        function restorePlayerSelections() {
-            const savedWhite = localStorage.getItem('whitePlayer');
-            const savedBlack = localStorage.getItem('blackPlayer');
-            
-            const whiteSelect = document.getElementById('whitePlayer');
-            const blackSelect = document.getElementById('blackPlayer');
-            
-            // Check if saved value exists in dropdown options
-            if (savedWhite && Array.from(whiteSelect.options).some(opt => opt.value === savedWhite)) {
-                whiteSelect.value = savedWhite;
-            }
-            if (savedBlack && Array.from(blackSelect.options).some(opt => opt.value === savedBlack)) {
-                blackSelect.value = savedBlack;
-            } else {
-                // Default: select first engine for black if available
-                const firstEngine = Array.from(blackSelect.options).find(opt => opt.value !== 'human');
-                if (firstEngine) {
-                    blackSelect.value = firstEngine.value;
-                }
-            }
-        }
-
-        // Save player selections to localStorage
-        function savePlayerSelections() {
-            localStorage.setItem('whitePlayer', document.getElementById('whitePlayer').value);
-            localStorage.setItem('blackPlayer', document.getElementById('blackPlayer').value);
-        }
-
-        // Flip board and swap player assignments
-        function flipBoard() {
-            board.flip();
-            
-            // Swap player assignments
-            const whitePlayer = document.getElementById('whitePlayer').value;
-            const blackPlayer = document.getElementById('blackPlayer').value;
-            
-            document.getElementById('whitePlayer').value = blackPlayer;
-            document.getElementById('blackPlayer').value = whitePlayer;
-            
-            savePlayerSelections();
-            updateInfoText();
-            
-            // After flipping, check if computer should move
-            window.setTimeout(checkForComputerMove, 250);
-        }
-
-        // Handle player selection changes
-        document.getElementById('whitePlayer').addEventListener('change', function() {
-            savePlayerSelections();
-            updateInfoText();
-            // Check if computer should move now
-            window.setTimeout(checkForComputerMove, 250);
-        });
-
-        document.getElementById('blackPlayer').addEventListener('change', function() {
-            savePlayerSelections();
-            updateInfoText();
-            // Check if computer should move now
-            window.setTimeout(checkForComputerMove, 250);
-        });
-
-        // Restore selections on page load
-        restorePlayerSelections();
-
-        // Initialize info text
-        updateInfoText();
-
-        // Start computer move if White is Stockfish
-        window.setTimeout(checkForComputerMove, 500);
-    </script>
+    <!-- Chess UI Logic -->
+    <script src="/assets/js/chess-ui.js?v={{.CacheBuster}}"></script>
 </body>
 </html>
