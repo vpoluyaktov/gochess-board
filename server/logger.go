@@ -14,11 +14,11 @@ const (
 )
 
 // Logger helper functions for consistent logging format
-// Format: YYYY/MM/DD HH:MM:SS.microseconds LEVEL component: message
+// Format: YYYY/MM/DD HH:MM:SS.microseconds LEVEL [component] message
 
 func logMessage(level, component, format string, args ...interface{}) {
 	message := fmt.Sprintf(format, args...)
-	log.Printf("%-5s %s: %s", level, component, message)
+	log.Printf("%-5s [%s] %s", level, component, message)
 }
 
 // Debug logs a debug message
