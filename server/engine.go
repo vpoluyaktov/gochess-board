@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -17,6 +18,7 @@ type UCIEngine struct {
 	stdout io.ReadCloser
 	reader *bufio.Reader
 	mu     sync.Mutex
+	name   string // Engine name for logging
 }
 
 // NewUCIEngine creates and initializes a new UCI engine
@@ -42,6 +44,7 @@ func NewUCIEngine(enginePath string) (*UCIEngine, error) {
 		stdin:  stdin,
 		stdout: stdout,
 		reader: bufio.NewReader(stdout),
+		name:   filepath.Base(enginePath),
 	}
 
 	// Initialize UCI
@@ -71,7 +74,7 @@ func (e *UCIEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	Debug("ENGINE", ">>> %s", cmd)
+	Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
 	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
 	return err
 }
@@ -148,7 +151,7 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				Debug("ENGINE", "<<< %s", line)
+				Debug("ENGINE", "[%s] <<< %s", e.name, line)
 				return parts[1], nil
 			}
 		}
@@ -196,7 +199,7 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				Debug("ENGINE", "<<< %s", line)
+				Debug("ENGINE", "[%s] <<< %s", e.name, line)
 				return parts[1], nil
 			}
 		}
