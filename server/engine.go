@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -17,52 +18,59 @@ type UCIEngine struct {
 	stdout io.ReadCloser
 	reader *bufio.Reader
 	mu     sync.Mutex
+	name   string // Engine name for logging
 }
 
 // NewUCIEngine creates and initializes a new UCI engine
-func NewUCIEngine(enginePath string) (*UCIEngine, error) {
+func NewUCIEngine(enginePath string, engineName string) (*UCIEngine, error) {
 	cmd := exec.Command(enginePath)
-	
+
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdin pipe: %w", err)
 	}
-	
+
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create stdout pipe: %w", err)
 	}
-	
+
 	if err := cmd.Start(); err != nil {
 		return nil, fmt.Errorf("failed to start engine: %w", err)
 	}
-	
+
+	// Use provided name, or fall back to filename if empty
+	if engineName == "" {
+		engineName = filepath.Base(enginePath)
+	}
+
 	engine := &UCIEngine{
 		cmd:    cmd,
 		stdin:  stdin,
 		stdout: stdout,
 		reader: bufio.NewReader(stdout),
+		name:   engineName,
 	}
-	
+
 	// Initialize UCI
 	if err := engine.sendCommand("uci"); err != nil {
 		return nil, err
 	}
-	
+
 	// Wait for uciok
 	if err := engine.waitForResponse("uciok", 5*time.Second); err != nil {
 		return nil, err
 	}
-	
+
 	// Set ready
 	if err := engine.sendCommand("isready"); err != nil {
 		return nil, err
 	}
-	
+
 	if err := engine.waitForResponse("readyok", 5*time.Second); err != nil {
 		return nil, err
 	}
-	
+
 	return engine, nil
 }
 
@@ -70,7 +78,8 @@ func NewUCIEngine(enginePath string) (*UCIEngine, error) {
 func (e *UCIEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	
+
+	Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
 	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
 	return err
 }
@@ -87,18 +96,18 @@ func (e *UCIEngine) readLine() (string, error) {
 // waitForResponse waits for a specific response from the engine
 func (e *UCIEngine) waitForResponse(expected string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
-	
+
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
 			return err
 		}
-		
+
 		if strings.HasPrefix(line, expected) {
 			return nil
 		}
 	}
-	
+
 	return fmt.Errorf("timeout waiting for: %s", expected)
 }
 
@@ -108,12 +117,12 @@ func (e *UCIEngine) SetOption(name, value string) error {
 	if err := e.sendCommand(cmd); err != nil {
 		return err
 	}
-	
+
 	// Wait for engine to be ready after setting option
 	if err := e.sendCommand("isready"); err != nil {
 		return err
 	}
-	
+
 	return e.waitForResponse("readyok", 2*time.Second)
 }
 
@@ -123,35 +132,36 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 	if err := e.sendCommand(fmt.Sprintf("position fen %s", fen)); err != nil {
 		return "", err
 	}
-	
+
 	// Start search
 	if err := e.sendCommand(fmt.Sprintf("go movetime %d", moveTime.Milliseconds())); err != nil {
 		return "", err
 	}
-	
+
 	// Wait for the movetime to elapse, then send stop
 	time.Sleep(moveTime)
 	if err := e.sendCommand("stop"); err != nil {
 		return "", err
 	}
-	
+
 	// Wait for bestmove response
 	deadline := time.Now().Add(2 * time.Second)
-	
+
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
 			return "", err
 		}
-		
+
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
+				Debug("ENGINE", "[%s] <<< %s", e.name, line)
 				return parts[1], nil
 			}
 		}
 	}
-	
+
 	return "", fmt.Errorf("timeout waiting for bestmove")
 }
 
@@ -160,11 +170,11 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, whiteTime, blackTime, whiteInc, blackInc time.Duration) (string, error) {
 	// Set position using FEN (most reliable way to ensure correct position)
 	posCmd := fmt.Sprintf("position fen %s", fen)
-	
+
 	if err := e.sendCommand(posCmd); err != nil {
 		return "", err
 	}
-	
+
 	// Build go command with time controls
 	// Format: go wtime <ms> btime <ms> winc <ms> binc <ms>
 	goCmd := fmt.Sprintf("go wtime %d btime %d winc %d binc %d",
@@ -172,11 +182,11 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		blackTime.Milliseconds(),
 		whiteInc.Milliseconds(),
 		blackInc.Milliseconds())
-	
+
 	if err := e.sendCommand(goCmd); err != nil {
 		return "", err
 	}
-	
+
 	// Wait for bestmove response (engine manages its own time)
 	// Give it a generous timeout (max of remaining time + 5 seconds)
 	maxTime := whiteTime
@@ -184,21 +194,22 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		maxTime = blackTime
 	}
 	deadline := time.Now().Add(maxTime + 5*time.Second)
-	
+
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
 			return "", err
 		}
-		
+
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
+				Debug("ENGINE", "[%s] <<< %s", e.name, line)
 				return parts[1], nil
 			}
 		}
 	}
-	
+
 	return "", fmt.Errorf("timeout waiting for bestmove")
 }
 

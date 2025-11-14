@@ -3,7 +3,6 @@ package server
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -68,7 +67,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	game := chess.NewGame(fen)
 
 	// Log the request for debugging
-	log.Printf("[CHESS] Computer move request: FEN=%s, Turn=%v, Moves=%d",
+	Info("CHESS", "Computer move request: FEN=%s, Turn=%v, Moves=%d",
 		req.FEN, game.Position().Turn(), len(req.Moves))
 
 	// Check if game is over
@@ -123,9 +122,9 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	defer globalMonitor.UnregisterEngine(sessionID)
 
 	// Initialize chess engine
-	engine, err := NewUCIEngine(enginePath)
+	engine, err := NewUCIEngine(enginePath, engineName)
 	if err != nil {
-		log.Printf("[CHESS] Failed to initialize engine %s: %v", enginePath, err)
+		Error("CHESS", "Failed to initialize engine %s: %v", engineName, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
 		return
@@ -136,7 +135,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	if len(req.EngineOptions) > 0 {
 		for optionName, optionValue := range req.EngineOptions {
 			if err := engine.SetOption(optionName, optionValue); err != nil {
-				log.Printf("[CHESS] Warning: Failed to set option %s=%s: %v", optionName, optionValue, err)
+				Warn("CHESS", "Failed to set option %s=%s: %v", optionName, optionValue, err)
 			}
 		}
 	}
@@ -163,7 +162,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	thinkTime := time.Since(startTime)
 
 	if err != nil {
-		log.Printf("[CHESS] Failed to get best move: %v", err)
+		Error("CHESS", "Failed to get best move: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to calculate move"})
 		return
@@ -172,7 +171,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	// Parse the UCI move (e.g., "e2e4")
 	move, err := chess.UCINotation{}.Decode(game.Position(), bestMoveUCI)
 	if err != nil {
-		log.Printf("[CHESS] Failed to parse move %s: %v", bestMoveUCI, err)
+		Error("CHESS", "Failed to parse move %s: %v", bestMoveUCI, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid move from engine"})
 		return
@@ -180,7 +179,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 
 	// Make the move
 	if err := game.Move(move); err != nil {
-		log.Printf("[CHESS] Failed to make move %s: %v", bestMoveUCI, err)
+		Error("CHESS", "Failed to make move %s: %v", bestMoveUCI, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to make move"})
 		return
@@ -189,7 +188,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	// Get new FEN after move
 	newFEN := game.FEN()
 
-	log.Printf("[CHESS] Engine move: %s, think time: %v", bestMoveUCI, thinkTime)
+	Info("CHESS", "Engine move: %s, think time: %v", bestMoveUCI, thinkTime)
 
 	// Return the move, new FEN, and think time
 	response := MoveResponse{
