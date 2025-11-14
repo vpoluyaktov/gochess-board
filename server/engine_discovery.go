@@ -422,9 +422,16 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 				continue
 			}
 
+			// Create wrapper script that runs polyglot with the config file
+			wrapperScript, err := createPolyglotWrapper(configFile)
+			if err != nil {
+				log.Printf("[ENGINE_DISCOVERY] Failed to create polyglot wrapper for %s: %v", engine.Name, err)
+				continue
+			}
+
 			variant := EngineInfo{
 				Name:                  engine.Name + " + Book",
-				Path:                  configFile,
+				Path:                  wrapperScript,
 				ID:                    engine.ID + "_polyglot",
 				Type:                  "polyglot-uci",
 				SupportsBook:          true,
@@ -448,9 +455,16 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 				continue
 			}
 
+			// Create wrapper script that runs polyglot with the config file
+			wrapperScript, err := createPolyglotWrapper(configFile)
+			if err != nil {
+				log.Printf("[ENGINE_DISCOVERY] Failed to create polyglot wrapper for %s: %v", engine.Name, err)
+				continue
+			}
+
 			variant := EngineInfo{
 				Name:             engine.Name + " (via Polyglot)",
-				Path:             configFile,
+				Path:             wrapperScript,
 				ID:               engine.ID + "_polyglot",
 				Type:             "polyglot-cecp",
 				SupportsBook:     bookFile != "",
@@ -464,6 +478,31 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 	}
 
 	return variants
+}
+
+// createPolyglotWrapper creates an executable wrapper script that runs polyglot with a config file
+func createPolyglotWrapper(configFile string) (string, error) {
+	// Create temp directory for polyglot wrappers
+	tempDir := filepath.Join(os.TempDir(), "go-chess-polyglot")
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create polyglot wrapper directory: %w", err)
+	}
+
+	// Create unique wrapper filename based on config file hash
+	hash := fmt.Sprintf("%x", md5.Sum([]byte(configFile)))[:8]
+	wrapperFile := filepath.Join(tempDir, fmt.Sprintf("polyglot-wrapper-%s.sh", hash))
+
+	// Create shell script that runs polyglot with the config file
+	script := fmt.Sprintf(`#!/bin/sh
+exec polyglot "%s"
+`, configFile)
+
+	// Write wrapper script
+	if err := os.WriteFile(wrapperFile, []byte(script), 0755); err != nil {
+		return "", fmt.Errorf("failed to write polyglot wrapper: %w", err)
+	}
+
+	return wrapperFile, nil
 }
 
 // createPolyglotConfig creates a polyglot INI configuration file for an engine
