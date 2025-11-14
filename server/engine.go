@@ -22,7 +22,7 @@ type UCIEngine struct {
 }
 
 // NewUCIEngine creates and initializes a new UCI engine
-func NewUCIEngine(enginePath string) (*UCIEngine, error) {
+func NewUCIEngine(enginePath string, engineName string) (*UCIEngine, error) {
 	cmd := exec.Command(enginePath)
 
 	stdin, err := cmd.StdinPipe()
@@ -39,12 +39,17 @@ func NewUCIEngine(enginePath string) (*UCIEngine, error) {
 		return nil, fmt.Errorf("failed to start engine: %w", err)
 	}
 
+	// Use provided name, or fall back to filename if empty
+	if engineName == "" {
+		engineName = filepath.Base(enginePath)
+	}
+
 	engine := &UCIEngine{
 		cmd:    cmd,
 		stdin:  stdin,
 		stdout: stdout,
 		reader: bufio.NewReader(stdout),
-		name:   filepath.Base(enginePath),
+		name:   engineName,
 	}
 
 	// Initialize UCI

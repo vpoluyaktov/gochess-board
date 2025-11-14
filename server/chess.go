@@ -122,9 +122,9 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	defer globalMonitor.UnregisterEngine(sessionID)
 
 	// Initialize chess engine
-	engine, err := NewUCIEngine(enginePath)
+	engine, err := NewUCIEngine(enginePath, engineName)
 	if err != nil {
-		Error("CHESS", "Failed to initialize engine %s: %v", enginePath, err)
+		Error("CHESS", "Failed to initialize engine %s: %v", engineName, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
 		return
