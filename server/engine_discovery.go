@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"crypto/md5"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -67,20 +66,20 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 	// Check if polyglot is available first
 	hasPolyglot := isPolyglotInstalled()
 	if hasPolyglot {
-		log.Printf("[ENGINE_DISCOVERY] Polyglot wrapper found")
+		Info("ENGINE_DISCOVERY", "Polyglot wrapper found")
 	} else {
-		log.Printf("[ENGINE_DISCOVERY] Polyglot wrapper not found, CECP engines and book support will be unavailable")
+		Info("ENGINE_DISCOVERY", "Polyglot wrapper not found, CECP engines and book support will be unavailable")
 	}
 
 	// Log book file status
 	if bookFile != "" {
-		log.Printf("[ENGINE_DISCOVERY] Opening book file specified: %s", bookFile)
+		Info("ENGINE_DISCOVERY", "Opening book file specified: %s", bookFile)
 	} else {
-		log.Printf("[ENGINE_DISCOVERY] No opening book file specified")
+		Info("ENGINE_DISCOVERY", "No opening book file specified")
 	}
 
 	// Discover UCI engines
-	log.Printf("[ENGINE_DISCOVERY] Discovering UCI engines...")
+	Info("ENGINE_DISCOVERY", "Discovering UCI engines...")
 	uciEngines := discoverEngineList(uciEngineNames, getEngineInfo)
 	for _, engine := range uciEngines {
 		if !seen[engine.Path] {
@@ -92,7 +91,7 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 				eloInfo = fmt.Sprintf(" [ELO: %d-%d, default: %d]",
 					engine.MinElo, engine.MaxElo, engine.DefaultElo)
 			}
-			log.Printf("[ENGINE_DISCOVERY] Discovered UCI engine: %s (command: %s)%s",
+			Info("ENGINE_DISCOVERY", "Discovered UCI engine: %s (command: %s)%s",
 				engine.Name, engine.Path, eloInfo)
 		}
 	}
@@ -101,10 +100,10 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 	// Store them separately - they will only be added as polyglot-wrapped variants
 	var cecpEngines []EngineInfo
 	if hasPolyglot {
-		log.Printf("[ENGINE_DISCOVERY] Discovering CECP engines...")
+		Info("ENGINE_DISCOVERY", "Discovering CECP engines...")
 		cecpEngines = discoverEngineList(cecpEngineNames, getCECPEngineInfo)
 		for _, engine := range cecpEngines {
-			log.Printf("[ENGINE_DISCOVERY] Discovered CECP engine: %s (command: %s)",
+			Info("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
 				engine.Name, engine.Path)
 		}
 	}
@@ -113,16 +112,16 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 	if hasPolyglot {
 		// Only create UCI+Book variants if a book file is specified
 		if bookFile != "" {
-			log.Printf("[ENGINE_DISCOVERY] Creating UCI + Book variants with opening book...")
+			Info("ENGINE_DISCOVERY", "Creating UCI + Book variants with opening book...")
 			polyglotEngines := createPolyglotVariantsWithBook(engines, bookFile)
 			engines = append(engines, polyglotEngines...)
 		} else {
-			log.Printf("[ENGINE_DISCOVERY] No book file specified, skipping UCI + Book variants")
+			Info("ENGINE_DISCOVERY", "No book file specified, skipping UCI + Book variants")
 		}
 
 		// Always create variants for CECP engines (required - only way to use them)
 		if len(cecpEngines) > 0 {
-			log.Printf("[ENGINE_DISCOVERY] Creating CECP engine variants via Polyglot...")
+			Info("ENGINE_DISCOVERY", "Creating CECP engine variants via Polyglot...")
 			cecpPolyglotEngines := createPolyglotVariantsWithBook(cecpEngines, bookFile)
 			engines = append(engines, cecpPolyglotEngines...)
 		}
@@ -222,7 +221,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 				return
 			}
 		}
-		log.Printf("[ENGINE_DISCOVERY] Engine %s is not UCI compatible (no 'uciok' response)", path)
+		Info("ENGINE_DISCOVERY", "Engine %s is not UCI compatible (no 'uciok' response)", path)
 		resultChan <- struct {
 			info EngineInfo
 			ok   bool
@@ -238,7 +237,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 		cmd.Wait()
 		return result.info, result.ok
 	case <-time.After(2 * time.Second):
-		log.Printf("[ENGINE_DISCOVERY] Engine %s is not UCI compatible (timeout)", path)
+		Info("ENGINE_DISCOVERY", "Engine %s is not UCI compatible (timeout)", path)
 		stdin.Close()
 		stdout.Close()
 		cmd.Process.Kill()
@@ -418,14 +417,14 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 		if engine.Type == "uci" {
 			configFile, err := createPolyglotConfig(engine.Path, bookFile)
 			if err != nil {
-				log.Printf("[ENGINE_DISCOVERY] Failed to create polyglot config for %s: %v", engine.Name, err)
+				Info("ENGINE_DISCOVERY", "Failed to create polyglot config for %s: %v", engine.Name, err)
 				continue
 			}
 
 			// Create wrapper script that runs polyglot with the config file
 			wrapperScript, err := createPolyglotWrapper(configFile)
 			if err != nil {
-				log.Printf("[ENGINE_DISCOVERY] Failed to create polyglot wrapper for %s: %v", engine.Name, err)
+				Info("ENGINE_DISCOVERY", "Failed to create polyglot wrapper for %s: %v", engine.Name, err)
 				continue
 			}
 
@@ -444,21 +443,21 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 				Options:               engine.Options,
 			}
 			variants = append(variants, variant)
-			log.Printf("[ENGINE_DISCOVERY] Created polyglot variant: %s", variant.Name)
+			Info("ENGINE_DISCOVERY", "Created polyglot variant: %s", variant.Name)
 		}
 
 		// For CECP engines, create a polyglot variant (required to use them)
 		if engine.Type == "cecp" {
 			configFile, err := createPolyglotConfig(engine.Path, bookFile)
 			if err != nil {
-				log.Printf("[ENGINE_DISCOVERY] Failed to create polyglot config for %s: %v", engine.Name, err)
+				Info("ENGINE_DISCOVERY", "Failed to create polyglot config for %s: %v", engine.Name, err)
 				continue
 			}
 
 			// Create wrapper script that runs polyglot with the config file
 			wrapperScript, err := createPolyglotWrapper(configFile)
 			if err != nil {
-				log.Printf("[ENGINE_DISCOVERY] Failed to create polyglot wrapper for %s: %v", engine.Name, err)
+				Info("ENGINE_DISCOVERY", "Failed to create polyglot wrapper for %s: %v", engine.Name, err)
 				continue
 			}
 
@@ -473,7 +472,7 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 				Options:          make(map[string]string),
 			}
 			variants = append(variants, variant)
-			log.Printf("[ENGINE_DISCOVERY] Created polyglot variant for CECP engine: %s", variant.Name)
+			Info("ENGINE_DISCOVERY", "Created polyglot variant for CECP engine: %s", variant.Name)
 		}
 	}
 
@@ -551,6 +550,6 @@ BookDepth = 255
 		return "", fmt.Errorf("failed to write polyglot config: %w", err)
 	}
 
-	log.Printf("[ENGINE_DISCOVERY] Created polyglot config: %s", configFile)
+	Info("ENGINE_DISCOVERY", "Created polyglot config: %s", configFile)
 	return configFile, nil
 }

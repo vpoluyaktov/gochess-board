@@ -40,9 +40,9 @@ func InitDebugLogging(filename string) error {
 // New creates a new chess server
 func New(addr string, bookFile string) *Server {
 	engines := DiscoverEngines(bookFile)
-	log.Printf("[SERVER] Discovered %d chess engines", len(engines))
+	Info("SERVER", "Discovered %d chess engines", len(engines))
 	for _, engine := range engines {
-		log.Printf("[SERVER]   - %s (%s)", engine.Name, engine.Path)
+		Info("SERVER", "  - %s (%s)", engine.Name, engine.Path)
 	}
 
 	return &Server{
@@ -69,7 +69,7 @@ func (s *Server) Start() error {
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)
 
-	log.Printf("[SERVER] Server starting on %s", s.addr)
+	Info("SERVER", "Server starting on %s", s.addr)
 	return http.ListenAndServe(s.addr, nil)
 }
 
@@ -78,7 +78,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFS(templatesFS, "templates/index.html")
 	if err != nil {
 		http.Error(w, "Error loading template", http.StatusInternalServerError)
-		log.Printf("[SERVER] Template error: %v", err)
+		Error("SERVER", "Template error: %v", err)
 		return
 	}
 

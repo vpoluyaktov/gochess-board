@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"io"
-	"log"
 	"os/exec"
 	"strings"
 	"sync"
@@ -72,7 +71,7 @@ func (e *UCIEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	log.Printf("[ENGINE] >>> %s", cmd)
+	Debug("ENGINE", ">>> %s", cmd)
 	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
 	return err
 }
@@ -149,7 +148,7 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				log.Printf("[ENGINE] <<< %s", line)
+				Debug("ENGINE", "<<< %s", line)
 				return parts[1], nil
 			}
 		}
@@ -197,7 +196,7 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				log.Printf("[ENGINE] <<< %s", line)
+				Debug("ENGINE", "<<< %s", line)
 				return parts[1], nil
 			}
 		}
