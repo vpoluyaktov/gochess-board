@@ -2,19 +2,93 @@ package server
 
 import (
 	"bufio"
+	"context"
 	"crypto/md5"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 )
+
+// getExecutableName returns the platform-specific executable name
+// On Windows, it appends .exe to the name
+func getExecutableName(name string) string {
+	if runtime.GOOS == "windows" {
+		return name + ".exe"
+	}
+	return name
+}
+
+// getEngineNames returns platform-specific engine names for discovery
+func getEngineNames(baseNames []string) []string {
+	names := make([]string, len(baseNames))
+	for i, name := range baseNames {
+		names[i] = getExecutableName(name)
+	}
+	return names
+}
+
+// extractVersion extracts version information from engine name
+// Examples: "Stockfish 16" -> "16", "Fruit 2.1" -> "2.1", "Toga II 3.0" -> "3.0", "Crafty-23.4" -> "23.4"
+func extractVersion(name string) string {
+	// First try splitting by hyphen (e.g., "Crafty-23.4")
+	if strings.Contains(name, "-") {
+		parts := strings.Split(name, "-")
+		for i := len(parts) - 1; i >= 0; i-- {
+			part := strings.TrimSpace(parts[i])
+			if len(part) > 0 && strings.ContainsAny(part, "0123456789") {
+				// Remove common prefixes like "v"
+				part = strings.TrimPrefix(part, "v")
+				part = strings.TrimPrefix(part, "V")
+				return part
+			}
+		}
+	}
+
+	// Then try splitting by spaces
+	parts := strings.Fields(name)
+	for i := len(parts) - 1; i >= 0; i-- {
+		part := parts[i]
+		// Check if this looks like a version (contains digits)
+		if len(part) > 0 && (strings.ContainsAny(part, "0123456789")) {
+			// Remove common prefixes like "v"
+			part = strings.TrimPrefix(part, "v")
+			part = strings.TrimPrefix(part, "V")
+			return part
+		}
+	}
+	return ""
+}
+
+// tryGetVersionFromBinary attempts to get version by running the binary with --version flag
+func tryGetVersionFromBinary(path string) string {
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, path, "--version")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return ""
+	}
+
+	// Parse first line of output
+	lines := strings.Split(string(output), "\n")
+	if len(lines) > 0 {
+		firstLine := strings.TrimSpace(lines[0])
+		// Extract version from output like "GNU Chess 6.2.9"
+		return extractVersion(firstLine)
+	}
+	return ""
+}
 
 // EngineInfo represents information about a discovered chess engine
 type EngineInfo struct {
 	Name                  string            `json:"name"`
 	Path                  string            `json:"path"`
+	Version               string            `json:"version,omitempty"` // engine version
 	ID                    string            `json:"id"`
 	Type                  string            `json:"type"`                       // "uci", "cecp", "polyglot-uci", "polyglot-cecp"
 	SupportsBook          bool              `json:"supportsBook"`               // true for polyglot variants
@@ -27,8 +101,8 @@ type EngineInfo struct {
 	Options               map[string]string `json:"options,omitempty"` // UCI options
 }
 
-// Common UCI engine names to search for
-var uciEngineNames = []string{
+// Common UCI engine base names to search for (without .exe extension)
+var uciEngineBaseNames = []string{
 	"stockfish",
 	"lc0",
 	"leela",
@@ -50,8 +124,8 @@ var uciEngineNames = []string{
 	"demolito",
 }
 
-// Common CECP/XBoard engine names to search for
-var cecpEngineNames = []string{
+// Common CECP/XBoard engine base names to search for (without .exe extension)
+var cecpEngineBaseNames = []string{
 	"crafty",
 	"gnuchess",
 	"sjeng",
@@ -80,7 +154,7 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 
 	// Discover UCI engines
 	Info("ENGINE_DISCOVERY", "Discovering UCI engines...")
-	uciEngines := discoverEngineList(uciEngineNames, getEngineInfo)
+	uciEngines := discoverEngineList(getEngineNames(uciEngineBaseNames), getEngineInfo)
 	for _, engine := range uciEngines {
 		if !seen[engine.Path] {
 			engines = append(engines, engine)
@@ -101,7 +175,7 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 	var cecpEngines []EngineInfo
 	if hasPolyglot {
 		Info("ENGINE_DISCOVERY", "Discovering CECP engines...")
-		cecpEngines = discoverEngineList(cecpEngineNames, getCECPEngineInfo)
+		cecpEngines = discoverEngineList(getEngineNames(cecpEngineBaseNames), getCECPEngineInfo)
 		for _, engine := range cecpEngines {
 			Info("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
 				engine.Name, engine.Path)
@@ -201,6 +275,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 
 			if strings.HasPrefix(line, "id name ") {
 				info.Name = strings.TrimPrefix(line, "id name ")
+				info.Version = extractVersion(info.Name)
 			}
 
 			// Parse UCI options
@@ -355,6 +430,10 @@ func getCECPEngineInfo(path string) (EngineInfo, bool) {
 				if info.Name == "" {
 					info.Name = formatEngineName(path)
 				}
+				info.Version = extractVersion(info.Name)
+				if info.Version == "" {
+					info.Version = tryGetVersionFromBinary(path)
+				}
 				info.ID = strings.ToLower(strings.ReplaceAll(info.Name, " ", "_"))
 				info.Type = "cecp"
 				resultChan <- struct {
@@ -369,6 +448,10 @@ func getCECPEngineInfo(path string) (EngineInfo, bool) {
 		if foundFeature {
 			if info.Name == "" {
 				info.Name = formatEngineName(path)
+			}
+			info.Version = extractVersion(info.Name)
+			if info.Version == "" {
+				info.Version = tryGetVersionFromBinary(path)
 			}
 			info.ID = strings.ToLower(strings.ReplaceAll(info.Name, " ", "_"))
 			info.Type = "cecp"
@@ -431,6 +514,7 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 			variant := EngineInfo{
 				Name:                  engine.Name + " + Book",
 				Path:                  wrapperScript,
+				Version:               engine.Version,
 				ID:                    engine.ID + "_polyglot",
 				Type:                  "polyglot-uci",
 				SupportsBook:          true,
@@ -464,6 +548,7 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 			variant := EngineInfo{
 				Name:             engine.Name + " (via Polyglot)",
 				Path:             wrapperScript,
+				Version:          engine.Version,
 				ID:               engine.ID + "_polyglot",
 				Type:             "polyglot-cecp",
 				SupportsBook:     bookFile != "",
@@ -480,6 +565,7 @@ func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []Eng
 }
 
 // createPolyglotWrapper creates an executable wrapper script that runs polyglot with a config file
+// On Unix systems, creates a shell script (.sh). On Windows, creates a batch file (.bat)
 func createPolyglotWrapper(configFile string) (string, error) {
 	// Create temp directory for polyglot wrappers
 	tempDir := filepath.Join(os.TempDir(), "go-chess-polyglot")
@@ -489,12 +575,23 @@ func createPolyglotWrapper(configFile string) (string, error) {
 
 	// Create unique wrapper filename based on config file hash
 	hash := fmt.Sprintf("%x", md5.Sum([]byte(configFile)))[:8]
-	wrapperFile := filepath.Join(tempDir, fmt.Sprintf("polyglot-wrapper-%s.sh", hash))
 
-	// Create shell script that runs polyglot with the config file
-	script := fmt.Sprintf(`#!/bin/sh
+	var wrapperFile string
+	var script string
+
+	if runtime.GOOS == "windows" {
+		// Windows batch file
+		wrapperFile = filepath.Join(tempDir, fmt.Sprintf("polyglot-wrapper-%s.bat", hash))
+		script = fmt.Sprintf(`@echo off
+polyglot "%s"
+`, configFile)
+	} else {
+		// Unix shell script
+		wrapperFile = filepath.Join(tempDir, fmt.Sprintf("polyglot-wrapper-%s.sh", hash))
+		script = fmt.Sprintf(`#!/bin/sh
 exec polyglot "%s"
 `, configFile)
+	}
 
 	// Write wrapper script
 	if err := os.WriteFile(wrapperFile, []byte(script), 0755); err != nil {

@@ -56,8 +56,8 @@ func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server
 	// Engines table (static list)
 	enginesColumns := []table.Column{
 		{Title: "#", Width: 3},
-		{Title: "Name", Width: 20},
-		{Title: "Path", Width: 20},
+		{Title: "Name", Width: 28},
+		{Title: "Version", Width: 10},
 		{Title: "ELO / Strength", Width: 30},
 		{Title: "UCI Options", Width: 12},
 	}
@@ -337,10 +337,14 @@ func buildEngineRows(engines []server.EngineInfo) []table.Row {
 		if len(e.Options) > 0 {
 			options = fmt.Sprintf("%d", len(e.Options))
 		}
+		version := e.Version
+		if version == "" {
+			version = "-"
+		}
 		rows = append(rows, table.Row{
 			fmt.Sprintf("%d", i+1),
 			e.Name,
-			truncateMiddle(e.Path, 25),
+			version,
 			strength,
 			options,
 		})

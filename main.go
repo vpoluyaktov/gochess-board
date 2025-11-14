@@ -51,6 +51,9 @@ func main() {
 	addr := fmt.Sprintf(":%s", *port)
 	url := fmt.Sprintf("http://localhost:%s", *port)
 
+	// Display startup message
+	fmt.Println("Discovering chess engines...")
+
 	// Start the web server in a goroutine
 	srv := server.New(addr, *bookFile)
 	go func() {
