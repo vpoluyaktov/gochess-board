@@ -189,12 +189,12 @@ var upgrader = websocket.Upgrader{
 func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("WebSocket upgrade error: %v", err)
+		log.Printf("[ANALYSIS] WebSocket upgrade error: %v", err)
 		return
 	}
 	defer conn.Close()
 
-	log.Println("Analysis WebSocket connected")
+	log.Println("[ANALYSIS] WebSocket connected")
 
 	var engine *AnalysisEngine
 	var sessionID string
@@ -210,7 +210,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("WebSocket read error: %v", err)
+			log.Printf("[ANALYSIS] WebSocket read error: %v", err)
 			break
 		}
 
@@ -234,7 +234,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 
 			engine, err = NewAnalysisEngine(enginePath)
 			if err != nil {
-				log.Printf("Failed to start analysis engine: %v", err)
+				log.Printf("[ANALYSIS] Failed to start analysis engine: %v", err)
 				conn.WriteJSON(map[string]string{"error": err.Error()})
 				continue
 			}
@@ -248,7 +248,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 					break
 				}
 			}
-			
+
 			activeEngine := &ActiveEngine{
 				Name:           engineName + " (Analysis)",
 				Path:           enginePath,
@@ -265,7 +265,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 			// Start analysis
 			err = engine.StartAnalysis(msg.FEN, analysisChannel)
 			if err != nil {
-				log.Printf("Failed to start analysis: %v", err)
+				log.Printf("[ANALYSIS] Failed to start analysis: %v", err)
 				conn.WriteJSON(map[string]string{"error": err.Error()})
 				GlobalMonitor.UnregisterEngine(sessionID)
 				continue
@@ -320,7 +320,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 		engine.StopAnalysis()
 		engine.Close()
 	}
-	
+
 	// Unregister analysis engine
 	if sessionID != "" {
 		GlobalMonitor.UnregisterEngine(sessionID)

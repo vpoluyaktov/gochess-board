@@ -30,8 +30,9 @@ func InitDebugLogging(filename string) error {
 	}
 
 	// Log only to file to avoid breaking TUI layout
+	// Use custom format without file:line, we'll use module prefixes instead
 	log.SetOutput(logFile)
-	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds | log.Lshortfile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lmicroseconds)
 
 	return nil
 }
@@ -39,11 +40,11 @@ func InitDebugLogging(filename string) error {
 // New creates a new chess server
 func New(addr string) *Server {
 	engines := DiscoverEngines()
-	log.Printf("Discovered %d chess engines", len(engines))
+	log.Printf("[SERVER] Discovered %d chess engines", len(engines))
 	for _, engine := range engines {
-		log.Printf("  - %s (%s)", engine.Name, engine.Path)
+		log.Printf("[SERVER]   - %s (%s)", engine.Name, engine.Path)
 	}
-	
+
 	return &Server{
 		addr:    addr,
 		engines: engines,
@@ -68,7 +69,7 @@ func (s *Server) Start() error {
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)
 
-	log.Printf("Server starting on %s", s.addr)
+	log.Printf("[SERVER] Server starting on %s", s.addr)
 	return http.ListenAndServe(s.addr, nil)
 }
 
@@ -77,7 +78,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFS(templatesFS, "templates/index.html")
 	if err != nil {
 		http.Error(w, "Error loading template", http.StatusInternalServerError)
-		log.Printf("Template error: %v", err)
+		log.Printf("[SERVER] Template error: %v", err)
 		return
 	}
 
@@ -92,7 +93,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Error rendering template", http.StatusInternalServerError)
-		log.Printf("Render error: %v", err)
+		log.Printf("[SERVER] Render error: %v", err)
 	}
 }
 

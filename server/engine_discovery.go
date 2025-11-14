@@ -11,14 +11,14 @@ import (
 
 // EngineInfo represents information about a discovered chess engine
 type EngineInfo struct {
-	Name              string            `json:"name"`
-	Path              string            `json:"path"`
-	ID                string            `json:"id"`
-	SupportsLimitStrength bool          `json:"supportsLimitStrength"`
-	MinElo            int               `json:"minElo,omitempty"`
-	MaxElo            int               `json:"maxElo,omitempty"`
-	DefaultElo        int               `json:"defaultElo,omitempty"`
-	Options           map[string]string `json:"options,omitempty"` // UCI options
+	Name                  string            `json:"name"`
+	Path                  string            `json:"path"`
+	ID                    string            `json:"id"`
+	SupportsLimitStrength bool              `json:"supportsLimitStrength"`
+	MinElo                int               `json:"minElo,omitempty"`
+	MaxElo                int               `json:"maxElo,omitempty"`
+	DefaultElo            int               `json:"defaultElo,omitempty"`
+	Options               map[string]string `json:"options,omitempty"` // UCI options
 }
 
 // Common UCI engine names to search for
@@ -33,6 +33,7 @@ var commonEngineNames = []string{
 	"gnuchess",
 	"fruit",
 	"toga",
+	"toga2",
 	"glaurung",
 	"fairy-stockfish",
 	"ethereal",
@@ -43,10 +44,12 @@ var commonEngineNames = []string{
 	"igel",
 	"laser",
 	"demolito",
+	"polyglot",
 }
 
 // DiscoverEngines searches for installed UCI chess engines
 func DiscoverEngines() []EngineInfo {
+
 	type result struct {
 		info EngineInfo
 		ok   bool
@@ -77,14 +80,14 @@ func DiscoverEngines() []EngineInfo {
 		if res.ok && !seen[res.info.Path] {
 			engines = append(engines, res.info)
 			seen[res.info.Path] = true
-			
+
 			// Log engine capabilities
 			eloInfo := ""
 			if res.info.SupportsLimitStrength {
-				eloInfo = fmt.Sprintf(" [ELO: %d-%d, default: %d]", 
+				eloInfo = fmt.Sprintf(" [ELO: %d-%d, default: %d]",
 					res.info.MinElo, res.info.MaxElo, res.info.DefaultElo)
 			}
-			log.Printf("Discovered engine: %s (command: %s)%s", 
+			log.Printf("[ENGINE_DISCOVERY] Discovered engine: %s (command: %s)%s",
 				res.info.Name, res.info.Path, eloInfo)
 		}
 	}
@@ -150,6 +153,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 				return
 			}
 		}
+		log.Printf("[ENGINE_DISCOVERY] Engine %s is not UCI compatible (no 'uciok' response)", path)
 		resultChan <- struct {
 			info EngineInfo
 			ok   bool
@@ -165,6 +169,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 		cmd.Wait()
 		return result.info, result.ok
 	case <-time.After(2 * time.Second):
+		log.Printf("[ENGINE_DISCOVERY] Engine %s is not UCI compatible (timeout)", path)
 		stdin.Close()
 		stdout.Close()
 		cmd.Process.Kill()
