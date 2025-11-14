@@ -5,10 +5,12 @@ import (
 	"strings"
 	"time"
 
+	"go-chess/server"
+
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"go-chess/server"
 )
 
 var (
@@ -30,39 +32,80 @@ var (
 
 	valueStyle = lipgloss.NewStyle().
 			Foreground(lipgloss.Color("#04B575"))
-
-	statsStyle = lipgloss.NewStyle().
-			Foreground(lipgloss.Color("#FAFAFA"))
 )
 
 type tickMsg time.Time
 
 type model struct {
-	spinner   spinner.Model
-	serverURL string
-	startTime time.Time
-	engines   []server.EngineInfo
-	monitor   *server.EngineMonitor
+	spinner      spinner.Model
+	serverURL    string
+	startTime    time.Time
+	engines      []server.EngineInfo
+	monitor      *server.EngineMonitor
+	enginesTable table.Model
+	activeTable  table.Model
+	width        int
+	height       int
 }
 
 func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor) model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	
-	return model{
-		spinner:   s,
-		serverURL: serverURL,
-		startTime: time.Now(),
-		engines:   engines,
-		monitor:   monitor,
+
+	// Engines table (static list)
+	enginesColumns := []table.Column{
+		{Title: "#", Width: 3},
+		{Title: "Name", Width: 20},
+		{Title: "Path", Width: 20},
+		{Title: "ELO / Strength", Width: 30},
+		{Title: "UCI Options", Width: 12},
 	}
+	t := table.New(
+		table.WithColumns(enginesColumns),
+		table.WithRows(buildEngineRows(engines)),
+	)
+	t.SetHeight(10)
+	t.SetStyles(defaultTableStyles())
+
+	// Active engines table (dynamic, refreshed on ticks)
+	activeColumns := []table.Column{
+		{Title: "Type", Width: 9},
+		{Title: "Name", Width: 24},
+		{Title: "ELO", Width: 6},
+		{Title: "wtime", Width: 10},
+		{Title: "btime", Width: 10},
+		{Title: "winc", Width: 8},
+		{Title: "binc", Width: 8},
+	}
+	activeT := table.New(
+		table.WithColumns(activeColumns),
+		table.WithRows(nil),
+	)
+	activeT.SetHeight(6)
+	activeT.SetStyles(defaultTableStyles())
+
+	m := model{
+		spinner:      s,
+		serverURL:    serverURL,
+		startTime:    time.Now(),
+		engines:      engines,
+		monitor:      monitor,
+		enginesTable: t,
+		activeTable:  activeT,
+	}
+
+	// Initialize active engines table rows
+	m.refreshActiveEnginesTable()
+
+	return m
 }
 
 func (m model) Init() tea.Cmd {
 	return tea.Batch(
 		m.spinner.Tick,
 		tickCmd(),
+		tea.WindowSize(),
 	)
 }
 
@@ -73,35 +116,62 @@ func tickCmd() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		if msg.String() == "q" || msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
-	
+		if msg.String() == "r" {
+			m.refreshActiveEnginesTable()
+		}
+
 	case tickMsg:
-		return m, tickCmd()
-	
+		m.refreshActiveEnginesTable()
+		cmds = append(cmds, tickCmd())
+
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
-		return m, cmd
+		cmds = append(cmds, cmd)
+
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+		m.updateLayout()
 	}
-	
-	return m, nil
+
+	var cmd tea.Cmd
+	m.enginesTable, cmd = m.enginesTable.Update(msg)
+	cmds = append(cmds, cmd)
+	m.activeTable, cmd = m.activeTable.Update(msg)
+	cmds = append(cmds, cmd)
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
+	// Fallback size if we haven't received a WindowSizeMsg yet
+	width := m.width
+	height := m.height
+	if width == 0 {
+		width = 120
+	}
+	if height == 0 {
+		height = 40
+	}
+
 	// Title
 	title := titleStyle.Render("♟️  GO CHESS SERVER  ♟️")
-	
+
 	// Server status line
-	serverStatus := labelStyle.Render("Server: ") + valueStyle.Render(m.serverURL) + 
+	serverStatus := labelStyle.Render("Server: ") + valueStyle.Render(m.serverURL) +
 		"  " + m.spinner.View() + " " + valueStyle.Render("Running")
-	
+
 	// Server uptime
 	uptime := time.Since(m.startTime).Round(time.Second)
-	
+
 	// Left column: Server Info
 	serverInfoContent := fmt.Sprintf("🖥️  SERVER STATUS\n\n"+
 		"URL:     %s\n"+
@@ -110,125 +180,232 @@ func (m model) View() string {
 		"📡 API ENDPOINTS\n\n"+
 		"• /api/computer-move\n"+
 		"• /api/analysis\n"+
-		"• /api/engines\n\n"+
-		"ℹ️  INFO\n\n"+
-		"Multi-user support\n"+
-		"Client-side state\n"+
-		"LocalStorage persist",
+		"• /api/engines\n",
 		m.serverURL, uptime.String())
-	serverInfo := boxStyle.Copy().Width(43).Render(serverInfoContent)
-	
-	// Right column: Engines Info
+
+	// Layout calculations: split the screen vertically into top/bottom halves
+	topHeight, bottomHeight := calculateHeights(height)
+
+	// Split width between server info and engines list
+	serverWidth := int(float64(width) * 0.32)
+	if serverWidth < 30 {
+		serverWidth = 30
+	}
+	enginesWidth := width - serverWidth - 6
+	if enginesWidth < 40 {
+		enginesWidth = 40
+	}
+
+	serverInfo := boxStyle.
+		Width(serverWidth).
+		Height(topHeight).
+		Render(serverInfoContent)
+
+	// Right column: Engines Info (table or fallback text)
 	var enginesDisplay string
 	if len(m.engines) == 0 {
 		enginesContent := "⚠️  NO ENGINES FOUND\n\n" +
 			"No UCI chess engines were discovered on this system.\n" +
 			"Please install a chess engine like Stockfish."
-		enginesDisplay = boxStyle.Copy().Width(83).Render(enginesContent)
+		enginesDisplay = boxStyle.
+			Width(enginesWidth).
+			Height(topHeight).
+			Render(enginesContent)
 	} else {
-		// Build engines list as plain text
-		enginesContent := fmt.Sprintf("🎮 DISCOVERED ENGINES (%d)\n\n", len(m.engines))
-		
-		for i, engine := range m.engines {
-			if i > 0 {
-				enginesContent += "\n───────────────────────────────────────────────────────────────────────────\n"
-			}
-			
-			// Engine name and path
-			enginesContent += fmt.Sprintf("%d. %s\n", i+1, engine.Name)
-			enginesContent += fmt.Sprintf("   Path: %s\n", engine.Path)
-			
-			// ELO support
-			if engine.SupportsLimitStrength {
-				enginesContent += fmt.Sprintf("   ELO:  %d - %d (default: %d)\n",
-					engine.MinElo, engine.MaxElo, engine.DefaultElo)
-				enginesContent += "   Features: ✓ Strength Limiting\n"
-			} else {
-				enginesContent += "   ELO:  Full strength only\n"
-			}
-			
-			// Options count
-			optionCount := len(engine.Options)
-			if optionCount > 0 {
-				enginesContent += fmt.Sprintf("   UCI Options: %d available\n", optionCount)
-			}
-		}
-		
-		enginesDisplay = boxStyle.Copy().Width(83).Render(enginesContent)
+		enginesHeader := fmt.Sprintf("🎮 DISCOVERED ENGINES (%d)", len(m.engines))
+		enginesContent := enginesHeader + "\n\n" + m.enginesTable.View()
+		enginesDisplay = boxStyle.
+			Width(enginesWidth).
+			Height(topHeight).
+			Render(enginesContent)
 	}
-	
+
 	// Arrange in columns
 	columns := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		serverInfo,
 		enginesDisplay,
 	)
-	
-	// Active engines runtime box
-	var activeEnginesBox string
-	activeEngines := m.monitor.GetActiveEngines()
-	if len(activeEngines) > 0 {
-		// Separate analysis and move engines
-		var analysisEngines []*server.ActiveEngine
-		var moveEngines []*server.ActiveEngine
-		
-		for _, ae := range activeEngines {
-			if strings.Contains(ae.Name, "(Analysis)") {
-				analysisEngines = append(analysisEngines, ae)
-			} else {
-				moveEngines = append(moveEngines, ae)
-			}
-		}
-		
-		// Build content as plain text
-		content := fmt.Sprintf("⚡ ACTIVE ENGINES (%d)\n\n", len(activeEngines))
-		
-		// Show analysis engines first
-		for _, ae := range analysisEngines {
-			eloStr := "N/A"
-			if ae.ELO > 0 {
-				eloStr = fmt.Sprintf("%d", ae.ELO)
-			}
-			content += fmt.Sprintf("• %s ELO:%s wtime:%dms btime:%dms winc:%dms binc:%dms\n",
-				ae.Name, eloStr, ae.WhiteTime, ae.BlackTime, ae.WhiteIncrement, ae.BlackIncrement)
-		}
-		
-		// Then show move engines
-		for _, ae := range moveEngines {
-			eloStr := "N/A"
-			if ae.ELO > 0 {
-				eloStr = fmt.Sprintf("%d", ae.ELO)
-			}
-			content += fmt.Sprintf("• %s ELO:%s wtime:%dms btime:%dms winc:%dms binc:%dms\n",
-				ae.Name, eloStr, ae.WhiteTime, ae.BlackTime, ae.WhiteIncrement, ae.BlackIncrement)
-		}
-		
-		activeEnginesBox = boxStyle.Copy().Width(128).Render(content)
-	} else {
-		content := fmt.Sprintf("⚡ ACTIVE ENGINES (0)\n\nNo engines currently running")
-		activeEnginesBox = boxStyle.Copy().Width(128).Render(content)
-	}
-	
-	// Help text
-	help := lipgloss.NewStyle().
+
+	// Active engines runtime box (table) occupying the bottom half
+	activeCount := len(m.monitor.GetActiveEngines())
+	activeHeader := fmt.Sprintf("⚡ ACTIVE ENGINES (%d)", activeCount)
+	activeContent := activeHeader + "\n\n" + m.activeTable.View()
+	activeEnginesBox := boxStyle.
+		Width(width - 4).
+		Height(bottomHeight).
+		Render(activeContent)
+
+	// Help text inside a small status box at the very bottom
+	helpText := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("241")).
 		Render("Press 'r' to refresh engines • 'q' or 'Ctrl+C' to quit")
-	
-	// Combine all sections vertically
+	helpBox := boxStyle.
+		Width(width - 4).
+		Height(3). // fixed height for help box
+		Render(helpText)
+
+	// Combine all sections vertically without extra blank lines
 	output := fmt.Sprintf(
-		"%s\n%s\n\n%s\n\n%s\n\n%s",
+		"%s\n%s\n%s\n%s\n%s",
 		title,
 		serverStatus,
 		columns,
 		activeEnginesBox,
-		help,
+		helpBox,
 	)
-	
+
 	return output
 }
 
+func (m *model) refreshActiveEnginesTable() {
+	activeEngines := m.monitor.GetActiveEngines()
+
+	// Separate analysis and move engines
+	var analysisEngines []*server.ActiveEngine
+	var moveEngines []*server.ActiveEngine
+
+	for _, ae := range activeEngines {
+		if strings.Contains(ae.Name, "(Analysis)") {
+			analysisEngines = append(analysisEngines, ae)
+		} else {
+			moveEngines = append(moveEngines, ae)
+		}
+	}
+
+	// Build rows with analysis engines first, then move engines
+	rows := make([]table.Row, 0, len(activeEngines))
+
+	for _, ae := range analysisEngines {
+		eloStr := "N/A"
+		if ae.ELO > 0 {
+			eloStr = fmt.Sprintf("%d", ae.ELO)
+		}
+		rows = append(rows, table.Row{
+			"Analysis",
+			ae.Name,
+			eloStr,
+			fmt.Sprintf("%dms", ae.WhiteTime),
+			fmt.Sprintf("%dms", ae.BlackTime),
+			fmt.Sprintf("%dms", ae.WhiteIncrement),
+			fmt.Sprintf("%dms", ae.BlackIncrement),
+		})
+	}
+
+	for _, ae := range moveEngines {
+		eloStr := "N/A"
+		if ae.ELO > 0 {
+			eloStr = fmt.Sprintf("%d", ae.ELO)
+		}
+		rows = append(rows, table.Row{
+			"Move",
+			ae.Name,
+			eloStr,
+			fmt.Sprintf("%dms", ae.WhiteTime),
+			fmt.Sprintf("%dms", ae.BlackTime),
+			fmt.Sprintf("%dms", ae.WhiteIncrement),
+			fmt.Sprintf("%dms", ae.BlackIncrement),
+		})
+	}
+
+	// Note: table.Model has value semantics, so we must reassign
+	m.activeTable.SetRows(rows)
+}
+
+func defaultTableStyles() table.Styles {
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(true)
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("229")).
+		Background(lipgloss.Color("57")).
+		Bold(false)
+	return s
+}
+
+func buildEngineRows(engines []server.EngineInfo) []table.Row {
+	rows := make([]table.Row, 0, len(engines))
+	for i, e := range engines {
+		strength := "Full strength only"
+		if e.SupportsLimitStrength {
+			strength = fmt.Sprintf("%d-%d (default %d)", e.MinElo, e.MaxElo, e.DefaultElo)
+		}
+		options := "0"
+		if len(e.Options) > 0 {
+			options = fmt.Sprintf("%d", len(e.Options))
+		}
+		rows = append(rows, table.Row{
+			fmt.Sprintf("%d", i+1),
+			e.Name,
+			truncateMiddle(e.Path, 25),
+			strength,
+			options,
+		})
+	}
+	return rows
+}
+
+// calculateHeights computes the heights for top and bottom sections based on terminal height
+func calculateHeights(terminalHeight int) (topHeight, bottomHeight int) {
+	titleLines := 1
+	serverStatusLines := 1
+	newlines := 4      // newlines between sections in fmt.Sprintf
+	helpBoxHeight := 3 // small fixed height for help/status box
+
+	reservedLines := titleLines + serverStatusLines + newlines + helpBoxHeight + 5
+	availableHeight := terminalHeight - reservedLines
+	if availableHeight < 10 {
+		availableHeight = 10
+	}
+
+	// Split remaining space 50/50 between top row and active engines
+	topHeight = availableHeight / 2
+	bottomHeight = availableHeight - topHeight
+	return topHeight, bottomHeight
+}
+
+// updateLayout adjusts table heights based on the current terminal size
+func (m *model) updateLayout() {
+	if m.height == 0 {
+		return
+	}
+	topHeight, bottomHeight := calculateHeights(m.height)
+
+	// Leave some room inside the boxes for headers and padding
+	topTableHeight := topHeight - 4
+	if topTableHeight < 3 {
+		topTableHeight = 3
+	}
+	bottomTableHeight := bottomHeight - 4
+	if bottomTableHeight < 3 {
+		bottomTableHeight = 3
+	}
+
+	m.enginesTable.SetHeight(topTableHeight)
+	m.activeTable.SetHeight(bottomTableHeight)
+}
+
+// truncateMiddle shortens s to max characters by replacing the middle with "…".
+// If s is already within the limit, it is returned unchanged.
+func truncateMiddle(s string, max int) string {
+	if len(s) <= max || max <= 1 {
+		return s
+	}
+	// keep start and end parts
+	keep := max - 1 // account for the ellipsis
+	front := keep / 2
+	back := keep - front
+	if front <= 0 || back <= 0 {
+		return s[:max]
+	}
+	return s[:front] + "…" + s[len(s)-back:]
+}
+
 func RunTUI(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor) error {
-	p := tea.NewProgram(InitialModel(serverURL, engines, monitor))
+	p := tea.NewProgram(InitialModel(serverURL, engines, monitor), tea.WithAltScreen())
 	_, err := p.Run()
 	return err
 }
