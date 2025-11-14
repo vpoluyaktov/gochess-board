@@ -28,6 +28,8 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "        Don't show TUI interface\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --book-file string\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Path to opening book file for polyglot (optional)\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --log-level string\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Log level: DEBUG, INFO, WARN, ERROR (default \"INFO\")\n")
 	}
 
 	// Command line flags
@@ -35,12 +37,16 @@ func main() {
 	noBrowser := flag.Bool("no-browser", false, "Don't automatically open browser")
 	noTUI := flag.Bool("no-tui", false, "Don't show TUI interface")
 	bookFile := flag.String("book-file", "", "Path to opening book file for polyglot (optional)")
+	logLevel := flag.String("log-level", "INFO", "Log level: DEBUG, INFO, WARN, ERROR")
 	flag.Parse()
 
 	// Initialize debug logging to file
 	if err := server.InitDebugLogging("chess-debug.log"); err != nil {
 		fmt.Printf("Warning: Failed to initialize debug logging: %v\n", err)
 	}
+
+	// Set log level from command line
+	server.SetLogLevel(*logLevel)
 
 	addr := fmt.Sprintf(":%s", *port)
 	url := fmt.Sprintf("http://localhost:%s", *port)
