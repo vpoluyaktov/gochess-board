@@ -17,10 +17,24 @@ const (
 )
 
 func main() {
+	// Customize usage to show double dashes (GNU-style)
+	flag.Usage = func() {
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", "go-chess")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --port string\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Port to run the web server on (default %q)\n", defaultPort)
+		fmt.Fprintf(flag.CommandLine.Output(), "  --no-browser\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Don't automatically open browser\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --no-tui\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Don't show TUI interface\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --book-file string\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Path to opening book file for polyglot (optional)\n")
+	}
+
 	// Command line flags
 	port := flag.String("port", defaultPort, "Port to run the web server on")
 	noBrowser := flag.Bool("no-browser", false, "Don't automatically open browser")
 	noTUI := flag.Bool("no-tui", false, "Don't show TUI interface")
+	bookFile := flag.String("book-file", "", "Path to opening book file for polyglot (optional)")
 	flag.Parse()
 
 	// Initialize debug logging to file
@@ -32,7 +46,7 @@ func main() {
 	url := fmt.Sprintf("http://localhost:%s", *port)
 
 	// Start the web server in a goroutine
-	srv := server.New(addr)
+	srv := server.New(addr, *bookFile)
 	go func() {
 		if err := srv.Start(); err != nil {
 			log.Fatalf("Server error: %v", err)
@@ -55,7 +69,7 @@ func main() {
 	if !*noTUI {
 		// Give browser time to open before starting TUI
 		time.Sleep(1 * time.Second)
-		
+
 		// Run TUI (blocks until quit)
 		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor); err != nil {
 			log.Fatalf("TUI error: %v", err)

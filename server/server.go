@@ -38,8 +38,8 @@ func InitDebugLogging(filename string) error {
 }
 
 // New creates a new chess server
-func New(addr string) *Server {
-	engines := DiscoverEngines()
+func New(addr string, bookFile string) *Server {
+	engines := DiscoverEngines(bookFile)
 	log.Printf("[SERVER] Discovered %d chess engines", len(engines))
 	for _, engine := range engines {
 		log.Printf("[SERVER]   - %s (%s)", engine.Name, engine.Path)
