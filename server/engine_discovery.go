@@ -487,6 +487,16 @@ func createPolyglotConfig(enginePath string, bookPath string) (string, error) {
 	// Create log file path for this engine
 	logFile := filepath.Join(tempDir, fmt.Sprintf("polyglot-%s.log", hash))
 
+	// Get absolute path to engine
+	absEnginePath, err := exec.LookPath(enginePath)
+	if err != nil {
+		// If LookPath fails, use the enginePath as-is
+		absEnginePath = enginePath
+	}
+
+	engineDir := filepath.Dir(absEnginePath)
+	engineCmd := filepath.Base(absEnginePath)
+
 	// Generate polyglot INI content
 	config := fmt.Sprintf(`[PolyGlot]
 EngineDir = %s
@@ -495,7 +505,7 @@ Book = %s
 BookFile = %s
 LogFile = %s
 BookDepth = 255
-`, filepath.Dir(enginePath), filepath.Base(enginePath), useBook, bookPath, logFile)
+`, engineDir, engineCmd, useBook, bookPath, logFile)
 
 	// Write config file
 	if err := os.WriteFile(configFile, []byte(config), 0644); err != nil {
