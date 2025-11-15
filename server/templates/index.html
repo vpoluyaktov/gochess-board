@@ -115,10 +115,11 @@
                 </div>
                 
                 <div class="move-history">
-                    <div class="move-history-header">📜 Move History</div>
-                    <div class="move-history-list" id="moveHistoryList">
-                        <div class="move-history-empty">No moves yet</div>
+                    <div class="move-history-header">
+                        📜 Move History
+                        <button onclick="copyMoveHistory()" class="copy-btn" title="Copy to clipboard">📋</button>
                     </div>
+                    <textarea id="moveHistoryText" class="move-history-text" readonly placeholder="No moves yet"></textarea>
                 </div>
             </div>
         </div>

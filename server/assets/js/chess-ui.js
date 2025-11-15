@@ -19,7 +19,6 @@ var blackAnalysisActive = false;
 
 var gameState = {
     moveHistory: [],           // UCI move list (e.g., ["e2e4", "e7e5"])
-    moveHistoryDisplay: [],    // Formatted for display
     whiteTimeMs: 300000,       // 5 minutes default
     blackTimeMs: 300000,
     timeControl: {
@@ -40,7 +39,6 @@ function saveGameState() {
         localStorage.setItem('chessGameState', JSON.stringify({
             fen: game.fen(),
             moveHistory: gameState.moveHistory,
-            moveHistoryDisplay: gameState.moveHistoryDisplay,
             whiteTimeMs: gameState.whiteTimeMs,
             blackTimeMs: gameState.blackTimeMs,
             timeControl: gameState.timeControl,
@@ -61,7 +59,6 @@ function loadGameState() {
             game.load(state.fen);
             board.position(state.fen);
             gameState.moveHistory = state.moveHistory || [];
-            gameState.moveHistoryDisplay = state.moveHistoryDisplay || [];
             gameState.whiteTimeMs = state.whiteTimeMs || 300000;
             gameState.blackTimeMs = state.blackTimeMs || 300000;
             gameState.timeControl = state.timeControl || { initial: 5, increment: 5 };
@@ -219,20 +216,6 @@ function onDrop(source, target) {
     }
     gameState.moveHistory.push(uciMove);
     
-    // Update move history display
-    var isWhiteMove = move.color === 'w';
-    if (isWhiteMove) {
-        gameState.moveHistoryDisplay.push({
-            moveNumber: Math.floor(gameState.moveHistory.length / 2) + 1,
-            white: uciMove,
-            black: ''
-        });
-    } else {
-        if (gameState.moveHistoryDisplay.length > 0) {
-            gameState.moveHistoryDisplay[gameState.moveHistoryDisplay.length - 1].black = uciMove;
-        }
-    }
-    
     // Auto-start clock on first move if not already running
     if (!gameState.clockRunning && gameState.timeControl.initial > 0 && gameState.moveHistory.length === 1) {
         startClock();
@@ -349,21 +332,6 @@ async function makeComputerMove() {
         // Update move history
         gameState.moveHistory.push(data.move);
         
-        // Update move history display
-        if (isWhiteTurn) {
-            // White's move - create new entry
-            gameState.moveHistoryDisplay.push({
-                moveNumber: Math.floor(gameState.moveHistory.length / 2) + 1,
-                white: data.move,
-                black: ''
-            });
-        } else {
-            // Black's move - complete last entry
-            if (gameState.moveHistoryDisplay.length > 0) {
-                gameState.moveHistoryDisplay[gameState.moveHistoryDisplay.length - 1].black = data.move;
-            }
-        }
-        
         // Highlight move
         var moveStr = data.move;
         if (moveStr && moveStr.length >= 4) {
@@ -444,26 +412,89 @@ makeComputerMove = async function() {
 // -------------------------------------------------------------------------
 
 function updateMoveHistoryDisplay() {
-    const listEl = document.getElementById('moveHistoryList');
+    const textArea = document.getElementById('moveHistoryText');
     
-    if (!gameState.moveHistoryDisplay || gameState.moveHistoryDisplay.length === 0) {
-        listEl.innerHTML = '<div class="move-history-empty">No moves yet</div>';
+    if (!gameState.moveHistory || gameState.moveHistory.length === 0) {
+        textArea.value = '';
         return;
     }
     
-    let html = '';
-    gameState.moveHistoryDisplay.forEach(function(entry) {
-        html += '<div class="move-pair">';
-        html += '<div class="move-number">' + entry.moveNumber + '.</div>';
-        html += '<div class="move-white">' + (entry.white || '') + '</div>';
-        html += '<div class="move-black">' + (entry.black || '') + '</div>';
-        html += '</div>';
-    });
+    // Convert UCI moves to SAN notation for PGN format
+    const sanMoves = [];
+    const tempGame = new Chess();
     
-    listEl.innerHTML = html;
+    for (let i = 0; i < gameState.moveHistory.length; i++) {
+        const uciMove = gameState.moveHistory[i];
+        
+        // Parse UCI move (e.g., "e2e4" or "e7e8q")
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        // Get SAN notation
+        const move = tempGame.move({
+            from: from,
+            to: to,
+            promotion: promotion
+        });
+        
+        if (move) {
+            sanMoves.push(move.san);
+        }
+    }
+    
+    // Format as PGN (natural line wrapping)
+    let pgn = '';
+    for (let i = 0; i < sanMoves.length; i += 2) {
+        const moveNum = Math.floor(i / 2) + 1;
+        const whiteMove = sanMoves[i];
+        const blackMove = sanMoves[i + 1] || '';
+        
+        pgn += moveNum + '. ' + whiteMove;
+        if (blackMove) {
+            pgn += ' ' + blackMove;
+        }
+        
+        // Add space between move pairs (let textarea handle line wrapping)
+        if (i + 2 < sanMoves.length) {
+            pgn += ' ';
+        }
+    }
+    
+    textArea.value = pgn;
     
     // Auto-scroll to bottom
-    listEl.scrollTop = listEl.scrollHeight;
+    textArea.scrollTop = textArea.scrollHeight;
+}
+
+// Copy move history to clipboard
+function copyMoveHistory() {
+    const textArea = document.getElementById('moveHistoryText');
+    
+    if (!textArea.value) {
+        return;
+    }
+    
+    // Select and copy
+    textArea.select();
+    textArea.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        
+        // Visual feedback
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✓';
+        setTimeout(function() {
+            btn.textContent = originalText;
+        }, 1000);
+    } catch (err) {
+        console.error('Failed to copy:', err);
+    }
+    
+    // Deselect
+    window.getSelection().removeAllRanges();
 }
 
 // -------------------------------------------------------------------------
@@ -542,7 +573,6 @@ function newGame() {
     game.reset();
     board.position('start');
     gameState.moveHistory = [];
-    gameState.moveHistoryDisplay = [];
     gameState.whiteTimeMs = gameState.timeControl.initial * 60 * 1000;
     gameState.blackTimeMs = gameState.timeControl.initial * 60 * 1000;
     gameState.clockRunning = false;

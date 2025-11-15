@@ -230,9 +230,10 @@ button:hover {
     background: #f9f9f9;
     border-radius: 5px;
     overflow: hidden;
-    max-height: 400px;
     display: flex;
     flex-direction: column;
+    flex: 1;
+    min-height: 300px;
 }
 
 .move-history-header {
@@ -242,63 +243,61 @@ button:hover {
     font-weight: bold;
     text-align: center;
     font-size: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
 }
 
-.move-history-list {
+.copy-btn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.2s;
+    margin: 0;
+    width: auto;
+}
+
+.copy-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.move-history-text {
     flex: 1;
-    overflow-y: auto;
-    padding: 10px;
-}
-
-.move-history-empty {
-    text-align: center;
-    color: #999;
-    padding: 20px;
-    font-style: italic;
-}
-
-.move-pair {
-    display: grid;
-    grid-template-columns: 30px 1fr 1fr;
-    gap: 8px;
-    padding: 6px 8px;
-    border-bottom: 1px solid #e0e0e0;
+    width: calc(100% - 8px);
+    min-height: 250px;
+    padding: 12px;
+    margin: 4px;
     font-family: 'Courier New', monospace;
     font-size: 13px;
-    transition: background 0.2s;
-}
-
-.move-pair:hover {
-    background: #f0f0f0;
-}
-
-.move-pair:last-child {
-    border-bottom: none;
-}
-
-.move-number {
-    color: #667eea;
-    font-weight: bold;
-    text-align: right;
-}
-
-.move-white, .move-black {
-    padding: 2px 6px;
+    line-height: 1.8;
+    border: 2px solid #e0e0e0;
     border-radius: 3px;
-    background: white;
+    background: #fafafa;
+    color: #333;
+    resize: none;
+    overflow-y: scroll;
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    box-sizing: border-box;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
-.move-white {
-    border-left: 3px solid #f0f0f0;
+.move-history-text:focus {
+    outline: none;
+    background: #ffffff;
+    border-color: #667eea;
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05), 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.move-black {
-    border-left: 3px solid #424242;
-}
-
-.move-white:empty, .move-black:empty {
-    background: transparent;
-    border: none;
+.move-history-text::placeholder {
+    color: #999;
+    font-style: italic;
 }
 
 /* Opening Display Styles - Compact Single Line in Sidebar */
