@@ -18,8 +18,9 @@ var assetsFS embed.FS
 
 // Server represents the HTTP server
 type Server struct {
-	addr    string
-	engines []EngineInfo
+	addr        string
+	engines     []EngineInfo
+	openingBook *OpeningBook
 }
 
 // InitDebugLogging sets up logging to a file only (no stdout to avoid breaking TUI)
@@ -45,9 +46,21 @@ func New(addr string, bookFile string) *Server {
 		Info("SERVER", "  - %s (%s)", engine.Name, engine.Path)
 	}
 
+	// Initialize opening book from embedded filesystem
+	Info("SERVER", "Loading opening database from embedded assets/openings")
+	openingBook := NewOpeningBook()
+	if err := openingBook.LoadFromEmbedded(assetsFS, "assets/openings"); err != nil {
+		Warn("SERVER", "Failed to load opening book: %v", err)
+	} else {
+		stats := openingBook.Stats()
+		Info("SERVER", "Opening database loaded: %d openings, %d nodes, max depth %d",
+			stats["total_openings"], stats["total_nodes"], stats["max_depth"])
+	}
+
 	return &Server{
-		addr:    addr,
-		engines: engines,
+		addr:        addr,
+		engines:     engines,
+		openingBook: openingBook,
 	}
 }
 
@@ -65,6 +78,7 @@ func (s *Server) Start() error {
 	http.HandleFunc("/api/computer-move", s.handleComputerMove)
 	http.HandleFunc("/api/analysis", s.handleAnalysisWebSocket)
 	http.HandleFunc("/api/engines", s.handleGetEngines)
+	http.HandleFunc("/api/opening", s.handleGetOpening)
 
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)
@@ -113,4 +127,75 @@ func (s *Server) handleGetEngines(w http.ResponseWriter, r *http.Request) {
 // GetAddr returns the server address
 func (s *Server) GetAddr() string {
 	return s.addr
+}
+
+// GetOpeningStats returns statistics about the opening book
+func (s *Server) GetOpeningStats() map[string]int {
+	if s.openingBook == nil {
+		return map[string]int{
+			"total_openings": 0,
+			"total_nodes":    0,
+			"max_depth":      0,
+		}
+	}
+	return s.openingBook.Stats()
+}
+
+// OpeningRequest represents a request to get the opening name
+type OpeningRequest struct {
+	Moves []string `json:"moves"` // Move history in SAN notation
+}
+
+// OpeningResponse represents the opening information response
+type OpeningResponse struct {
+	ECO  string `json:"eco"`
+	Name string `json:"name"`
+	PGN  string `json:"pgn"`
+}
+
+// handleGetOpening returns the opening name for a given position
+func (s *Server) handleGetOpening(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Method not allowed"})
+		return
+	}
+
+	var req OpeningRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid request"})
+		return
+	}
+
+	// Check if opening book is loaded
+	if s.openingBook == nil {
+		w.WriteHeader(http.StatusServiceUnavailable)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "Opening book not loaded"})
+		return
+	}
+
+	// Lookup the opening
+	opening := s.openingBook.Lookup(req.Moves)
+	if opening == nil {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(OpeningResponse{
+			ECO:  "",
+			Name: "",
+			PGN:  "",
+		})
+		return
+	}
+
+	// Return the opening info
+	response := OpeningResponse{
+		ECO:  opening.ECO,
+		Name: opening.Name,
+		PGN:  opening.PGN,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(response)
 }

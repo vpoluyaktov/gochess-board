@@ -46,9 +46,10 @@ type model struct {
 	activeTable  table.Model
 	width        int
 	height       int
+	openingStats map[string]int
 }
 
-func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor) model {
+func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor, openingStats map[string]int) model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -93,6 +94,7 @@ func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server
 		monitor:      monitor,
 		enginesTable: t,
 		activeTable:  activeT,
+		openingStats: openingStats,
 	}
 
 	// Initialize active engines table rows
@@ -173,15 +175,27 @@ func (m model) View() string {
 	uptime := time.Since(m.startTime).Round(time.Second)
 
 	// Left column: Server Info
+	openingsInfo := ""
+	if m.openingStats != nil && m.openingStats["total_openings"] > 0 {
+		openingsInfo = fmt.Sprintf("\n📖 OPENING DATABASE\n\n"+
+			"Openings: %d\n"+
+			"Nodes:    %d\n"+
+			"Max Depth: %d\n",
+			m.openingStats["total_openings"],
+			m.openingStats["total_nodes"],
+			m.openingStats["max_depth"])
+	}
+
 	serverInfoContent := fmt.Sprintf("🖥️  SERVER STATUS\n\n"+
 		"URL:     %s\n"+
 		"Uptime:  %s\n"+
-		"Mode:    Stateless\n\n"+
+		"Mode:    Stateless%s\n\n"+
 		"📡 API ENDPOINTS\n\n"+
 		"• /api/computer-move\n"+
 		"• /api/analysis\n"+
-		"• /api/engines\n",
-		m.serverURL, uptime.String())
+		"• /api/engines\n"+
+		"• /api/opening\n",
+		m.serverURL, uptime.String(), openingsInfo)
 
 	// Layout calculations: split the screen vertically into top/bottom halves
 	topHeight, bottomHeight := calculateHeights(height)
@@ -392,24 +406,8 @@ func (m *model) updateLayout() {
 	m.activeTable.SetHeight(bottomTableHeight)
 }
 
-// truncateMiddle shortens s to max characters by replacing the middle with "…".
-// If s is already within the limit, it is returned unchanged.
-func truncateMiddle(s string, max int) string {
-	if len(s) <= max || max <= 1 {
-		return s
-	}
-	// keep start and end parts
-	keep := max - 1 // account for the ellipsis
-	front := keep / 2
-	back := keep - front
-	if front <= 0 || back <= 0 {
-		return s[:max]
-	}
-	return s[:front] + "…" + s[len(s)-back:]
-}
-
-func RunTUI(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor) error {
-	p := tea.NewProgram(InitialModel(serverURL, engines, monitor), tea.WithAltScreen())
+func RunTUI(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor, openingStats map[string]int) error {
+	p := tea.NewProgram(InitialModel(serverURL, engines, monitor, openingStats), tea.WithAltScreen())
 	_, err := p.Run()
 	return err
 }

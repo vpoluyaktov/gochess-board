@@ -53,9 +53,11 @@ func main() {
 
 	// Display startup message
 	fmt.Println("Discovering chess engines...")
+	fmt.Println("Loading opening database...")
 
 	// Start the web server in a goroutine
 	srv := server.New(addr, *bookFile)
+	fmt.Println("Server initialized successfully!")
 	go func() {
 		if err := srv.Start(); err != nil {
 			log.Fatalf("Server error: %v", err)
@@ -80,7 +82,7 @@ func main() {
 		time.Sleep(1 * time.Second)
 
 		// Run TUI (blocks until quit)
-		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor); err != nil {
+		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor, srv.GetOpeningStats()); err != nil {
 			log.Fatalf("TUI error: %v", err)
 		}
 	} else {

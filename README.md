@@ -7,6 +7,7 @@ A Go web server that lets you play chess against multiple chess engines includin
 - **Multiple Chess Engines**: Play against various engines (Stockfish, Fruit, Toga, Crafty, GNU Chess, and more)
 - **UCI & CECP Support**: Native UCI protocol support + CECP engines via Polyglot wrapper
 - **Opening Book Support**: Optional opening book integration for stronger play
+- **Opening Name Recognition**: Identifies chess openings in real-time with ECO codes (3,594 openings from Lichess database)
 - **Automatic Engine Discovery**: Detects installed engines on your system
 - **Real-time TUI**: Beautiful terminal interface showing live game stats and engine analysis
 - **Move Validation**: Only legal moves are allowed
@@ -17,6 +18,7 @@ A Go web server that lets you play chess against multiple chess engines includin
   - Chess.js library (frontend game state)
   - jQuery library
   - CSS styles
+  - Chess opening database (3,594 openings)
 - Interactive chess board with drag-and-drop functionality
 - Beautiful, modern UI with gradient background
 - Responsive design
@@ -426,13 +428,22 @@ Request a computer move for the current position.
 - Each engine gets a unique config file based on MD5 hash
 - Check `chess-debug.log` for detailed discovery information
 
-### Opening Books
+### Opening Books (Polyglot)
 - Books must be in Polyglot binary format (.bin)
 - GNU Chess includes books at `/usr/share/games/gnuchess/book.bin`
 - Without `--book-file`, only UCI engines are available
 - With `--book-file`, UCI engines get optional "+ Book" variants
 - CECP engines always use the book when available
 - Polyglot logs book usage in `/tmp/go-chess-polyglot/polyglot-*.log`
+
+### Opening Name Recognition
+- Opening database loaded from `server/assets/openings/*.tsv`
+- Contains 3,594 chess openings from Lichess database
+- Loaded at server startup (~7-8 seconds, one-time cost)
+- Fast in-memory trie structure for microsecond lookups
+- API endpoint: `POST /api/opening` with move array
+- Update database: `./update-openings.sh [commit-hash]`
+- Source: https://github.com/lichess-org/chess-openings
 
 ## License
 
