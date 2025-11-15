@@ -115,10 +115,14 @@
                 </div>
                 
                 <div class="move-history">
-                    <div class="move-history-header">📜 Move History</div>
-                    <div class="move-history-list" id="moveHistoryList">
-                        <div class="move-history-empty">No moves yet</div>
+                    <div class="move-history-header">
+                        📜 Move History
+                        <div class="move-history-buttons">
+                            <button onclick="copyMoveHistory()" class="history-btn" title="Copy to clipboard">📋 Copy</button>
+                            <button onclick="pastePGN()" class="history-btn" title="Paste PGN">📥 Paste</button>
+                        </div>
                     </div>
+                    <textarea id="moveHistoryText" class="move-history-text" placeholder="Paste PGN here or play moves..."></textarea>
                 </div>
             </div>
         </div>
