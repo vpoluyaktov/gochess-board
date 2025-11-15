@@ -244,26 +244,32 @@ button:hover {
     text-align: center;
     font-size: 14px;
     display: flex;
-    justify-content: center;
+    justify-content: space-between;
     align-items: center;
-    gap: 10px;
 }
 
-.copy-btn {
+.move-history-buttons {
+    display: flex;
+    gap: 6px;
+}
+
+.history-btn {
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
     color: white;
-    padding: 4px 8px;
+    padding: 5px 10px;
     border-radius: 3px;
     cursor: pointer;
-    font-size: 14px;
-    transition: background 0.2s;
+    font-size: 12px;
+    transition: all 0.2s;
     margin: 0;
     width: auto;
+    white-space: nowrap;
 }
 
-.copy-btn:hover {
+.history-btn:hover {
     background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-1px);
 }
 
 .move-history-text {

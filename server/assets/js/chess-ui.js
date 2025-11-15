@@ -472,6 +472,7 @@ function copyMoveHistory() {
     const textArea = document.getElementById('moveHistoryText');
     
     if (!textArea.value) {
+        alert('No moves to copy!');
         return;
     }
     
@@ -485,16 +486,135 @@ function copyMoveHistory() {
         // Visual feedback
         const btn = event.target;
         const originalText = btn.textContent;
-        btn.textContent = '✓';
+        btn.textContent = '✓ Copied';
         setTimeout(function() {
             btn.textContent = originalText;
-        }, 1000);
+        }, 1500);
     } catch (err) {
         console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard');
     }
     
     // Deselect
     window.getSelection().removeAllRanges();
+}
+
+// Load PGN from text string
+function loadPGNFromText(text) {
+    if (!text || text.trim() === '') {
+        alert('No PGN text provided!');
+        return;
+    }
+    
+    try {
+        // Parse PGN moves (extract just the moves, ignore headers and comments)
+        const pgnText = text.trim();
+        
+        // Remove PGN headers (lines starting with [)
+        let movesOnly = pgnText.split('\n')
+            .filter(line => !line.startsWith('['))
+            .join(' ')
+            .trim();
+        
+        // Remove comments in braces and parentheses
+        movesOnly = movesOnly.replace(/\{[^}]*\}/g, '');
+        movesOnly = movesOnly.replace(/\([^)]*\)/g, '');
+        
+        // Remove result markers
+        movesOnly = movesOnly.replace(/\s*(1-0|0-1|1\/2-1\/2|\*)\s*$/, '');
+        
+        // Remove annotations like !, ?, !!, ??, !?, ?!
+        movesOnly = movesOnly.replace(/[!?]+/g, '');
+        
+        // Extract moves (format: 1. e4 e5 2. Nf3 Nc6...)
+        const movePattern = /\d+\.\s*([^\s]+)(?:\s+([^\s]+))?/g;
+        const moves = [];
+        let match;
+        
+        while ((match = movePattern.exec(movesOnly)) !== null) {
+            if (match[1]) moves.push(match[1]);
+            if (match[2]) moves.push(match[2]);
+        }
+        
+        if (moves.length === 0) {
+            alert('No valid moves found in clipboard!');
+            return;
+        }
+        
+        // Reset game and apply moves
+        game.reset();
+        board.position('start');
+        gameState.moveHistory = [];
+        clearLastMoveHighlight();
+        
+        // Apply each move
+        for (let i = 0; i < moves.length; i++) {
+            const san = moves[i];
+            
+            try {
+                const move = game.move(san);
+                if (!move) {
+                    alert('Invalid move at position ' + (i + 1) + ': ' + san);
+                    break;
+                }
+                
+                // Convert to UCI format for our history
+                const uciMove = move.from + move.to + (move.promotion || '');
+                gameState.moveHistory.push(uciMove);
+                
+                // Highlight last move
+                if (i === moves.length - 1) {
+                    highlightLastMove(move.from, move.to);
+                }
+            } catch (err) {
+                alert('Error applying move ' + (i + 1) + ': ' + san + '\n' + err.message);
+                break;
+            }
+        }
+        
+        // Update board and displays
+        board.position(game.fen());
+        updateMoveHistoryDisplay();
+        updateOpeningDisplay();
+        updateInfoText();
+        saveGameState();
+        
+        // Visual feedback
+        const btn = event.target;
+        const originalText = btn.textContent;
+        btn.textContent = '✓ Loaded';
+        setTimeout(function() {
+            btn.textContent = originalText;
+        }, 1500);
+        
+    } catch (err) {
+        console.error('Failed to parse PGN:', err);
+        alert('Failed to parse PGN. Please check the format and try again.');
+    }
+}
+
+// Paste PGN button handler (with clipboard fallback)
+async function pastePGN() {
+    let text = '';
+    
+    try {
+        // Try to read from clipboard (may fail due to permissions)
+        text = await navigator.clipboard.readText();
+    } catch (err) {
+        // Fallback: prompt user to paste
+        console.log('Clipboard API not available, using prompt');
+    }
+    
+    // If clipboard read failed or empty, prompt user
+    if (!text || text.trim() === '') {
+        text = prompt('Paste PGN here:\n\nExample:\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5');
+        
+        if (!text || text.trim() === '') {
+            return; // User cancelled or entered nothing
+        }
+    }
+    
+    loadPGNFromText(text);
 }
 
 // -------------------------------------------------------------------------
@@ -1089,6 +1209,24 @@ $(document).ready(function() {
     
     updateInfoText();
     updateStartPauseButton();
+    
+    // Add paste event handler to move history textarea
+    const moveHistoryText = document.getElementById('moveHistoryText');
+    if (moveHistoryText) {
+        moveHistoryText.addEventListener('paste', function(e) {
+            e.preventDefault();
+            const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+            
+            // Load the pasted PGN
+            loadPGNFromText(pastedText);
+        });
+        
+        // Prevent manual editing - restore from game state
+        moveHistoryText.addEventListener('input', function(e) {
+            // Restore the correct move history
+            updateMoveHistoryDisplay();
+        });
+    }
     
     // Check if computer should move
     window.setTimeout(checkForComputerMove, 500);

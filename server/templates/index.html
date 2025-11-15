@@ -117,9 +117,12 @@
                 <div class="move-history">
                     <div class="move-history-header">
                         📜 Move History
-                        <button onclick="copyMoveHistory()" class="copy-btn" title="Copy to clipboard">📋</button>
+                        <div class="move-history-buttons">
+                            <button onclick="copyMoveHistory()" class="history-btn" title="Copy to clipboard">📋 Copy</button>
+                            <button onclick="pastePGN()" class="history-btn" title="Paste PGN">📥 Paste</button>
+                        </div>
                     </div>
-                    <textarea id="moveHistoryText" class="move-history-text" readonly placeholder="No moves yet"></textarea>
+                    <textarea id="moveHistoryText" class="move-history-text" placeholder="Paste PGN here or play moves..."></textarea>
                 </div>
             </div>
         </div>
