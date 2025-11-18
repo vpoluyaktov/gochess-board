@@ -1637,53 +1637,13 @@
       svg.style.zIndex = '9999'  // Very high z-index
       svg.style.overflow = 'visible'
       
-      // Create defs with two markers - one for each color
+      // Create defs element for markers (will be populated dynamically)
       var defs = document.createElementNS(svgNS, 'defs')
-      
-      // Blue marker for White
-      var blueMarkerId = 'arrowhead-blue-' + uuid()
-      var blueMarker = document.createElementNS(svgNS, 'marker')
-      blueMarker.setAttribute('id', blueMarkerId)
-      blueMarker.setAttribute('markerWidth', '4')
-      blueMarker.setAttribute('markerHeight', '4')
-      blueMarker.setAttribute('refX', '3.5')
-      blueMarker.setAttribute('refY', '1.5')
-      blueMarker.setAttribute('orient', 'auto')
-      blueMarker.setAttribute('markerUnits', 'strokeWidth')
-      
-      var bluePolygon = document.createElementNS(svgNS, 'polygon')
-      bluePolygon.setAttribute('points', '0 0, 4 1.5, 0 3')
-      bluePolygon.setAttribute('fill', '#3296FF')
-      bluePolygon.setAttribute('fill-opacity', '0.8')
-      
-      blueMarker.appendChild(bluePolygon)
-      defs.appendChild(blueMarker)
-      
-      // Red marker for Black
-      var redMarkerId = 'arrowhead-red-' + uuid()
-      var redMarker = document.createElementNS(svgNS, 'marker')
-      redMarker.setAttribute('id', redMarkerId)
-      redMarker.setAttribute('markerWidth', '4')
-      redMarker.setAttribute('markerHeight', '4')
-      redMarker.setAttribute('refX', '3.5')
-      redMarker.setAttribute('refY', '1.5')
-      redMarker.setAttribute('orient', 'auto')
-      redMarker.setAttribute('markerUnits', 'strokeWidth')
-      
-      var redPolygon = document.createElementNS(svgNS, 'polygon')
-      redPolygon.setAttribute('points', '0 0, 4 1.5, 0 3')
-      redPolygon.setAttribute('fill', '#FF6B6B')
-      redPolygon.setAttribute('fill-opacity', '0.8')
-      
-      redMarker.appendChild(redPolygon)
-      defs.appendChild(redMarker)
-      
       svg.appendChild(defs)
       
       $container[0].appendChild(svg)
       $arrowSvg = $('#' + svgId)
-      $arrowSvg.data('blueMarkerId', blueMarkerId)
-      $arrowSvg.data('redMarkerId', redMarkerId)
+      $arrowSvg.data('markers', {})  // Store marker IDs by color
     }
 
     function getSquareCenter (square) {
@@ -1695,6 +1655,70 @@
         x: offset.left + squareSize / 2,
         y: offset.top + squareSize / 2
       }
+    }
+
+    function getTextStrokeColor (arrowColor) {
+      // Remove # if present
+      var hex = arrowColor.replace('#', '')
+      
+      // Handle 8-digit hex (with alpha channel)
+      if (hex.length === 8) {
+        hex = hex.substring(0, 6)
+      }
+      
+      // Convert to RGB
+      var r = parseInt(hex.substring(0, 2), 16)
+      var g = parseInt(hex.substring(2, 4), 16)
+      var b = parseInt(hex.substring(4, 6), 16)
+      
+      // Calculate relative luminance using WCAG formula
+      // https://www.w3.org/TR/WCAG20-TECHS/G17.html
+      var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+      
+      // Return opposite color for stroke:
+      // - Light arrows get black stroke
+      // - Dark arrows get white stroke
+      return luminance > 0.5 ? '#000000' : '#ffffff'
+    }
+
+    function getOrCreateMarker (color, opacity) {
+      // Create a unique key for this color/opacity combination
+      var markerKey = color + '_' + opacity
+      var markers = $arrowSvg.data('markers')
+      
+      // Return existing marker if already created
+      if (markers[markerKey]) {
+        return markers[markerKey]
+      }
+      
+      // Create new marker
+      var svgNS = 'http://www.w3.org/2000/svg'
+      var markerId = 'arrowhead-' + uuid()
+      var marker = document.createElementNS(svgNS, 'marker')
+      marker.setAttribute('id', markerId)
+      marker.setAttribute('markerWidth', '4')
+      marker.setAttribute('markerHeight', '4')
+      marker.setAttribute('refX', '0')
+      marker.setAttribute('refY', '1.5')
+      marker.setAttribute('orient', 'auto')
+      marker.setAttribute('markerUnits', 'strokeWidth')
+      
+      var polygon = document.createElementNS(svgNS, 'polygon')
+      polygon.setAttribute('points', '0 0, 4 1.5, 0 3')
+      polygon.setAttribute('fill', color)
+      polygon.setAttribute('fill-opacity', opacity)
+      
+      marker.appendChild(polygon)
+      
+      // Add marker to defs
+      var defs = $arrowSvg.find('defs')[0]
+      defs.appendChild(marker)
+      
+      // Cache the marker ID
+      markers[markerKey] = markerId
+      $arrowSvg.data('markers', markers)
+      
+      return markerId
     }
 
     widget.drawArrow = function (fromSquare, toSquare, color, label, opacity, clearPrevious, moveNumber) {
@@ -1724,7 +1748,7 @@
       var startY = from.y
       
       // End slightly before center of destination square to make room for arrowhead
-      var shortenEnd = squareSize * 0.15
+      var shortenEnd = squareSize * 0.12
       var endX = to.x - unitX * shortenEnd
       var endY = to.y - unitY * shortenEnd
 
@@ -1740,13 +1764,8 @@
       // Default opacity
       if (!opacity) opacity = 0.8
 
-      // Get the correct marker ID based on color
-      var markerId
-      if (color === '#FF6B6B' || color.toLowerCase().includes('red')) {
-        markerId = $arrowSvg.data('redMarkerId')
-      } else {
-        markerId = $arrowSvg.data('blueMarkerId')
-      }
+      // Get or create marker for this color/opacity combination
+      var markerId = getOrCreateMarker(color, opacity)
 
       // Draw new arrow using proper SVG namespace
       var strokeWidth = squareSize * 0.12  // Slightly thinner
@@ -1770,6 +1789,9 @@
         var midX = (startX + endX) / 2
         var midY = (startY + endY) / 2
         
+        // Calculate contrasting stroke color based on arrow color
+        var strokeColor = getTextStrokeColor(color)
+        
         // Create text element
         var text = document.createElementNS(svgNS, 'text')
         text.setAttribute('x', midX)
@@ -1779,8 +1801,8 @@
         text.setAttribute('font-family', 'Arial, sans-serif')
         text.setAttribute('font-size', squareSize * 0.28)
         text.setAttribute('font-weight', 'bold')
-        text.setAttribute('fill', '#ffffff')
-        text.setAttribute('stroke', color)
+        text.setAttribute('fill', color)
+        text.setAttribute('stroke', strokeColor)
         text.setAttribute('stroke-width', '2')
         text.setAttribute('paint-order', 'stroke')
         text.setAttribute('opacity', opacity)
@@ -1798,6 +1820,9 @@
         var numberX = endX + perpX * numberOffset
         var numberY = endY + perpY * numberOffset
         
+        // Calculate contrasting stroke color based on arrow color
+        var strokeColor = getTextStrokeColor(color)
+        
         // Create text element for move number
         var numberText = document.createElementNS(svgNS, 'text')
         numberText.setAttribute('x', numberX)
@@ -1807,8 +1832,8 @@
         numberText.setAttribute('font-family', 'Arial, sans-serif')
         numberText.setAttribute('font-size', squareSize * 0.22)
         numberText.setAttribute('font-weight', 'bold')
-        numberText.setAttribute('fill', '#ffffff')
-        numberText.setAttribute('stroke', color)
+        numberText.setAttribute('fill', color)
+        numberText.setAttribute('stroke', strokeColor)
         numberText.setAttribute('stroke-width', '2')
         numberText.setAttribute('paint-order', 'stroke')
         numberText.setAttribute('opacity', opacity)
