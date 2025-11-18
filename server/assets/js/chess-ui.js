@@ -1588,6 +1588,10 @@ function startAnalysis() {
             // Create a temporary game instance to track positions
             var tempGame = new Chess(game.fen());
             
+            // Get the starting full move number from FEN (6th field)
+            var fenParts = tempGame.fen().split(' ');
+            var startingMoveNumber = parseInt(fenParts[5]) || 1;
+            
             // Limit to 3 moves if PV is enabled, otherwise just 1 (best move only)
             var maxMoves = showPV ? Math.min(3, data.pv.length) : 1;
             
@@ -1609,7 +1613,12 @@ function startAnalysis() {
                 var arrowColor = tempGame.turn() === 'w' ? '#3296FF' : '#FF6B6B';
                 
                 // Calculate opacity: first arrow bright, subsequent ones dimmer
-                var opacity = 0.8 - (i * 0.2);
+                var opacity = 1.0 - (i * 0.2);
+                
+                // Calculate actual chess move number from current FEN
+                var currentFenParts = tempGame.fen().split(' ');
+                var currentMoveNumber = parseInt(currentFenParts[5]) || 1;
+                var isBlackMove = tempGame.turn() === 'b';
                 
                 // Only show score label on the first arrow
                 var scoreLabel = '';
@@ -1622,11 +1631,16 @@ function startAnalysis() {
                     }
                 }
                 
+                // Add move number to all arrows when PV is enabled
+                var moveNumberLabel = null;
+                if (showPV) {
+                    // Format: "18" for white, "18..." for black
+                    moveNumberLabel = isBlackMove ? currentMoveNumber + '...' : currentMoveNumber.toString();
+                }
+                
                 // Draw arrow (clear previous only on first arrow)
                 var clearPrevious = (i === 0);
-                // Only show move numbers when PV is enabled (for moves 2 and 3)
-                var moveNumber = (showPV && i > 0) ? (i + 1) : null;
-                board.drawArrow(from, to, arrowColor, scoreLabel, opacity, clearPrevious, moveNumber);
+                board.drawArrow(from, to, arrowColor, scoreLabel, opacity, clearPrevious, moveNumberLabel);
                 
                 // Apply move to temp game for next iteration
                 try {
