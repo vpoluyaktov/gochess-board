@@ -52,6 +52,24 @@ func TestOpeningAPIEndpoint(t *testing.T) {
 			wantECO:  "A00",
 			wantName: "Anderssen's Opening",
 		},
+		{
+			name:     "Evans Gambit - minimal",
+			moves:    []string{"e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "b4"},
+			wantECO:  "C51",
+			wantName: "Italian Game: Evans Gambit",
+		},
+		{
+			name:     "Evans Gambit Accepted",
+			moves:    []string{"e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "b4", "Bxb4"},
+			wantECO:  "C51",
+			wantName: "Italian Game: Evans Gambit Accepted",
+		},
+		{
+			name:     "Evans Gambit - MacKenzie.pgn full sequence (16 moves, finds deepest match)",
+			moves:    []string{"e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "b4", "Bxb4", "c3", "Bc5", "O-O", "d6", "d4", "exd4", "cxd4", "Bb6"},
+			wantECO:  "C51",
+			wantName: "Italian Game: Evans Gambit, McDonnell Defense",
+		},
 	}
 
 	for _, tt := range tests {

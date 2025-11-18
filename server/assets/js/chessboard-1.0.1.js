@@ -1684,10 +1684,6 @@
       $arrowSvg = $('#' + svgId)
       $arrowSvg.data('blueMarkerId', blueMarkerId)
       $arrowSvg.data('redMarkerId', redMarkerId)
-      
-      console.log('SVG element created successfully')
-      console.log('SVG dimensions:', svg.getAttribute('width'), 'x', svg.getAttribute('height'))
-      console.log('SVG bounding rect:', svg.getBoundingClientRect())
     }
 
     function getSquareCenter (square) {
