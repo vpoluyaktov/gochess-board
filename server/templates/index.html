@@ -122,6 +122,13 @@
                             <button onclick="savePGNFile()" class="history-btn" title="Save PGN to file">💾 Save PGN</button>
                         </div>
                     </div>
+                    <div class="navigation-controls">
+                        <button onclick="goToStart()" class="nav-btn" title="Go to start">⏮️</button>
+                        <button onclick="stepBackward()" class="nav-btn" title="Step backward">◀️</button>
+                        <span id="positionIndicator" class="position-indicator">0/0</span>
+                        <button onclick="stepForward()" class="nav-btn" title="Step forward">▶️</button>
+                        <button onclick="goToEnd()" class="nav-btn" title="Go to end">⏭️</button>
+                    </div>
                     <textarea id="moveHistoryText" class="move-history-text" placeholder="Load PGN file or play moves..."></textarea>
                     <input type="file" id="pgnFileInput" accept=".pgn" style="display: none;">
                 </div>

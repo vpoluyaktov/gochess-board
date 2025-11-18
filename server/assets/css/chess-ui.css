@@ -306,6 +306,52 @@ button:hover {
     font-style: italic;
 }
 
+.navigation-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 10px;
+    background: #f0f0f0;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.nav-btn {
+    background: #667eea;
+    border: none;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s;
+    min-width: 40px;
+}
+
+.nav-btn:hover:not(:disabled) {
+    background: #5568d3;
+    transform: translateY(-1px);
+}
+
+.nav-btn:active:not(:disabled) {
+    transform: translateY(0);
+}
+
+.nav-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.position-indicator {
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    font-weight: bold;
+    color: #333;
+    min-width: 60px;
+    text-align: center;
+}
+
 /* Opening Display Styles - Compact Single Line in Sidebar */
 .opening-compact {
     padding: 8px 10px;
