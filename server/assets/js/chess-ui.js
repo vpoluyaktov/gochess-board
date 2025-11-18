@@ -6,6 +6,7 @@ var game = new Chess();
 var isComputerThinking = false;
 var lastMoveSquares = { from: null, to: null };
 var squareClass = 'square-55d63';
+var moveHistoryEditor = null;
 
 // Analysis WebSocket connections
 var whiteAnalysisWs = null;
@@ -449,20 +450,19 @@ makeComputerMove = async function() {
 // -------------------------------------------------------------------------
 
 function updateMoveHistoryDisplay() {
-    const textArea = document.getElementById('moveHistoryText');
+    if (!moveHistoryEditor) return;
     
     if (!gameState.moveHistory || gameState.moveHistory.length === 0) {
-        textArea.value = '';
+        moveHistoryEditor.setValue('');
         return;
     }
     
     // Convert UCI moves to SAN notation for PGN format
-    // When navigating, only show moves up to currentPosition
+    // Always show all moves, but highlight the current position
     const sanMoves = [];
     const tempGame = new Chess();
-    const movesToShow = gameState.isNavigating ? gameState.currentPosition : gameState.moveHistory.length;
     
-    for (let i = 0; i < movesToShow; i++) {
+    for (let i = 0; i < gameState.moveHistory.length; i++) {
         const uciMove = gameState.moveHistory[i];
         
         // Parse UCI move (e.g., "e2e4" or "e7e8q")
@@ -489,7 +489,7 @@ function updateMoveHistoryDisplay() {
         const whiteMove = sanMoves[i];
         const blackMove = sanMoves[i + 1] || '';
         
-        pgn += moveNum + '. ' + whiteMove;
+        pgn += moveNum + '.' + whiteMove;
         if (blackMove) {
             pgn += ' ' + blackMove;
         }
@@ -500,13 +500,83 @@ function updateMoveHistoryDisplay() {
         }
     }
     
-    textArea.value = pgn;
+    // Update CodeMirror content
+    const currentValue = moveHistoryEditor.getValue();
+    if (currentValue !== pgn) {
+        moveHistoryEditor.setValue(pgn);
+    }
     
-    // Auto-scroll to bottom
-    textArea.scrollTop = textArea.scrollHeight;
+    // Highlight current move position
+    highlightCurrentMove();
+    
+    // Auto-scroll to current move (or bottom if at the end)
+    if (gameState.currentPosition === gameState.moveHistory.length) {
+        // At the end, scroll to bottom
+        const lastLine = moveHistoryEditor.lineCount();
+        moveHistoryEditor.scrollIntoView({line: lastLine, ch: 0});
+    }
     
     // Update position indicator
     updatePositionIndicator();
+}
+
+function highlightCurrentMove() {
+    if (!moveHistoryEditor) return;
+    
+    // Clear all current move markers
+    moveHistoryEditor.getAllMarks().forEach(mark => mark.clear());
+    
+    if (gameState.moveHistory.length === 0) {
+        return;
+    }
+    
+    const text = moveHistoryEditor.getValue();
+    
+    // Find and highlight only the current move
+    const movePattern = /(\d+)\.([^\s]+)(?:\s+([^\s]+))?/g;
+    let match;
+    
+    while ((match = movePattern.exec(text)) !== null) {
+        const moveNumber = parseInt(match[1]);
+        const whiteMove = match[2];
+        const blackMove = match[3];
+        
+        // Calculate move indices
+        const whiteMoveIndex = (moveNumber - 1) * 2;
+        const blackMoveIndex = whiteMoveIndex + 1;
+        
+        // Check white's move
+        if (whiteMove && whiteMoveIndex === gameState.currentPosition - 1) {
+            const whiteMoveStart = match.index + match[0].indexOf(whiteMove);
+            const whiteMoveEnd = whiteMoveStart + whiteMove.length;
+            const whiteStartPos = moveHistoryEditor.posFromIndex(whiteMoveStart);
+            const whiteEndPos = moveHistoryEditor.posFromIndex(whiteMoveEnd);
+            
+            moveHistoryEditor.markText(whiteStartPos, whiteEndPos, {
+                className: 'chess-current-move'
+            });
+            if (gameState.isNavigating) {
+                moveHistoryEditor.scrollIntoView({from: whiteStartPos, to: whiteEndPos}, 100);
+            }
+            break;
+        }
+        
+        // Check black's move
+        if (blackMove && blackMoveIndex === gameState.currentPosition - 1) {
+            const blackMoveStart = match.index + match[0].indexOf(blackMove);
+            const blackMoveEnd = blackMoveStart + blackMove.length;
+            const blackStartPos = moveHistoryEditor.posFromIndex(blackMoveStart);
+            const blackEndPos = moveHistoryEditor.posFromIndex(blackMoveEnd);
+            
+            moveHistoryEditor.markText(blackStartPos, blackEndPos, {
+                className: 'chess-current-move'
+            });
+            if (gameState.isNavigating) {
+                moveHistoryEditor.scrollIntoView({from: blackStartPos, to: blackEndPos}, 100);
+            }
+            break;
+        }
+    }
 }
 
 // -------------------------------------------------------------------------
@@ -1067,9 +1137,11 @@ function loadPGNFile() {
 
 // Save PGN to file
 function savePGNFile() {
-    const textArea = document.getElementById('moveHistoryText');
+    if (!moveHistoryEditor) return;
     
-    if (!textArea.value) {
+    const pgnContent = moveHistoryEditor.getValue();
+    
+    if (!pgnContent) {
         alert('No moves to save!');
         return;
     }
@@ -1084,15 +1156,15 @@ function savePGNFile() {
     const date = new Date();
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, '.');
     
-    let pgnContent = '[Event "Casual Game"]\n';
-    pgnContent += '[Site "go-chess"]\n';
-    pgnContent += '[Date "' + dateStr + '"]\n';
-    pgnContent += '[White "' + whiteName + '"]\n';
-    pgnContent += '[Black "' + blackName + '"]\n';
-    pgnContent += '[Result "*"]\n';
-    pgnContent += '\n';
-    pgnContent += textArea.value;
-    pgnContent += ' *\n';
+    let pgnWithHeaders = '[Event "Casual Game"]\n';
+    pgnWithHeaders += '[Site "go-chess"]\n';
+    pgnWithHeaders += '[Date "' + dateStr + '"]\n';
+    pgnWithHeaders += '[White "' + whiteName + '"]\n';
+    pgnWithHeaders += '[Black "' + blackName + '"]\n';
+    pgnWithHeaders += '[Result "*"]\n';
+    pgnWithHeaders += '\n';
+    pgnWithHeaders += pgnContent;
+    pgnWithHeaders += ' *\n';
     
     // Create filename with player names
     // Sanitize names for filename (remove special characters)
@@ -1104,7 +1176,7 @@ function savePGNFile() {
     const filename = dateStr + '_' + whiteFilename + '_vs_' + blackFilename + '.pgn';
     
     // Create a blob and download link
-    const blob = new Blob([pgnContent], { type: 'application/x-chess-pgn' });
+    const blob = new Blob([pgnWithHeaders], { type: 'application/x-chess-pgn' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -1869,10 +1941,20 @@ $(document).ready(function() {
     updateStartPauseButton();
     updatePositionIndicator();
     
-    // Add paste event handler to move history textarea
-    const moveHistoryText = document.getElementById('moveHistoryText');
-    if (moveHistoryText) {
-        moveHistoryText.addEventListener('paste', function(e) {
+    // Initialize CodeMirror for move history
+    const moveHistoryTextArea = document.getElementById('moveHistoryText');
+    if (moveHistoryTextArea) {
+        moveHistoryEditor = CodeMirror.fromTextArea(moveHistoryTextArea, {
+            mode: 'chess',
+            lineNumbers: false,
+            lineWrapping: true,
+            readOnly: true,
+            theme: 'default',
+            viewportMargin: Infinity
+        });
+        
+        // Add paste event handler
+        moveHistoryEditor.on('paste', function(cm, e) {
             e.preventDefault();
             const pastedText = (e.clipboardData || window.clipboardData).getData('text');
             
@@ -1881,9 +1963,10 @@ $(document).ready(function() {
         });
         
         // Prevent manual editing - restore from game state
-        moveHistoryText.addEventListener('input', function(e) {
-            // Restore the correct move history
-            updateMoveHistoryDisplay();
+        moveHistoryEditor.on('beforeChange', function(cm, change) {
+            if (change.origin !== 'setValue') {
+                change.cancel();
+            }
         });
     }
     
