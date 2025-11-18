@@ -118,12 +118,53 @@
                     <div class="move-history-header">
                         📜 Move History
                         <div class="move-history-buttons">
-                            <button onclick="copyMoveHistory()" class="history-btn" title="Copy to clipboard">📋 Copy</button>
-                            <button onclick="pastePGN()" class="history-btn" title="Paste PGN">📥 Paste</button>
+                            <button onclick="loadPGNFile()" class="history-btn" title="Load PGN from file">📂 Load PGN</button>
+                            <button onclick="savePGNFile()" class="history-btn" title="Save PGN to file">💾 Save PGN</button>
                         </div>
                     </div>
-                    <textarea id="moveHistoryText" class="move-history-text" placeholder="Paste PGN here or play moves..."></textarea>
+                    <textarea id="moveHistoryText" class="move-history-text" placeholder="Load PGN file or play moves..."></textarea>
+                    <input type="file" id="pgnFileInput" accept=".pgn" style="display: none;">
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PGN Game Selection Modal -->
+    <div id="pgnGameSelectorModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>📂 Select a Game from PGN File</h2>
+                <span class="modal-close" onclick="closePGNGameSelector()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-info">This PGN file contains <strong id="gameCount">0</strong> games. Select one to analyze:</p>
+                <div id="openingLoadingBar" class="opening-loading-bar" style="display: none;">
+                    <div class="loading-bar-text">Loading opening names... <span id="loadingProgress">0/0</span></div>
+                    <div class="loading-bar-container">
+                        <div id="loadingBarFill" class="loading-bar-fill"></div>
+                    </div>
+                </div>
+                <div class="game-table-container">
+                    <table id="gameTable" class="game-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>White</th>
+                                <th>Black</th>
+                                <th>Result</th>
+                                <th>Date</th>
+                                <th>Event</th>
+                                <th>Opening</th>
+                            </tr>
+                        </thead>
+                        <tbody id="gameTableBody">
+                            <!-- Games will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closePGNGameSelector()" class="modal-btn modal-btn-cancel">Cancel</button>
             </div>
         </div>
     </div>

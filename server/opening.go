@@ -230,8 +230,8 @@ func parsePGNMoves(pgn string) ([]string, error) {
 }
 
 // Lookup finds the opening for a given sequence of moves
-// Returns the deepest matching opening, or nil if no match
-// Only returns an opening if ALL moves are in the opening book
+// Returns the deepest matching opening found in the database
+// If the move sequence goes beyond the opening book, returns the last known opening
 func (ob *OpeningBook) Lookup(moves []string) *OpeningInfo {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
@@ -239,27 +239,21 @@ func (ob *OpeningBook) Lookup(moves []string) *OpeningInfo {
 	current := ob.root
 	var lastOpening *OpeningInfo
 
-	for i, move := range moves {
+	for _, move := range moves {
 		if current.Children == nil {
-			// We've left the opening book - no more moves in database
-			return nil
+			// We've left the opening book - return the last opening we found
+			return lastOpening
 		}
 
 		next, exists := current.Children[move]
 		if !exists {
-			// This move is not in the opening book
-			return nil
+			// This move is not in the opening book - return the last opening we found
+			return lastOpening
 		}
 
 		current = next
 		if current.Opening != nil {
 			lastOpening = current.Opening
-		}
-
-		// Check if this is the last move and we're at a leaf or can continue
-		if i == len(moves)-1 {
-			// This is the last move - return the opening if we found one
-			return lastOpening
 		}
 	}
 

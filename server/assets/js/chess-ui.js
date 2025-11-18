@@ -35,6 +35,10 @@ var gameState = {
 
 // Save game state to localStorage
 function saveGameState() {
+    // DISABLED: localStorage persistence disabled - always start fresh
+    return;
+    
+    /* DISABLED CODE:
     try {
         localStorage.setItem('chessGameState', JSON.stringify({
             fen: game.fen(),
@@ -48,10 +52,15 @@ function saveGameState() {
     } catch (e) {
         console.error('Failed to save game state:', e);
     }
+    */
 }
 
 // Load game state from localStorage
 function loadGameState() {
+    // DISABLED: localStorage persistence disabled - always start fresh
+    return false;
+    
+    /* DISABLED CODE:
     try {
         const saved = localStorage.getItem('chessGameState');
         if (saved) {
@@ -79,15 +88,21 @@ function loadGameState() {
         console.error('Failed to load game state:', e);
     }
     return false;
+    */
 }
 
 // Clear saved game state
 function clearGameState() {
+    // DISABLED: localStorage persistence disabled
+    return;
+    
+    /* DISABLED CODE:
     try {
         localStorage.removeItem('chessGameState');
     } catch (e) {
         console.error('Failed to clear game state:', e);
     }
+    */
 }
 
 // -------------------------------------------------------------------------
@@ -108,6 +123,40 @@ function highlightLastMove(from, to) {
 // -------------------------------------------------------------------------
 // Player Configuration
 // -------------------------------------------------------------------------
+
+function resetPlayerDropdowns() {
+    // Simply reset selection to default (Human vs Human)
+    document.getElementById('whitePlayer').value = 'human';
+    document.getElementById('blackPlayer').value = 'human';
+}
+
+function addPlayerToDropdown(dropdownId, playerName) {
+    const dropdown = document.getElementById(dropdownId);
+    
+    // Check if this player name already exists
+    for (let i = 0; i < dropdown.options.length; i++) {
+        if (dropdown.options[i].value === playerName) {
+            // Already exists, just select it
+            dropdown.value = playerName;
+            return;
+        }
+    }
+    
+    // Add new option at the beginning (after the first option which is "Human")
+    const option = document.createElement('option');
+    option.value = playerName;
+    option.textContent = playerName;
+    
+    // Insert after "Human" option (index 1)
+    if (dropdown.options.length > 1) {
+        dropdown.insertBefore(option, dropdown.options[1]);
+    } else {
+        dropdown.appendChild(option);
+    }
+    
+    // Select the new player
+    dropdown.value = playerName;
+}
 
 function getWhitePlayer() {
     return document.getElementById('whitePlayer').value;
@@ -467,36 +516,418 @@ function updateMoveHistoryDisplay() {
     textArea.scrollTop = textArea.scrollHeight;
 }
 
-// Copy move history to clipboard
-function copyMoveHistory() {
+// Count total games in PGN file (fast, doesn't parse content)
+function countPGNGames(pgnText) {
+    let count = 0;
+    let inMoves = false;
+    const lines = pgnText.split('\n');
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        if (line.startsWith('[') && line.endsWith(']')) {
+            if (inMoves) {
+                // New game started
+                count++;
+                inMoves = false;
+            }
+        } else if (line && !line.startsWith('[')) {
+            inMoves = true;
+        }
+    }
+    
+    // Count the last game
+    if (inMoves) {
+        count++;
+    }
+    
+    return count;
+}
+
+// Parse PGN file and extract games (up to maxGames limit)
+function parsePGNGames(pgnText, maxGames = Infinity) {
+    const games = [];
+    
+    // Split by empty lines to find game boundaries
+    // Each game starts with headers and ends with moves
+    const lines = pgnText.split('\n');
+    let currentGame = { headers: {}, moves: '' };
+    let inHeaders = false;
+    let inMoves = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        
+        // Check if this is a header line
+        if (line.startsWith('[') && line.endsWith(']')) {
+            if (!inHeaders && inMoves) {
+                // We've hit a new game, save the previous one
+                if (currentGame.moves.trim()) {
+                    games.push(currentGame);
+                    
+                    // Stop parsing if we've reached the limit
+                    if (games.length >= maxGames) {
+                        return games;
+                    }
+                }
+                currentGame = { headers: {}, moves: '' };
+                inMoves = false;
+            }
+            inHeaders = true;
+            
+            // Parse header
+            const match = line.match(/\[(\w+)\s+"([^"]*)"\]/);
+            if (match) {
+                currentGame.headers[match[1]] = match[2];
+            }
+        } else if (line && !line.startsWith('[')) {
+            // This is a move line
+            inHeaders = false;
+            inMoves = true;
+            currentGame.moves += line + ' ';
+        } else if (!line && inMoves) {
+            // Empty line after moves might indicate end of game
+            continue;
+        }
+    }
+    
+    // Don't forget the last game (if under limit)
+    if (currentGame.moves.trim() && games.length < maxGames) {
+        games.push(currentGame);
+    }
+    
+    return games;
+}
+
+// Extract game metadata for display
+function extractGameMetadata(game, index) {
+    const headers = game.headers;
+    
+    // Extract first few moves for opening preview and API lookup
+    const movesOnly = game.moves
+        .replace(/\{[^}]*\}/g, '')  // Remove comments
+        .replace(/\([^)]*\)/g, '')  // Remove variations
+        .replace(/[!?]+/g, '')      // Remove annotations
+        .replace(/\s*(1-0|0-1|1\/2-1\/2|\*)\s*$/, ''); // Remove result
+    
+    // Split by move numbers and extract moves
+    // Handles both "1. e4 e5" and "1.e4 e5" formats
+    const moves = [];
+    const tokens = movesOnly.split(/\d+\./);  // Split by move numbers
+    
+    for (let i = 1; i < tokens.length && moves.length < 30; i++) {
+        const moveText = tokens[i].trim();
+        if (!moveText) continue;
+        
+        // Split the move text into individual moves (white and black)
+        const moveParts = moveText.split(/\s+/);
+        for (const move of moveParts) {
+            if (move && !move.match(/^[!?]+$/) && !move.match(/^\d/)) {
+                moves.push(move);
+                if (moves.length >= 30) break;
+            }
+        }
+    }
+    
+    // Try to get opening from headers first (only human-readable names, not ECO codes)
+    let opening = headers.Opening || null;
+    
+    // Store moves for API lookup (API will find the deepest match)
+    const movesForLookup = moves.slice(0, 15);
+    
+    return {
+        index: index,
+        white: headers.White || 'Unknown',
+        black: headers.Black || 'Unknown',
+        result: headers.Result || '*',
+        date: headers.Date || '????.??.??',
+        event: headers.Event || 'Unknown',
+        opening: opening,
+        moves: movesForLookup,
+        needsLookup: !opening,  // Lookup if no Opening header found
+        fullPGN: game
+    };
+}
+
+// Show game selector modal
+async function showPGNGameSelector(games, wasLimited, totalGames) {
+    const modal = document.getElementById('pgnGameSelectorModal');
+    const gameCount = document.getElementById('gameCount');
+    const tableBody = document.getElementById('gameTableBody');
+    
+    // Clear any analysis arrows
+    board.clearArrow();
+    
+    // Update game count with limit info if applicable
+    if (wasLimited) {
+        gameCount.innerHTML = `<strong>${games.length}</strong> (limited from ${totalGames} total)`;
+    } else {
+        gameCount.textContent = games.length;
+    }
+    
+    // Clear existing rows
+    tableBody.innerHTML = '';
+    
+    // Populate table with games (initial display)
+    games.forEach((gameData, index) => {
+        const row = document.createElement('tr');
+        row.id = 'game-row-' + index;
+        row.onclick = function() {
+            selectPGNGame(gameData.fullPGN);
+        };
+        
+        const openingDisplay = gameData.opening || '<span style="color: #999;">Loading...</span>';
+        
+        row.innerHTML = `
+            <td>${index + 1}</td>
+            <td>${gameData.white}</td>
+            <td>${gameData.black}</td>
+            <td>${gameData.result}</td>
+            <td>${gameData.date}</td>
+            <td>${gameData.event}</td>
+            <td id="opening-cell-${index}" style="font-family: 'Courier New', monospace; font-size: 12px;">${openingDisplay}</td>
+        `;
+        
+        tableBody.appendChild(row);
+    });
+    
+    // Show modal
+    modal.style.display = 'flex';
+    
+    // Check if we need to lookup openings
+    const gamesToLookup = games.filter(g => g.needsLookup);
+    
+    if (gamesToLookup.length > 0) {
+        // Start lookup after a short delay (2 seconds) to avoid showing progress bar for fast loads
+        const startTime = Date.now();
+        await lookupOpeningNames(games, startTime);
+    }
+}
+
+// Lookup opening names via API
+async function lookupOpeningNames(games, startTime) {
+    const loadingBar = document.getElementById('openingLoadingBar');
+    const loadingProgress = document.getElementById('loadingProgress');
+    const loadingBarFill = document.getElementById('loadingBarFill');
+    
+    const gamesToLookup = games.filter(g => g.needsLookup);
+    const totalToLookup = gamesToLookup.length;
+    let completed = 0;
+    
+    // Show progress bar immediately
+    loadingBar.style.display = 'block';
+    loadingProgress.textContent = `${completed}/${totalToLookup}`;
+    
+    // Lookup openings in batches to avoid overwhelming the server
+    const batchSize = 5;
+    for (let i = 0; i < gamesToLookup.length; i += batchSize) {
+        const batch = gamesToLookup.slice(i, i + batchSize);
+        
+        await Promise.all(batch.map(async (gameData) => {
+            try {
+                const response = await fetch('/api/opening', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        moves: gameData.moves
+                    })
+                });
+                
+                if (response.ok) {
+                    const opening = await response.json();
+                    
+                    if (opening && opening.name && opening.name.trim() !== '') {
+                        gameData.opening = opening.name;
+                        
+                        // Update the cell
+                        const cell = document.getElementById('opening-cell-' + gameData.index);
+                        if (cell) {
+                            cell.textContent = opening.name;
+                        }
+                    } else {
+                        // No opening found, show first few moves
+                        gameData.opening = gameData.moves.slice(0, 6).join(' ') || '-';
+                        const cell = document.getElementById('opening-cell-' + gameData.index);
+                        if (cell) {
+                            cell.textContent = gameData.opening;
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching opening for game', gameData.index, error);
+                // Show moves as fallback
+                gameData.opening = gameData.moves.slice(0, 6).join(' ') || '-';
+                const cell = document.getElementById('opening-cell-' + gameData.index);
+                if (cell) {
+                    cell.textContent = gameData.opening;
+                }
+            }
+            
+            completed++;
+            
+            // Update progress
+            loadingProgress.textContent = `${completed}/${totalToLookup}`;
+            const percentage = (completed / totalToLookup) * 100;
+            loadingBarFill.style.width = percentage + '%';
+        }));
+    }
+    
+    // Hide progress bar after completion
+    if (loadingBar.style.display === 'block') {
+        setTimeout(() => {
+            loadingBar.style.display = 'none';
+        }, 500);
+    }
+}
+
+// Close game selector modal
+function closePGNGameSelector() {
+    const modal = document.getElementById('pgnGameSelectorModal');
+    modal.style.display = 'none';
+}
+
+// Select a game from the modal
+function selectPGNGame(game) {
+    closePGNGameSelector();
+    
+    // Combine headers and moves for loading
+    let pgnText = '';
+    for (const [key, value] of Object.entries(game.headers)) {
+        pgnText += `[${key} "${value}"]\n`;
+    }
+    pgnText += '\n' + game.moves;
+    
+    loadPGNFromText(pgnText);
+}
+
+// Load PGN from file
+function loadPGNFile() {
+    const fileInput = document.getElementById('pgnFileInput');
+    
+    // Set up the file input handler
+    fileInput.onchange = function(e) {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+        
+        // Stop any running analysis and clear arrows
+        if (whiteAnalysisActive) {
+            stopWhiteAnalysis();
+        }
+        if (blackAnalysisActive) {
+            stopBlackAnalysis();
+        }
+        board.clearArrow();
+        
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            const text = event.target.result;
+            
+            // First, count total games (fast operation)
+            const totalGames = countPGNGames(text);
+            
+            if (totalGames === 0) {
+                alert('No valid games found in the PGN file!');
+                return;
+            } else if (totalGames === 1) {
+                // Single game, load it directly
+                loadPGNFromText(text);
+            } else {
+                // Limit to first 1000 games for memory protection
+                const MAX_GAMES = 1000;
+                const wasLimited = totalGames > MAX_GAMES;
+                
+                // Show warning if file was truncated
+                if (wasLimited) {
+                    alert(`This PGN file contains ${totalGames} games.\n\nFor memory protection, only the first ${MAX_GAMES} games will be loaded.`);
+                }
+                
+                // Parse only up to the limit (memory efficient)
+                const games = parsePGNGames(text, MAX_GAMES);
+                
+                // Multiple games, show selector
+                const gamesMetadata = games.map((game, index) => 
+                    extractGameMetadata(game, index)
+                );
+                showPGNGameSelector(gamesMetadata, wasLimited, totalGames);
+            }
+        };
+        
+        reader.onerror = function() {
+            alert('Failed to read file');
+        };
+        
+        reader.readAsText(file);
+        
+        // Reset the input so the same file can be loaded again
+        fileInput.value = '';
+    };
+    
+    // Trigger the file picker
+    fileInput.click();
+}
+
+// Save PGN to file
+function savePGNFile() {
     const textArea = document.getElementById('moveHistoryText');
     
     if (!textArea.value) {
-        alert('No moves to copy!');
+        alert('No moves to save!');
         return;
     }
     
-    // Select and copy
-    textArea.select();
-    textArea.setSelectionRange(0, 99999); // For mobile devices
+    // Get player names
+    const whitePlayerValue = getWhitePlayer();
+    const blackPlayerValue = getBlackPlayer();
+    const whiteName = getPlayerName(whitePlayerValue);
+    const blackName = getPlayerName(blackPlayerValue);
     
-    try {
-        document.execCommand('copy');
-        
-        // Visual feedback
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = '✓ Copied';
-        setTimeout(function() {
-            btn.textContent = originalText;
-        }, 1500);
-    } catch (err) {
-        console.error('Failed to copy:', err);
-        alert('Failed to copy to clipboard');
-    }
+    // Create PGN content with headers
+    const date = new Date();
+    const dateStr = date.toISOString().split('T')[0].replace(/-/g, '.');
     
-    // Deselect
-    window.getSelection().removeAllRanges();
+    let pgnContent = '[Event "Casual Game"]\n';
+    pgnContent += '[Site "go-chess"]\n';
+    pgnContent += '[Date "' + dateStr + '"]\n';
+    pgnContent += '[White "' + whiteName + '"]\n';
+    pgnContent += '[Black "' + blackName + '"]\n';
+    pgnContent += '[Result "*"]\n';
+    pgnContent += '\n';
+    pgnContent += textArea.value;
+    pgnContent += ' *\n';
+    
+    // Create filename with player names
+    // Sanitize names for filename (remove special characters)
+    const sanitizeFilename = function(name) {
+        return name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    };
+    const whiteFilename = sanitizeFilename(whiteName);
+    const blackFilename = sanitizeFilename(blackName);
+    const filename = dateStr + '_' + whiteFilename + '_vs_' + blackFilename + '.pgn';
+    
+    // Create a blob and download link
+    const blob = new Blob([pgnContent], { type: 'application/x-chess-pgn' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    
+    // Trigger download
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Visual feedback
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '✓ Saved';
+    setTimeout(function() {
+        btn.textContent = originalText;
+    }, 1500);
 }
 
 // Load PGN from text string
@@ -509,6 +940,27 @@ function loadPGNFromText(text) {
     try {
         // Parse PGN moves (extract just the moves, ignore headers and comments)
         const pgnText = text.trim();
+        
+        // Reset player dropdowns first to clear any previous custom names
+        resetPlayerDropdowns();
+        
+        // Extract player names from PGN headers
+        const whiteMatch = pgnText.match(/\[White\s+"([^"]+)"\]/);
+        const blackMatch = pgnText.match(/\[Black\s+"([^"]+)"\]/);
+        const whiteName = whiteMatch ? whiteMatch[1] : null;
+        const blackName = blackMatch ? blackMatch[1] : null;
+        
+        // Add player names to dropdowns if found
+        if (whiteName) {
+            addPlayerToDropdown('whitePlayer', whiteName);
+        }
+        if (blackName) {
+            addPlayerToDropdown('blackPlayer', blackName);
+        }
+        
+        // Update UI to reflect the new player selections
+        updatePlayerControls();
+        updateInfoText();
         
         // Remove PGN headers (lines starting with [)
         let movesOnly = pgnText.split('\n')
@@ -546,6 +998,9 @@ function loadPGNFromText(text) {
         board.position('start');
         gameState.moveHistory = [];
         clearLastMoveHighlight();
+        
+        // Clear any analysis arrows
+        board.clearArrow();
         
         // Apply each move
         for (let i = 0; i < moves.length; i++) {
@@ -593,29 +1048,6 @@ function loadPGNFromText(text) {
     }
 }
 
-// Paste PGN button handler (with clipboard fallback)
-async function pastePGN() {
-    let text = '';
-    
-    try {
-        // Try to read from clipboard (may fail due to permissions)
-        text = await navigator.clipboard.readText();
-    } catch (err) {
-        // Fallback: prompt user to paste
-        console.log('Clipboard API not available, using prompt');
-    }
-    
-    // If clipboard read failed or empty, prompt user
-    if (!text || text.trim() === '') {
-        text = prompt('Paste PGN here:\n\nExample:\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Bc5');
-        
-        if (!text || text.trim() === '') {
-            return; // User cancelled or entered nothing
-        }
-    }
-    
-    loadPGNFromText(text);
-}
 
 // -------------------------------------------------------------------------
 // Opening Display
@@ -707,6 +1139,9 @@ function newGame() {
     // Clear highlights
     clearLastMoveHighlight();
     
+    // Reset player dropdowns to default (Human vs Human)
+    resetPlayerDropdowns();
+    
     // Update displays
     updateMoveHistoryDisplay();
     updateClockDisplay();
@@ -785,6 +1220,10 @@ function offerDraw() {
 // -------------------------------------------------------------------------
 
 function restorePlayerSelections() {
+    // DISABLED: Always start with Human vs Human (default dropdown values)
+    return;
+    
+    /* DISABLED CODE:
     const savedWhite = localStorage.getItem('whitePlayer');
     const savedBlack = localStorage.getItem('blackPlayer');
     
@@ -802,12 +1241,17 @@ function restorePlayerSelections() {
             blackSelect.value = firstEngine.value;
         }
     }
+    */
 }
 
 function savePlayerSelections() {
+    // DISABLED: Player selection persistence disabled
+    updatePlayerControls();
+    
+    /* DISABLED CODE:
     localStorage.setItem('whitePlayer', document.getElementById('whitePlayer').value);
     localStorage.setItem('blackPlayer', document.getElementById('blackPlayer').value);
-    updatePlayerControls();
+    */
 }
 
 function flipBoard() {
@@ -1053,29 +1497,33 @@ function updateClockDisplay() {
         blackClock.classList.remove('active');
     }
     
-    // Add time warnings
+    // Add time warnings (skip if unlimited time mode)
     whiteClock.classList.remove('time-low', 'time-critical');
     blackClock.classList.remove('time-low', 'time-critical');
     
-    if (gameState.whiteTimeMs < 60000 && gameState.whiteTimeMs > 10000) {
-        whiteClock.classList.add('time-low');
-    } else if (gameState.whiteTimeMs <= 10000) {
-        whiteClock.classList.add('time-critical');
+    if (gameState.timeControl.initial > 0) {
+        if (gameState.whiteTimeMs < 60000 && gameState.whiteTimeMs > 10000) {
+            whiteClock.classList.add('time-low');
+        } else if (gameState.whiteTimeMs <= 10000) {
+            whiteClock.classList.add('time-critical');
+        }
+        
+        if (gameState.blackTimeMs < 60000 && gameState.blackTimeMs > 10000) {
+            blackClock.classList.add('time-low');
+        } else if (gameState.blackTimeMs <= 10000) {
+            blackClock.classList.add('time-critical');
+        }
     }
     
-    if (gameState.blackTimeMs < 60000 && gameState.blackTimeMs > 10000) {
-        blackClock.classList.add('time-low');
-    } else if (gameState.blackTimeMs <= 10000) {
-        blackClock.classList.add('time-critical');
-    }
-    
-    // Check for time out
-    if (gameState.whiteTimeMs <= 0) {
-        stopClock();
-        alert('Time out! Black wins!');
-    } else if (gameState.blackTimeMs <= 0) {
-        stopClock();
-        alert('Time out! White wins!');
+    // Check for time out (skip if unlimited time mode)
+    if (gameState.timeControl.initial > 0) {
+        if (gameState.whiteTimeMs <= 0) {
+            stopClock();
+            alert('Time out! Black wins!');
+        } else if (gameState.blackTimeMs <= 0) {
+            stopClock();
+            alert('Time out! White wins!');
+        }
     }
 }
 
@@ -1181,11 +1629,16 @@ $(document).ready(function() {
         setTimeControl(initialMinutes, incrementSeconds);
         stopClock();
         
-        // Save preference
-        localStorage.setItem('timeControl', value);
+        // DISABLED: Time control persistence disabled
+        // localStorage.setItem('timeControl', value);
     });
     
-    // Restore time control preference
+    // Set default to Unlimited (0+0)
+    var select = document.getElementById('timeControl');
+    select.value = '0+0';
+    setTimeControl(0, 0);
+    
+    /* DISABLED CODE: Restore time control preference
     var savedTimeControl = localStorage.getItem('timeControl');
     if (savedTimeControl) {
         var select = document.getElementById('timeControl');
@@ -1195,6 +1648,7 @@ $(document).ready(function() {
             setTimeControl(parseInt(parts[0]), parseInt(parts[1]));
         }
     }
+    */
     
     // Initialize
     restorePlayerSelections();

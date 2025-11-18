@@ -28,20 +28,20 @@ func TestOpeningBookUnknownPosition(t *testing.T) {
 		{
 			name:        "Italian Game + Unknown Move",
 			moves:       []string{"e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "h4"},
-			shouldFind:  false,
-			description: "Italian Game followed by unusual move h4 - should return nil",
+			shouldFind:  true,
+			description: "Italian Game followed by unusual move h4 - should return deepest match (Giuoco Piano)",
 		},
 		{
 			name:        "Sicilian + Random Moves",
 			moves:       []string{"e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6", "h4", "h5"},
-			shouldFind:  false,
-			description: "Sicilian followed by random moves - should return nil",
+			shouldFind:  true,
+			description: "Sicilian followed by random moves - should return deepest match (Najdorf before h4)",
 		},
 		{
 			name:        "Unknown Opening From Start",
 			moves:       []string{"a3", "a6", "b3", "b6", "c3", "c6"},
-			shouldFind:  false,
-			description: "Completely unknown opening - should return nil",
+			shouldFind:  true,
+			description: "Anderssen's Opening (a3) followed by unknown moves - should return Anderssen's Opening",
 		},
 		{
 			name:        "Single Known Move",
