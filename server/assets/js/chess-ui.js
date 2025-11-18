@@ -30,7 +30,10 @@ var gameState = {
     lastClockUpdate: null,
     gameStartTime: Date.now(),
     whiteMoves: 0,
-    blackMoves: 0
+    blackMoves: 0,
+    currentPosition: 0,        // Current position in move history (0 = start, moveHistory.length = end)
+    isNavigating: false,       // True when viewing a historical position
+    wasClockRunning: false     // Remember if clock was running before navigation
 };
 
 // Save game state to localStorage
@@ -248,6 +251,12 @@ function onDragStart(source, piece, position, orientation) {
 }
 
 function onDrop(source, target) {
+    // If navigating in history, return to end first
+    if (gameState.isNavigating) {
+        goToEnd();
+        // After returning to end, the move will be processed normally
+    }
+    
     var move = game.move({
         from: source,
         to: target,
@@ -264,6 +273,7 @@ function onDrop(source, target) {
         uciMove += move.promotion;
     }
     gameState.moveHistory.push(uciMove);
+    gameState.currentPosition = gameState.moveHistory.length;
     
     // Auto-start clock on first move if not already running
     if (!gameState.clockRunning && gameState.timeControl.initial > 0 && gameState.moveHistory.length === 1) {
@@ -286,22 +296,8 @@ function onDrop(source, target) {
     updateOpeningDisplay();
     saveGameState();
 
-    // Clear arrow and update analyses with new position
-    board.clearArrow();
-    setTimeout(function() {
-        if (whiteAnalysisActive && whiteAnalysisWs && whiteAnalysisWs.readyState === WebSocket.OPEN) {
-            whiteAnalysisWs.send(JSON.stringify({
-                action: 'update',
-                fen: game.fen()
-            }));
-        }
-        if (blackAnalysisActive && blackAnalysisWs && blackAnalysisWs.readyState === WebSocket.OPEN) {
-            blackAnalysisWs.send(JSON.stringify({
-                action: 'update',
-                fen: game.fen()
-            }));
-        }
-    }, 100);
+    // Update analysis with new position
+    updateAnalysisForCurrentPosition();
 
     window.setTimeout(checkForComputerMove, 250);
 }
@@ -329,6 +325,12 @@ async function makeComputerMove() {
 
     if (game.game_over()) {
         console.log('Game over');
+        return;
+    }
+    
+    // Don't make computer moves if navigating in history
+    if (gameState.isNavigating) {
+        console.log('Navigating in history - computer waiting');
         return;
     }
     
@@ -380,6 +382,7 @@ async function makeComputerMove() {
         
         // Update move history
         gameState.moveHistory.push(data.move);
+        gameState.currentPosition = gameState.moveHistory.length;
         
         // Highlight move
         var moveStr = data.move;
@@ -438,22 +441,7 @@ function checkForComputerMove() {
 var originalMakeComputerMove = makeComputerMove;
 makeComputerMove = async function() {
     await originalMakeComputerMove();
-    
-    board.clearArrow();
-    setTimeout(function() {
-        if (whiteAnalysisActive && whiteAnalysisWs && whiteAnalysisWs.readyState === WebSocket.OPEN) {
-            whiteAnalysisWs.send(JSON.stringify({
-                action: 'update',
-                fen: game.fen()
-            }));
-        }
-        if (blackAnalysisActive && blackAnalysisWs && blackAnalysisWs.readyState === WebSocket.OPEN) {
-            blackAnalysisWs.send(JSON.stringify({
-                action: 'update',
-                fen: game.fen()
-            }));
-        }
-    }, 100);
+    updateAnalysisForCurrentPosition();
 };
 
 // -------------------------------------------------------------------------
@@ -469,10 +457,12 @@ function updateMoveHistoryDisplay() {
     }
     
     // Convert UCI moves to SAN notation for PGN format
+    // When navigating, only show moves up to currentPosition
     const sanMoves = [];
     const tempGame = new Chess();
+    const movesToShow = gameState.isNavigating ? gameState.currentPosition : gameState.moveHistory.length;
     
-    for (let i = 0; i < gameState.moveHistory.length; i++) {
+    for (let i = 0; i < movesToShow; i++) {
         const uciMove = gameState.moveHistory[i];
         
         // Parse UCI move (e.g., "e2e4" or "e7e8q")
@@ -514,6 +504,211 @@ function updateMoveHistoryDisplay() {
     
     // Auto-scroll to bottom
     textArea.scrollTop = textArea.scrollHeight;
+    
+    // Update position indicator
+    updatePositionIndicator();
+}
+
+// -------------------------------------------------------------------------
+// Game History Navigation
+// -------------------------------------------------------------------------
+
+function updateAnalysisForCurrentPosition() {
+    // Clear any existing arrows first
+    board.clearArrow();
+    
+    // Update analysis engines with new position if they're active
+    setTimeout(function() {
+        if (whiteAnalysisActive && whiteAnalysisWs && whiteAnalysisWs.readyState === WebSocket.OPEN) {
+            whiteAnalysisWs.send(JSON.stringify({
+                action: 'update',
+                fen: game.fen()
+            }));
+        }
+        if (blackAnalysisActive && blackAnalysisWs && blackAnalysisWs.readyState === WebSocket.OPEN) {
+            blackAnalysisWs.send(JSON.stringify({
+                action: 'update',
+                fen: game.fen()
+            }));
+        }
+    }, 100);
+}
+
+function updatePositionIndicator() {
+    const indicator = document.getElementById('positionIndicator');
+    if (indicator) {
+        // Convert half-moves (plies) to full move notation
+        // Standard chess notation shows whose turn it is to move
+        if (gameState.currentPosition === 0) {
+            indicator.textContent = 'Start';
+        } else {
+            const fullMoveNumber = Math.floor(gameState.currentPosition / 2) + 1;
+            const isWhiteToMove = gameState.currentPosition % 2 === 0;
+            
+            if (isWhiteToMove) {
+                // White to move (e.g., after 1...e5, show "2.")
+                indicator.textContent = `${fullMoveNumber}.`;
+            } else {
+                // Black to move (e.g., after 1.e4, show "1...")
+                indicator.textContent = `${fullMoveNumber}...`;
+            }
+        }
+    }
+    
+    // Update button states
+    const toStartBtn = document.querySelector('button[onclick="goToStart()"]');
+    const stepBackBtn = document.querySelector('button[onclick="stepBackward()"]');
+    const stepForwardBtn = document.querySelector('button[onclick="stepForward()"]');
+    const toEndBtn = document.querySelector('button[onclick="goToEnd()"]');
+    
+    if (toStartBtn) toStartBtn.disabled = gameState.currentPosition === 0;
+    if (stepBackBtn) stepBackBtn.disabled = gameState.currentPosition === 0;
+    if (stepForwardBtn) stepForwardBtn.disabled = gameState.currentPosition >= gameState.moveHistory.length;
+    if (toEndBtn) toEndBtn.disabled = gameState.currentPosition >= gameState.moveHistory.length;
+}
+
+function goToStart() {
+    // Pause clock if running
+    if (gameState.clockRunning && !gameState.isNavigating) {
+        gameState.wasClockRunning = true;
+        pauseClock();
+    }
+    
+    gameState.isNavigating = true;
+    gameState.currentPosition = 0;
+    
+    // Reset to starting position
+    game.reset();
+    board.position('start');
+    lastMoveSquares = { from: null, to: null };
+    clearLastMoveHighlight();
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+}
+
+function stepBackward() {
+    if (gameState.currentPosition === 0) return;
+    
+    // Pause clock if running
+    if (gameState.clockRunning && !gameState.isNavigating) {
+        gameState.wasClockRunning = true;
+        pauseClock();
+    }
+    
+    gameState.isNavigating = true;
+    gameState.currentPosition--;
+    
+    // Rebuild game state up to current position
+    game.reset();
+    const tempGame = new Chess();
+    
+    for (let i = 0; i < gameState.currentPosition; i++) {
+        const uciMove = gameState.moveHistory[i];
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        tempGame.move({ from, to, promotion });
+    }
+    
+    game.load(tempGame.fen());
+    board.position(game.fen());
+    
+    // Highlight last move if not at start
+    if (gameState.currentPosition > 0) {
+        const lastMove = gameState.moveHistory[gameState.currentPosition - 1];
+        const from = lastMove.substring(0, 2);
+        const to = lastMove.substring(2, 4);
+        highlightLastMove(from, to);
+    } else {
+        lastMoveSquares = { from: null, to: null };
+        clearLastMoveHighlight();
+    }
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+}
+
+function stepForward() {
+    if (gameState.currentPosition >= gameState.moveHistory.length) return;
+    
+    // Pause clock if running
+    if (gameState.clockRunning && !gameState.isNavigating) {
+        gameState.wasClockRunning = true;
+        pauseClock();
+    }
+    
+    gameState.isNavigating = true;
+    
+    // Apply the next move
+    const uciMove = gameState.moveHistory[gameState.currentPosition];
+    const from = uciMove.substring(0, 2);
+    const to = uciMove.substring(2, 4);
+    const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+    
+    game.move({ from, to, promotion });
+    board.position(game.fen());
+    highlightLastMove(from, to);
+    
+    gameState.currentPosition++;
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+}
+
+function goToEnd() {
+    // If at the end and clock was running before navigation, resume it
+    const shouldResumeClock = gameState.wasClockRunning && gameState.currentPosition < gameState.moveHistory.length;
+    
+    gameState.currentPosition = gameState.moveHistory.length;
+    
+    // Rebuild game state to the end
+    game.reset();
+    const tempGame = new Chess();
+    
+    for (let i = 0; i < gameState.moveHistory.length; i++) {
+        const uciMove = gameState.moveHistory[i];
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        tempGame.move({ from, to, promotion });
+    }
+    
+    game.load(tempGame.fen());
+    board.position(game.fen());
+    
+    // Highlight last move
+    if (gameState.moveHistory.length > 0) {
+        const lastMove = gameState.moveHistory[gameState.moveHistory.length - 1];
+        const from = lastMove.substring(0, 2);
+        const to = lastMove.substring(2, 4);
+        highlightLastMove(from, to);
+    }
+    
+    // We're back at the end, no longer navigating
+    gameState.isNavigating = false;
+    
+    // Resume clock if it was running before navigation
+    if (shouldResumeClock) {
+        startClock();
+        gameState.wasClockRunning = false;
+    }
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+    
+    // Check if computer should move
+    window.setTimeout(checkForComputerMove, 250);
 }
 
 // Count total games in PGN file (fast, doesn't parse content)
@@ -1029,9 +1224,12 @@ function loadPGNFromText(text) {
         
         // Update board and displays
         board.position(game.fen());
+        gameState.currentPosition = gameState.moveHistory.length;
+        gameState.isNavigating = false;
         updateMoveHistoryDisplay();
         updateOpeningDisplay();
         updateInfoText();
+        updateAnalysisForCurrentPosition();
         saveGameState();
         
         // Visual feedback
@@ -1059,7 +1257,10 @@ async function updateOpeningDisplay() {
     const tempGame = new Chess();
     
     // Replay the game to get SAN notation
-    for (let i = 0; i < gameState.moveHistory.length; i++) {
+    // When navigating, only use moves up to currentPosition
+    const movesToShow = gameState.isNavigating ? gameState.currentPosition : gameState.moveHistory.length;
+    
+    for (let i = 0; i < movesToShow; i++) {
         const uciMove = gameState.moveHistory[i];
         
         // Parse UCI move (e.g., "e2e4" or "e7e8q")
@@ -1125,6 +1326,9 @@ function newGame() {
     game.reset();
     board.position('start');
     gameState.moveHistory = [];
+    gameState.currentPosition = 0;
+    gameState.isNavigating = false;
+    gameState.wasClockRunning = false;
     gameState.whiteTimeMs = gameState.timeControl.initial * 60 * 1000;
     gameState.blackTimeMs = gameState.timeControl.initial * 60 * 1000;
     gameState.clockRunning = false;
@@ -1663,6 +1867,7 @@ $(document).ready(function() {
     
     updateInfoText();
     updateStartPauseButton();
+    updatePositionIndicator();
     
     // Add paste event handler to move history textarea
     const moveHistoryText = document.getElementById('moveHistoryText');
@@ -1681,6 +1886,33 @@ $(document).ready(function() {
             updateMoveHistoryDisplay();
         });
     }
+    
+    // Add keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        // Only handle arrow keys if not typing in an input/textarea
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                stepBackward();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                stepForward();
+                break;
+            case 'Home':
+                e.preventDefault();
+                goToStart();
+                break;
+            case 'End':
+                e.preventDefault();
+                goToEnd();
+                break;
+        }
+    });
     
     // Check if computer should move
     window.setTimeout(checkForComputerMove, 500);
