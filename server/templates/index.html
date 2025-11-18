@@ -90,22 +90,26 @@
                     <button onclick="newGame()">New Game</button>
                     <button id="startPauseBtn" onclick="toggleClock()">▶️ Start Game</button>
                     <button onclick="flipBoard()">Flip Board</button>
-                    <button id="whiteAnalysisToggle" onclick="toggleWhiteAnalysis()">⚪ Analysis</button>
-                    <button id="blackAnalysisToggle" onclick="toggleBlackAnalysis()">⚫ Analysis</button>
+                    <button id="analysisToggle" onclick="toggleAnalysis()">🔍 Start Analysis</button>
                 </div>
                 
-                <div id="whiteAnalysisInfo" class="info" style="display: none; background: #e3f2fd;">
-                    <strong>⚪ White Analysis:</strong><br>
-                    <span id="whiteAnalysisDepth">-</span> depth | 
-                    <span id="whiteAnalysisScore">-</span><br>
-                    <span id="whiteAnalysisNodes">-</span> nodes
+                <!-- Analysis Engine Selection -->
+                <div class="analysis-engine-selection">
+                    <label for="analysisEngine">🔧 Analysis Engine:</label>
+                    <select id="analysisEngine">
+                        {{range .Engines}}
+                        <option value="{{.Path}}" {{if or (eq .Name "Stockfish 16") (eq .Name "Stockfish")}}selected{{end}}>{{.Name}}</option>
+                        {{end}}
+                    </select>
                 </div>
                 
-                <div id="blackAnalysisInfo" class="info" style="display: none; background: #f3e5f5;">
-                    <strong>⚫ Black Analysis:</strong><br>
-                    <span id="blackAnalysisDepth">-</span> depth | 
-                    <span id="blackAnalysisScore">-</span><br>
-                    <span id="blackAnalysisNodes">-</span> nodes
+                <!-- PV Display Toggle -->
+                <div class="analysis-pv-toggle">
+                    <label>
+                        <input type="checkbox" id="showPVArrows" checked>
+                        Show principal variation (3 moves)
+                    </label>
+                    <span id="analysisDepth" class="analysis-depth">Depth: -</span>
                 </div>
                 
                 <div class="info" id="gameInfo">

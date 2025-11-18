@@ -10,8 +10,8 @@
 // Modifications:
 // - Added click-to-select and click-to-move functionality
 // - Added SVG arrow drawing for engine analysis visualization
-//   - board.drawArrow(from, to, color) - Draw arrow between squares
-//   - board.clearArrow() - Remove arrow
+//   - board.drawArrow(from, to, color, label, opacity, clearPrevious) - Draw arrow with optional label and opacity
+//   - board.clearArrow() - Remove all arrows and labels
 //   - board.getArrow() - Get current arrow info
 
 // start anonymous scope
@@ -1697,7 +1697,7 @@
       }
     }
 
-    widget.drawArrow = function (fromSquare, toSquare, color) {
+    widget.drawArrow = function (fromSquare, toSquare, color, label, opacity, clearPrevious, moveNumber) {
       if (!validSquare(fromSquare) || !validSquare(toSquare)) {
         return
       }
@@ -1728,11 +1728,17 @@
       var endX = to.x - unitX * shortenEnd
       var endY = to.y - unitY * shortenEnd
 
-      // Remove old arrow lines
-      $arrowSvg.find('line').remove()
+      // Clear previous arrows if requested (default true for backward compatibility)
+      if (clearPrevious === undefined || clearPrevious === true) {
+        $arrowSvg.find('line').remove()
+        $arrowSvg.find('text').remove()
+      }
 
       // Default color - solid blue
       if (!color) color = '#3296FF'
+      
+      // Default opacity
+      if (!opacity) opacity = 0.8
 
       // Get the correct marker ID based on color
       var markerId
@@ -1753,17 +1759,71 @@
       line.setAttribute('stroke', color)
       line.setAttribute('stroke-width', strokeWidth)
       line.setAttribute('stroke-linecap', 'round')
-      line.setAttribute('opacity', '0.8')
+      line.setAttribute('opacity', opacity)
       line.setAttribute('marker-end', 'url(#' + markerId + ')')
       
       $arrowSvg[0].appendChild(line)
       
-      currentArrow = { from: fromSquare, to: toSquare, color: color }
+      // Add text label if provided (score label at midpoint)
+      if (label) {
+        // Position label at the midpoint of the arrow, centered on it
+        var midX = (startX + endX) / 2
+        var midY = (startY + endY) / 2
+        
+        // Create text element
+        var text = document.createElementNS(svgNS, 'text')
+        text.setAttribute('x', midX)
+        text.setAttribute('y', midY)
+        text.setAttribute('text-anchor', 'middle')
+        text.setAttribute('dominant-baseline', 'middle')
+        text.setAttribute('font-family', 'Arial, sans-serif')
+        text.setAttribute('font-size', squareSize * 0.28)
+        text.setAttribute('font-weight', 'bold')
+        text.setAttribute('fill', '#ffffff')
+        text.setAttribute('stroke', color)
+        text.setAttribute('stroke-width', '2')
+        text.setAttribute('paint-order', 'stroke')
+        text.setAttribute('opacity', opacity)
+        text.textContent = label
+        
+        $arrowSvg[0].appendChild(text)
+      }
+      
+      // Add move number near arrowhead if provided
+      if (moveNumber !== undefined && moveNumber !== null) {
+        // Position near the arrowhead, offset perpendicular to arrow
+        var perpX = -unitY
+        var perpY = unitX
+        var numberOffset = squareSize * 0.25
+        var numberX = endX + perpX * numberOffset
+        var numberY = endY + perpY * numberOffset
+        
+        // Create text element for move number
+        var numberText = document.createElementNS(svgNS, 'text')
+        numberText.setAttribute('x', numberX)
+        numberText.setAttribute('y', numberY)
+        numberText.setAttribute('text-anchor', 'middle')
+        numberText.setAttribute('dominant-baseline', 'middle')
+        numberText.setAttribute('font-family', 'Arial, sans-serif')
+        numberText.setAttribute('font-size', squareSize * 0.22)
+        numberText.setAttribute('font-weight', 'bold')
+        numberText.setAttribute('fill', '#ffffff')
+        numberText.setAttribute('stroke', color)
+        numberText.setAttribute('stroke-width', '2')
+        numberText.setAttribute('paint-order', 'stroke')
+        numberText.setAttribute('opacity', opacity)
+        numberText.textContent = moveNumber
+        
+        $arrowSvg[0].appendChild(numberText)
+      }
+      
+      currentArrow = { from: fromSquare, to: toSquare, color: color, label: label, opacity: opacity, moveNumber: moveNumber }
     }
 
     widget.clearArrow = function () {
       if ($arrowSvg) {
         $arrowSvg.find('line').remove()
+        $arrowSvg.find('text').remove()
       }
       currentArrow = null
     }
