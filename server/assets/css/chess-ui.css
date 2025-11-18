@@ -579,3 +579,98 @@ button:hover {
     transition: width 0.3s ease;
     width: 0%;
 }
+
+/* CodeMirror Chess Notation Styling */
+.CodeMirror {
+    height: auto;
+    min-height: 250px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    line-height: 1.8;
+    border: 2px solid #e0e0e0;
+    border-radius: 3px;
+    background: #fafafa;
+    margin: 4px;
+}
+
+.CodeMirror-scroll {
+    min-height: 250px;
+}
+
+.CodeMirror-lines {
+    padding: 12px;
+}
+
+/* Chess move number styling */
+.cm-chess-move-number {
+    color: #333;
+    font-weight: 900;
+}
+
+/* Regular chess moves */
+.cm-chess-move {
+    color: #333;
+    font-weight: 700;
+}
+
+/* Check moves (ending with +) */
+.cm-chess-check {
+    color: #ff6b35;
+    font-weight: 700;
+}
+
+/* Checkmate moves (ending with #) */
+.cm-chess-checkmate {
+    color: #d32f2f;
+    font-weight: 700;
+    text-shadow: 0 0 2px rgba(211, 47, 47, 0.3);
+}
+
+/* Promotion moves */
+.cm-chess-promotion {
+    color: #7e57c2;
+    font-weight: 600;
+}
+
+/* Game result */
+.cm-chess-result {
+    color: #666;
+    font-weight: 600;
+    font-style: italic;
+}
+
+/* Annotations (!!, !, !?, ?!, ?, ??) */
+.cm-chess-annotation {
+    color: #1976d2;
+    font-weight: 600;
+}
+
+/* Comments */
+.cm-chess-comment {
+    color: #4caf50;
+    font-style: italic;
+}
+
+/* Variations */
+.cm-chess-variation {
+    color: #9c27b0;
+}
+
+/* NAG (Numeric Annotation Glyph) */
+.cm-chess-nag {
+    color: #ff9800;
+    font-size: 11px;
+}
+
+/* Current move highlight */
+.chess-current-move {
+    background: #fff59d;
+    border-radius: 2px;
+    font-weight: 700;
+    box-shadow: 0 0 4px rgba(255, 235, 59, 0.6);
+}
+
+/* Future moves (after current position) - slightly grayed out */
+.chess-future-move {
+    opacity: 0.4;
+}
