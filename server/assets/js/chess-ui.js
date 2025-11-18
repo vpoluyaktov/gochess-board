@@ -1610,7 +1610,7 @@ function startAnalysis() {
                 if (!piece) continue;
                 
                 // Use different colors based on whose turn it is in the temp game
-                var arrowColor = tempGame.turn() === 'w' ? '#3296FF' : '#FF6B6B';
+                var arrowColor = tempGame.turn() === 'w' ? '#f4f5f7ff' : '#605e5eff';
                 
                 // Calculate opacity: first arrow bright, subsequent ones dimmer
                 var opacity = 1.0 - (i * 0.2);
