@@ -10,8 +10,8 @@
 // Modifications:
 // - Added click-to-select and click-to-move functionality
 // - Added SVG arrow drawing for engine analysis visualization
-//   - board.drawArrow(from, to, color) - Draw arrow between squares
-//   - board.clearArrow() - Remove arrow
+//   - board.drawArrow(from, to, color, label) - Draw arrow between squares with optional label
+//   - board.clearArrow() - Remove arrow and label
 //   - board.getArrow() - Get current arrow info
 
 // start anonymous scope
@@ -1697,7 +1697,7 @@
       }
     }
 
-    widget.drawArrow = function (fromSquare, toSquare, color) {
+    widget.drawArrow = function (fromSquare, toSquare, color, label) {
       if (!validSquare(fromSquare) || !validSquare(toSquare)) {
         return
       }
@@ -1728,8 +1728,9 @@
       var endX = to.x - unitX * shortenEnd
       var endY = to.y - unitY * shortenEnd
 
-      // Remove old arrow lines
+      // Remove old arrow lines and text labels
       $arrowSvg.find('line').remove()
+      $arrowSvg.find('text').remove()
 
       // Default color - solid blue
       if (!color) color = '#3296FF'
@@ -1758,12 +1759,37 @@
       
       $arrowSvg[0].appendChild(line)
       
-      currentArrow = { from: fromSquare, to: toSquare, color: color }
+      // Add text label if provided
+      if (label) {
+        // Position label at the midpoint of the arrow, centered on it
+        var midX = (startX + endX) / 2
+        var midY = (startY + endY) / 2
+        
+        // Create text element
+        var text = document.createElementNS(svgNS, 'text')
+        text.setAttribute('x', midX)
+        text.setAttribute('y', midY)
+        text.setAttribute('text-anchor', 'middle')
+        text.setAttribute('dominant-baseline', 'middle')
+        text.setAttribute('font-family', 'Arial, sans-serif')
+        text.setAttribute('font-size', squareSize * 0.28)
+        text.setAttribute('font-weight', 'bold')
+        text.setAttribute('fill', '#ffffff')
+        text.setAttribute('stroke', color)
+        text.setAttribute('stroke-width', '2')
+        text.setAttribute('paint-order', 'stroke')
+        text.textContent = label
+        
+        $arrowSvg[0].appendChild(text)
+      }
+      
+      currentArrow = { from: fromSquare, to: toSquare, color: color, label: label }
     }
 
     widget.clearArrow = function () {
       if ($arrowSvg) {
         $arrowSvg.find('line').remove()
+        $arrowSvg.find('text').remove()
       }
       currentArrow = null
     }

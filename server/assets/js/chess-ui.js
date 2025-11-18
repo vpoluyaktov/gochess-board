@@ -8,11 +8,9 @@ var lastMoveSquares = { from: null, to: null };
 var squareClass = 'square-55d63';
 var moveHistoryEditor = null;
 
-// Analysis WebSocket connections
-var whiteAnalysisWs = null;
-var blackAnalysisWs = null;
-var whiteAnalysisActive = false;
-var blackAnalysisActive = false;
+// Analysis WebSocket connection
+var analysisWs = null;
+var analysisActive = false;
 
 // -------------------------------------------------------------------------
 // Game State Management (Client-side)
@@ -587,16 +585,10 @@ function updateAnalysisForCurrentPosition() {
     // Clear any existing arrows first
     board.clearArrow();
     
-    // Update analysis engines with new position if they're active
+    // Update analysis engine with new position if active
     setTimeout(function() {
-        if (whiteAnalysisActive && whiteAnalysisWs && whiteAnalysisWs.readyState === WebSocket.OPEN) {
-            whiteAnalysisWs.send(JSON.stringify({
-                action: 'update',
-                fen: game.fen()
-            }));
-        }
-        if (blackAnalysisActive && blackAnalysisWs && blackAnalysisWs.readyState === WebSocket.OPEN) {
-            blackAnalysisWs.send(JSON.stringify({
+        if (analysisActive && analysisWs && analysisWs.readyState === WebSocket.OPEN) {
+            analysisWs.send(JSON.stringify({
                 action: 'update',
                 fen: game.fen()
             }));
@@ -1079,11 +1071,8 @@ function loadPGNFile() {
         }
         
         // Stop any running analysis and clear arrows
-        if (whiteAnalysisActive) {
-            stopWhiteAnalysis();
-        }
-        if (blackAnalysisActive) {
-            stopBlackAnalysis();
+        if (analysisActive) {
+            stopAnalysis();
         }
         board.clearArrow();
         
@@ -1545,187 +1534,96 @@ function flipBoard() {
 }
 
 // -------------------------------------------------------------------------
-// Live Analysis - White
+// Live Analysis
 // -------------------------------------------------------------------------
 
-function toggleWhiteAnalysis() {
-    if (whiteAnalysisActive) {
-        stopWhiteAnalysis();
+function toggleAnalysis() {
+    if (analysisActive) {
+        stopAnalysis();
     } else {
-        startWhiteAnalysis();
+        startAnalysis();
     }
 }
 
-function startWhiteAnalysis() {
+function startAnalysis() {
     var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     var wsUrl = protocol + '//' + window.location.host + '/api/analysis';
     
-    whiteAnalysisWs = new WebSocket(wsUrl);
+    // Get selected engine from dropdown
+    var engineSelect = document.getElementById('analysisEngine');
+    var enginePath = engineSelect ? engineSelect.value : 'stockfish';
     
-    whiteAnalysisWs.onopen = function() {
-        console.log('White Analysis WebSocket connected');
-        whiteAnalysisActive = true;
-        document.getElementById('whiteAnalysisToggle').textContent = 'Stop White';
-        document.getElementById('whiteAnalysisInfo').style.display = 'block';
+    analysisWs = new WebSocket(wsUrl);
+    
+    analysisWs.onopen = function() {
+        console.log('Analysis WebSocket connected');
+        analysisActive = true;
+        document.getElementById('analysisToggle').textContent = '⏹️ Stop Analysis';
         
-        whiteAnalysisWs.send(JSON.stringify({
+        analysisWs.send(JSON.stringify({
             action: 'start',
             fen: game.fen(),
-            enginePath: 'stockfish'
+            enginePath: enginePath
         }));
     };
     
-    whiteAnalysisWs.onmessage = function(event) {
+    analysisWs.onmessage = function(event) {
         var data = JSON.parse(event.data);
         
         if (data.error) {
-            console.error('White Analysis error:', data.error);
+            console.error('Analysis error:', data.error);
             return;
         }
         
-        document.getElementById('whiteAnalysisDepth').textContent = data.depth || '-';
-        
-        var scoreText = '';
-        if (data.scoreType === 'cp') {
-            var score = (data.score / 100).toFixed(2);
-            scoreText = (data.score >= 0 ? '+' : '') + score;
-        } else if (data.scoreType === 'mate') {
-            scoreText = 'Mate in ' + Math.abs(data.score);
-        }
-        document.getElementById('whiteAnalysisScore').textContent = scoreText;
-        
-        var nodesText = data.nodes ? (data.nodes / 1000).toFixed(0) + 'k' : '-';
-        document.getElementById('whiteAnalysisNodes').textContent = nodesText;
-        
-        if (data.bestMove && data.bestMove.length >= 4 && game.turn() === 'w') {
+        // Draw arrow for best move
+        if (data.bestMove && data.bestMove.length >= 4) {
             var from = data.bestMove.substring(0, 2);
             var to = data.bestMove.substring(2, 4);
             var piece = game.get(from);
-            if (piece && piece.color === 'w') {
-                board.drawArrow(from, to, '#3296FF');
+            
+            // Only draw arrow if the move is for the current side to move
+            if (piece && piece.color === game.turn()) {
+                // Use different colors for white and black
+                var arrowColor = game.turn() === 'w' ? '#3296FF' : '#FF6B6B';
+                
+                // Format score label
+                var scoreLabel = '';
+                if (data.scoreType === 'cp' && data.score !== undefined) {
+                    var score = (data.score / 100).toFixed(2);
+                    scoreLabel = (data.score >= 0 ? '+' : '') + score;
+                } else if (data.scoreType === 'mate' && data.score !== undefined) {
+                    scoreLabel = 'M' + Math.abs(data.score);
+                }
+                
+                // Draw arrow with score label
+                board.drawArrow(from, to, arrowColor, scoreLabel);
             }
         }
     };
     
-    whiteAnalysisWs.onerror = function(error) {
-        console.error('White WebSocket error:', error);
-        stopWhiteAnalysis();
+    analysisWs.onerror = function(error) {
+        console.error('Analysis WebSocket error:', error);
+        stopAnalysis();
     };
     
-    whiteAnalysisWs.onclose = function() {
-        console.log('White Analysis WebSocket closed');
-        if (whiteAnalysisActive) {
-            stopWhiteAnalysis();
+    analysisWs.onclose = function() {
+        console.log('Analysis WebSocket closed');
+        if (analysisActive) {
+            stopAnalysis();
         }
     };
 }
 
-function stopWhiteAnalysis() {
-    if (whiteAnalysisWs) {
-        whiteAnalysisWs.send(JSON.stringify({ action: 'stop' }));
-        whiteAnalysisWs.close();
-        whiteAnalysisWs = null;
+function stopAnalysis() {
+    if (analysisWs) {
+        analysisWs.send(JSON.stringify({ action: 'stop' }));
+        analysisWs.close();
+        analysisWs = null;
     }
     
-    whiteAnalysisActive = false;
-    document.getElementById('whiteAnalysisToggle').textContent = 'White Analysis';
-    document.getElementById('whiteAnalysisInfo').style.display = 'none';
-    
-    if (!blackAnalysisActive) {
-        board.clearArrow();
-    }
-}
-
-// -------------------------------------------------------------------------
-// Live Analysis - Black
-// -------------------------------------------------------------------------
-
-function toggleBlackAnalysis() {
-    if (blackAnalysisActive) {
-        stopBlackAnalysis();
-    } else {
-        startBlackAnalysis();
-    }
-}
-
-function startBlackAnalysis() {
-    var protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    var wsUrl = protocol + '//' + window.location.host + '/api/analysis';
-    
-    blackAnalysisWs = new WebSocket(wsUrl);
-    
-    blackAnalysisWs.onopen = function() {
-        console.log('Black Analysis WebSocket connected');
-        blackAnalysisActive = true;
-        document.getElementById('blackAnalysisToggle').textContent = 'Stop Black';
-        document.getElementById('blackAnalysisInfo').style.display = 'block';
-        
-        blackAnalysisWs.send(JSON.stringify({
-            action: 'start',
-            fen: game.fen(),
-            enginePath: 'stockfish'
-        }));
-    };
-    
-    blackAnalysisWs.onmessage = function(event) {
-        var data = JSON.parse(event.data);
-        
-        if (data.error) {
-            console.error('Black Analysis error:', data.error);
-            return;
-        }
-        
-        document.getElementById('blackAnalysisDepth').textContent = data.depth || '-';
-        
-        var scoreText = '';
-        if (data.scoreType === 'cp') {
-            var score = (data.score / 100).toFixed(2);
-            scoreText = (data.score >= 0 ? '+' : '') + score;
-        } else if (data.scoreType === 'mate') {
-            scoreText = 'Mate in ' + Math.abs(data.score);
-        }
-        document.getElementById('blackAnalysisScore').textContent = scoreText;
-        
-        var nodesText = data.nodes ? (data.nodes / 1000).toFixed(0) + 'k' : '-';
-        document.getElementById('blackAnalysisNodes').textContent = nodesText;
-        
-        if (data.bestMove && data.bestMove.length >= 4 && game.turn() === 'b') {
-            var from = data.bestMove.substring(0, 2);
-            var to = data.bestMove.substring(2, 4);
-            var piece = game.get(from);
-            if (piece && piece.color === 'b') {
-                board.drawArrow(from, to, '#FF6B6B');
-            }
-        }
-    };
-    
-    blackAnalysisWs.onerror = function(error) {
-        console.error('Black WebSocket error:', error);
-        stopBlackAnalysis();
-    };
-    
-    blackAnalysisWs.onclose = function() {
-        console.log('Black Analysis WebSocket closed');
-        if (blackAnalysisActive) {
-            stopBlackAnalysis();
-        }
-    };
-}
-
-function stopBlackAnalysis() {
-    if (blackAnalysisWs) {
-        blackAnalysisWs.send(JSON.stringify({ action: 'stop' }));
-        blackAnalysisWs.close();
-        blackAnalysisWs = null;
-    }
-    
-    blackAnalysisActive = false;
-    document.getElementById('blackAnalysisToggle').textContent = 'Black Analysis';
-    document.getElementById('blackAnalysisInfo').style.display = 'none';
-    
-    if (!whiteAnalysisActive) {
-        board.clearArrow();
-    }
+    analysisActive = false;
+    document.getElementById('analysisToggle').textContent = '🔍 Start Analysis';
+    board.clearArrow();
 }
 
 // -------------------------------------------------------------------------
@@ -1893,6 +1791,18 @@ $(document).ready(function() {
         savePlayerSelections();
         updateInfoText();
         window.setTimeout(checkForComputerMove, 250);
+    });
+    
+    // Analysis engine selector - restart analysis if active
+    document.getElementById('analysisEngine').addEventListener('change', function() {
+        if (analysisActive) {
+            // Stop current analysis
+            stopAnalysis();
+            // Restart with new engine after a brief delay
+            setTimeout(function() {
+                startAnalysis();
+            }, 100);
+        }
     });
     
     // Time control selector
