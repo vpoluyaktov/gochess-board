@@ -18,6 +18,8 @@ var analysisActive = false;
 
 var gameState = {
     moveHistory: [],           // UCI move list (e.g., ["e2e4", "e7e5"])
+    variants: {},              // Variants at each position: { position: [[variant moves], ...] }
+    variantStack: [],          // Stack to track variant navigation
     whiteTimeMs: 300000,       // 5 minutes default
     blackTimeMs: 300000,
     timeControl: {
@@ -455,48 +457,8 @@ function updateMoveHistoryDisplay() {
         return;
     }
     
-    // Convert UCI moves to SAN notation for PGN format
-    // Always show all moves, but highlight the current position
-    const sanMoves = [];
-    const tempGame = new Chess();
-    
-    for (let i = 0; i < gameState.moveHistory.length; i++) {
-        const uciMove = gameState.moveHistory[i];
-        
-        // Parse UCI move (e.g., "e2e4" or "e7e8q")
-        const from = uciMove.substring(0, 2);
-        const to = uciMove.substring(2, 4);
-        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
-        
-        // Get SAN notation
-        const move = tempGame.move({
-            from: from,
-            to: to,
-            promotion: promotion
-        });
-        
-        if (move) {
-            sanMoves.push(move.san);
-        }
-    }
-    
-    // Format as PGN (natural line wrapping)
-    let pgn = '';
-    for (let i = 0; i < sanMoves.length; i += 2) {
-        const moveNum = Math.floor(i / 2) + 1;
-        const whiteMove = sanMoves[i];
-        const blackMove = sanMoves[i + 1] || '';
-        
-        pgn += moveNum + '.' + whiteMove;
-        if (blackMove) {
-            pgn += ' ' + blackMove;
-        }
-        
-        // Add space between move pairs (let textarea handle line wrapping)
-        if (i + 2 < sanMoves.length) {
-            pgn += ' ';
-        }
-    }
+    // Convert UCI moves to SAN notation with variants
+    const pgn = buildPGNWithVariants();
     
     // Update CodeMirror content
     const currentValue = moveHistoryEditor.getValue();
@@ -518,61 +480,305 @@ function updateMoveHistoryDisplay() {
     updatePositionIndicator();
 }
 
+function buildPGNWithVariants() {
+    // Build tree-style notation with variants on separate lines
+    const tempGame = new Chess();
+    let lines = [];
+    
+    function uciToSan(uciMove, game) {
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        const move = game.move({ from, to, promotion });
+        return move ? move.san : null;
+    }
+    
+    function buildVariantLines(variantMoves, startPosition, startGame, firstLinePrefix) {
+        const variantGame = new Chess(startGame.fen());
+        const variantLines = [];
+        let currentLine = '';
+        let isFirstLine = true;
+        
+        for (let i = 0; i < variantMoves.length; i++) {
+            const moveIndex = startPosition + i;
+            const isWhiteMove = moveIndex % 2 === 0;
+            const moveNumber = Math.floor(moveIndex / 2) + 1;
+            
+            const san = uciToSan(variantMoves[i], variantGame);
+            if (!san) break;
+            
+            // Start new line for each move pair
+            if (isWhiteMove) {
+                if (currentLine.length > 0) {
+                    variantLines.push(currentLine);
+                    currentLine = '';
+                    isFirstLine = false;
+                }
+                
+                // Add prefix only for first line (with branch symbol)
+                if (isFirstLine) {
+                    currentLine = firstLinePrefix + san;
+                } else {
+                    // Align with the first move (after the opening parenthesis)
+                    currentLine = '       ' + moveNumber + '. ' + san;
+                }
+            } else {
+                currentLine += '  ' + san;
+            }
+        }
+        
+        if (currentLine.length > 0) {
+            variantLines.push(currentLine + ')');
+        }
+        
+        return variantLines;
+    }
+    
+    // Build main line with move pairs
+    let currentLine = '';
+    let lastWasVariant = false;
+    
+    for (let i = 0; i < gameState.moveHistory.length; i++) {
+        const isWhiteMove = i % 2 === 0;
+        const moveNumber = Math.floor(i / 2) + 1;
+        
+        const san = uciToSan(gameState.moveHistory[i], tempGame);
+        if (!san) break;
+        
+        if (isWhiteMove) {
+            // Start new line for each move pair
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+            }
+            currentLine = moveNumber + '. ' + san.padEnd(6);
+            lastWasVariant = false;
+        } else {
+            // Black move - if it follows a variant, start a new line
+            if (lastWasVariant) {
+                currentLine = moveNumber + '... ' + san;
+            } else {
+                currentLine += san;
+            }
+            lastWasVariant = false;
+        }
+        
+        // Check for variants AFTER this move (alternatives to this move)
+        if (gameState.variants[i]) {
+            // Finish the current line first
+            if (currentLine.length > 0) {
+                lines.push(currentLine);
+                currentLine = '';
+            }
+            
+            // Add variants with tree branches
+            for (const variant of gameState.variants[i]) {
+                const variantGame = new Chess();
+                // Replay moves up to the position before this move
+                for (let j = 0; j < i; j++) {
+                    uciToSan(gameState.moveHistory[j], variantGame);
+                }
+                
+                const variantStartPos = i;
+                const isVariantWhiteMove = variantStartPos % 2 === 0;
+                const variantMoveNum = Math.floor(variantStartPos / 2) + 1;
+                
+                // Add branch symbol and opening parenthesis with first move
+                const firstMovePrefix = isVariantWhiteMove 
+                    ? '   └─ (' + variantMoveNum + '. '
+                    : '   └─ (' + variantMoveNum + '... ';
+                
+                const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix);
+                lines.push(...variantLines);
+            }
+            lastWasVariant = true;
+        }
+    }
+    
+    // Add last line if it exists
+    if (currentLine.length > 0) {
+        lines.push(currentLine);
+        
+        // Check for variants after the last move
+        const lastMoveIndex = gameState.moveHistory.length;
+        if (gameState.variants[lastMoveIndex]) {
+            for (const variant of gameState.variants[lastMoveIndex]) {
+                const variantGame = new Chess();
+                for (let j = 0; j < gameState.moveHistory.length; j++) {
+                    uciToSan(gameState.moveHistory[j], variantGame);
+                }
+                
+                const variantStartPos = lastMoveIndex;
+                const isVariantWhiteMove = variantStartPos % 2 === 0;
+                const variantMoveNum = Math.floor(variantStartPos / 2) + 1;
+                
+                // Add branch symbol and opening parenthesis with first move
+                const firstMovePrefix = isVariantWhiteMove 
+                    ? '   └─ (' + variantMoveNum + '. '
+                    : '   └─ (' + variantMoveNum + '... ';
+                
+                const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix);
+                lines.push(...variantLines);
+            }
+        }
+    }
+    
+    return lines.join('\n');
+}
+
 function highlightCurrentMove() {
     if (!moveHistoryEditor) return;
     
     // Clear all current move markers
     moveHistoryEditor.getAllMarks().forEach(mark => mark.clear());
     
-    if (gameState.moveHistory.length === 0) {
+    if (gameState.moveHistory.length === 0 && (!gameState.variantStack || gameState.variantStack.length === 0)) {
         return;
     }
     
     const text = moveHistoryEditor.getValue();
+    const lines = text.split('\n');
     
-    // Find and highlight only the current move
-    const movePattern = /(\d+)\.([^\s]+)(?:\s+([^\s]+))?/g;
-    let match;
-    
-    while ((match = movePattern.exec(text)) !== null) {
-        const moveNumber = parseInt(match[1]);
-        const whiteMove = match[2];
-        const blackMove = match[3];
+    // Check if we're in a variant
+    if (gameState.variantStack && gameState.variantStack.length > 0) {
+        const variantInfo = gameState.variantStack[gameState.variantStack.length - 1];
         
-        // Calculate move indices
-        const whiteMoveIndex = (moveNumber - 1) * 2;
-        const blackMoveIndex = whiteMoveIndex + 1;
+        // We need to find the Nth move in the variant (where N = currentMoveInVariant)
+        const targetMoveInVariant = variantInfo.currentMoveInVariant;
         
-        // Check white's move
-        if (whiteMove && whiteMoveIndex === gameState.currentPosition - 1) {
-            const whiteMoveStart = match.index + match[0].indexOf(whiteMove);
-            const whiteMoveEnd = whiteMoveStart + whiteMove.length;
-            const whiteStartPos = moveHistoryEditor.posFromIndex(whiteMoveStart);
-            const whiteEndPos = moveHistoryEditor.posFromIndex(whiteMoveEnd);
+        // Find the variant starting position
+        const variantStartMoveNum = Math.floor(variantInfo.mainLinePosition / 2) + 1;
+        
+        // Find the variant in the display
+        let inCorrectVariant = false;
+        let movesSeenInVariant = -1; // -1 because we'll increment before checking
+        
+        for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+            const line = lines[lineNum];
             
-            moveHistoryEditor.markText(whiteStartPos, whiteEndPos, {
-                className: 'chess-current-move'
-            });
-            if (gameState.isNavigating) {
-                moveHistoryEditor.scrollIntoView({from: whiteStartPos, to: whiteEndPos}, 100);
+            // Check if this is the start of our variant (look for the branch symbol and starting move number)
+            if (line.includes('└─ (') && line.includes(variantStartMoveNum + '.')) {
+                inCorrectVariant = true;
             }
-            break;
+            
+            if (inCorrectVariant) {
+                // Count moves in this line (look for SAN moves, not move numbers)
+                // A line can have 1 or 2 moves (white's move, or white's + black's move)
+                
+                // Match move numbers followed by moves: "10. c3  Bxc3" or "11. bxc3  Qe1"
+                const movePattern = /\d+\.\s+(\S+)(?:\s+(\S+))?/g;
+                let match;
+                
+                while ((match = movePattern.exec(line)) !== null) {
+                    // Check white's move
+                    if (match[1] && !match[1].includes(')')) {
+                        movesSeenInVariant++;
+                        if (movesSeenInVariant === targetMoveInVariant) {
+                            const moveText = match[1];
+                            const moveStart = match.index + match[0].indexOf(moveText);
+                            const moveEnd = moveStart + moveText.length;
+                            
+                            moveHistoryEditor.markText(
+                                {line: lineNum, ch: moveStart},
+                                {line: lineNum, ch: moveEnd},
+                                {className: 'chess-current-move'}
+                            );
+                            
+                            if (gameState.isNavigating) {
+                                moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
+                            }
+                            return;
+                        }
+                    }
+                    
+                    // Check black's move
+                    if (match[2] && !match[2].includes(')')) {
+                        movesSeenInVariant++;
+                        if (movesSeenInVariant === targetMoveInVariant) {
+                            const moveText = match[2].replace(')', ''); // Remove closing paren if present
+                            const moveStart = line.indexOf(moveText, match.index);
+                            const moveEnd = moveStart + moveText.length;
+                            
+                            moveHistoryEditor.markText(
+                                {line: lineNum, ch: moveStart},
+                                {line: lineNum, ch: moveEnd},
+                                {className: 'chess-current-move'}
+                            );
+                            
+                            if (gameState.isNavigating) {
+                                moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
+                            }
+                            return;
+                        }
+                    }
+                }
+                
+                // Stop searching if we hit the end of the variant
+                if (line.includes(')') && !line.includes('└─')) {
+                    break;
+                }
+            }
+        }
+        return;
+    }
+    
+    // Main line highlighting
+    if (gameState.currentPosition === 0) {
+        return;
+    }
+    
+    const moveIndex = gameState.currentPosition - 1;
+    const isWhiteMove = moveIndex % 2 === 0;
+    const moveNumber = Math.floor(moveIndex / 2) + 1;
+    
+    // Find the line with this move number in the main line (not in variants)
+    for (let lineNum = 0; lineNum < lines.length; lineNum++) {
+        const line = lines[lineNum];
+        
+        // Skip variant lines (those with └─ or indentation)
+        if (line.includes('└─') || line.startsWith('       ')) {
+            continue;
         }
         
-        // Check black's move
-        if (blackMove && blackMoveIndex === gameState.currentPosition - 1) {
-            const blackMoveStart = match.index + match[0].indexOf(blackMove);
-            const blackMoveEnd = blackMoveStart + blackMove.length;
-            const blackStartPos = moveHistoryEditor.posFromIndex(blackMoveStart);
-            const blackEndPos = moveHistoryEditor.posFromIndex(blackMoveEnd);
+        // Match main line format: "1. e4    e5"
+        const mainLinePattern = new RegExp('^' + moveNumber + '\\.\\s+(\\S+)(?:\\s+(\\S+))?');
+        const match = line.match(mainLinePattern);
+        
+        if (match) {
+            const whiteMove = match[1];
+            const blackMove = match[2];
             
-            moveHistoryEditor.markText(blackStartPos, blackEndPos, {
-                className: 'chess-current-move'
-            });
-            if (gameState.isNavigating) {
-                moveHistoryEditor.scrollIntoView({from: blackStartPos, to: blackEndPos}, 100);
+            if (isWhiteMove && whiteMove) {
+                // Highlight white's move
+                const moveStart = line.indexOf(whiteMove);
+                const moveEnd = moveStart + whiteMove.length;
+                
+                moveHistoryEditor.markText(
+                    {line: lineNum, ch: moveStart},
+                    {line: lineNum, ch: moveEnd},
+                    {className: 'chess-current-move'}
+                );
+                
+                if (gameState.isNavigating) {
+                    moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
+                }
+                break;
+            } else if (!isWhiteMove && blackMove) {
+                // Highlight black's move
+                const moveStart = line.indexOf(blackMove, line.indexOf(whiteMove) + whiteMove.length);
+                const moveEnd = moveStart + blackMove.length;
+                
+                moveHistoryEditor.markText(
+                    {line: lineNum, ch: moveStart},
+                    {line: lineNum, ch: moveEnd},
+                    {className: 'chess-current-move'}
+                );
+                
+                if (gameState.isNavigating) {
+                    moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
+                }
+                break;
             }
-            break;
         }
     }
 }
@@ -627,6 +833,9 @@ function updatePositionIndicator() {
     if (stepBackBtn) stepBackBtn.disabled = gameState.currentPosition === 0;
     if (stepForwardBtn) stepForwardBtn.disabled = gameState.currentPosition >= gameState.moveHistory.length;
     if (toEndBtn) toEndBtn.disabled = gameState.currentPosition >= gameState.moveHistory.length;
+    
+    // Update variant navigation buttons
+    updateVariantButtons();
 }
 
 function goToStart() {
@@ -652,6 +861,58 @@ function goToStart() {
 }
 
 function stepBackward() {
+    // Check if we're in a variant
+    if (gameState.variantStack && gameState.variantStack.length > 0) {
+        const variantInfo = gameState.variantStack[gameState.variantStack.length - 1];
+        
+        // If at the start of the variant, exit it
+        if (variantInfo.currentMoveInVariant === 0) {
+            exitVariant();
+            return;
+        }
+        
+        // Move back within the variant
+        variantInfo.currentMoveInVariant--;
+        
+        // Rebuild game state: main line + variant moves up to current position
+        game.reset();
+        const tempGame = new Chess();
+        
+        // Apply main line moves up to variant start
+        for (let i = 0; i < variantInfo.mainLinePosition; i++) {
+            const uciMove = gameState.moveHistory[i];
+            const from = uciMove.substring(0, 2);
+            const to = uciMove.substring(2, 4);
+            const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+            tempGame.move({ from, to, promotion });
+        }
+        
+        // Apply variant moves up to current position in variant
+        for (let i = 0; i <= variantInfo.currentMoveInVariant; i++) {
+            const uciMove = variantInfo.variant[i];
+            const from = uciMove.substring(0, 2);
+            const to = uciMove.substring(2, 4);
+            const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+            tempGame.move({ from, to, promotion });
+        }
+        
+        game.load(tempGame.fen());
+        board.position(game.fen());
+        
+        // Highlight last move
+        const lastMove = variantInfo.variant[variantInfo.currentMoveInVariant];
+        const from = lastMove.substring(0, 2);
+        const to = lastMove.substring(2, 4);
+        highlightLastMove(from, to);
+        
+        updateMoveHistoryDisplay();
+        updateInfoText();
+        updateOpeningDisplay();
+        updateAnalysisForCurrentPosition();
+        return;
+    }
+    
+    // Normal main line navigation
     if (gameState.currentPosition === 0) return;
     
     // Pause clock if running
@@ -697,6 +958,37 @@ function stepBackward() {
 }
 
 function stepForward() {
+    // Check if we're in a variant
+    if (gameState.variantStack && gameState.variantStack.length > 0) {
+        const variantInfo = gameState.variantStack[gameState.variantStack.length - 1];
+        
+        // If at the end of the variant, exit it
+        if (variantInfo.currentMoveInVariant >= variantInfo.variant.length - 1) {
+            exitVariant();
+            return;
+        }
+        
+        // Move forward within the variant
+        variantInfo.currentMoveInVariant++;
+        
+        // Apply the next move in the variant
+        const uciMove = variantInfo.variant[variantInfo.currentMoveInVariant];
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        game.move({ from, to, promotion });
+        board.position(game.fen());
+        highlightLastMove(from, to);
+        
+        updateMoveHistoryDisplay();
+        updateInfoText();
+        updateOpeningDisplay();
+        updateAnalysisForCurrentPosition();
+        return;
+    }
+    
+    // Normal main line navigation
     if (gameState.currentPosition >= gameState.moveHistory.length) return;
     
     // Pause clock if running
@@ -771,6 +1063,123 @@ function goToEnd() {
     
     // Check if computer should move
     window.setTimeout(checkForComputerMove, 250);
+}
+
+// -------------------------------------------------------------------------
+// Variant Navigation Functions
+// -------------------------------------------------------------------------
+
+function goToVariant() {
+    // Check if there's a variant after the current position
+    const variantPosition = gameState.currentPosition;
+    
+    if (!gameState.variants[variantPosition] || gameState.variants[variantPosition].length === 0) {
+        return;
+    }
+    
+    // For now, go to the first variant (could be extended to choose between multiple variants)
+    const variant = gameState.variants[variantPosition][0];
+    
+    if (variant.length === 0) return;
+    
+    // Pause clock if running
+    if (gameState.clockRunning && !gameState.isNavigating) {
+        gameState.wasClockRunning = true;
+        pauseClock();
+    }
+    
+    gameState.isNavigating = true;
+    
+    // Store that we're in a variant BEFORE applying the move
+    if (!gameState.variantStack) {
+        gameState.variantStack = [];
+    }
+    gameState.variantStack.push({
+        mainLinePosition: variantPosition,
+        variantIndex: 0,
+        variant: variant,
+        currentMoveInVariant: 0
+    });
+    
+    // Apply the first move of the variant
+    const uciMove = variant[0];
+    const from = uciMove.substring(0, 2);
+    const to = uciMove.substring(2, 4);
+    const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+    
+    game.move({ from, to, promotion });
+    board.position(game.fen());
+    highlightLastMove(from, to);
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+    updateVariantButtons();
+}
+
+function exitVariant() {
+    // Check if we're in a variant
+    if (!gameState.variantStack || gameState.variantStack.length === 0) {
+        return;
+    }
+    
+    // Pop the variant stack
+    const variantInfo = gameState.variantStack.pop();
+    
+    // Return to the position before entering the variant
+    gameState.currentPosition = variantInfo.mainLinePosition;
+    
+    // Rebuild game state up to that position
+    game.reset();
+    const tempGame = new Chess();
+    
+    for (let i = 0; i < gameState.currentPosition; i++) {
+        const uciMove = gameState.moveHistory[i];
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        tempGame.move({ from, to, promotion });
+    }
+    
+    game.load(tempGame.fen());
+    board.position(game.fen());
+    
+    // Highlight last move if not at start
+    if (gameState.currentPosition > 0) {
+        const lastMove = gameState.moveHistory[gameState.currentPosition - 1];
+        const from = lastMove.substring(0, 2);
+        const to = lastMove.substring(2, 4);
+        highlightLastMove(from, to);
+    } else {
+        lastMoveSquares = { from: null, to: null };
+        clearLastMoveHighlight();
+    }
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+    updateVariantButtons();
+}
+
+function updateVariantButtons() {
+    const goToVariantBtn = document.getElementById('goToVariantBtn');
+    const exitVariantBtn = document.getElementById('exitVariantBtn');
+    
+    if (goToVariantBtn) {
+        // Enable "Go to variant" button if there's a variant after current position
+        const hasVariant = gameState.variants[gameState.currentPosition] && 
+                          gameState.variants[gameState.currentPosition].length > 0;
+        goToVariantBtn.disabled = !hasVariant;
+    }
+    
+    if (exitVariantBtn) {
+        // Enable "Exit variant" button if we're in a variant
+        const inVariant = gameState.variantStack && gameState.variantStack.length > 0;
+        exitVariantBtn.disabled = !inVariant;
+    }
 }
 
 // Count total games in PGN file (fast, doesn't parse content)
@@ -1124,13 +1533,100 @@ function loadPGNFile() {
     fileInput.click();
 }
 
+// Build standard PGN format with variants in parentheses
+function buildStandardPGN() {
+    const tempGame = new Chess();
+    
+    function uciToSan(uciMove, game) {
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        const move = game.move({ from, to, promotion });
+        return move ? move.san : null;
+    }
+    
+    function buildVariantPGN(variantMoves, startPosition, startGame) {
+        const variantGame = new Chess(startGame.fen());
+        let pgnParts = [];
+        
+        for (let i = 0; i < variantMoves.length; i++) {
+            const moveIndex = startPosition + i;
+            const isWhiteMove = moveIndex % 2 === 0;
+            const moveNumber = Math.floor(moveIndex / 2) + 1;
+            
+            const san = uciToSan(variantMoves[i], variantGame);
+            if (!san) break;
+            
+            if (isWhiteMove) {
+                pgnParts.push(moveNumber + '.' + san);
+            } else {
+                if (i === 0) {
+                    // First move is black's, need move number with ...
+                    pgnParts.push(moveNumber + '...' + san);
+                } else {
+                    pgnParts.push(san);
+                }
+            }
+        }
+        
+        return '(' + pgnParts.join(' ') + ')';
+    }
+    
+    // Build main line PGN
+    let pgnParts = [];
+    let lastWasVariant = false;
+    
+    for (let i = 0; i < gameState.moveHistory.length; i++) {
+        const isWhiteMove = i % 2 === 0;
+        const moveNumber = Math.floor(i / 2) + 1;
+        
+        const san = uciToSan(gameState.moveHistory[i], tempGame);
+        if (!san) break;
+        
+        if (isWhiteMove) {
+            pgnParts.push(moveNumber + '.' + san);
+            lastWasVariant = false;
+        } else {
+            // Black move needs move number if it follows a variant
+            if (lastWasVariant) {
+                pgnParts.push(moveNumber + '...' + san);
+            } else {
+                pgnParts.push(san);
+            }
+            lastWasVariant = false;
+        }
+        
+        // Check for variants AFTER this move (alternatives to this move)
+        if (gameState.variants[i]) {
+            for (const variant of gameState.variants[i]) {
+                const variantGame = new Chess();
+                // Replay moves up to the position before this move
+                for (let j = 0; j < i; j++) {
+                    uciToSan(gameState.moveHistory[j], variantGame);
+                }
+                pgnParts.push(buildVariantPGN(variant, i, variantGame));
+            }
+            lastWasVariant = true;
+        }
+    }
+    
+    // Check for variants after the last move
+    if (gameState.variants[gameState.moveHistory.length]) {
+        for (const variant of gameState.variants[gameState.moveHistory.length]) {
+            const variantGame = new Chess();
+            for (let j = 0; j < gameState.moveHistory.length; j++) {
+                uciToSan(gameState.moveHistory[j], variantGame);
+            }
+            pgnParts.push(buildVariantPGN(variant, gameState.moveHistory.length, variantGame));
+        }
+    }
+    
+    return pgnParts.join(' ');
+}
+
 // Save PGN to file
 function savePGNFile() {
-    if (!moveHistoryEditor) return;
-    
-    const pgnContent = moveHistoryEditor.getValue();
-    
-    if (!pgnContent) {
+    if (gameState.moveHistory.length === 0) {
         alert('No moves to save!');
         return;
     }
@@ -1145,6 +1641,10 @@ function savePGNFile() {
     const date = new Date();
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, '.');
     
+    const pgnMoves = buildStandardPGN();
+    console.log('Generated PGN moves:', pgnMoves);
+    console.log('Variants object:', gameState.variants);
+    
     let pgnWithHeaders = '[Event "Casual Game"]\n';
     pgnWithHeaders += '[Site "go-chess"]\n';
     pgnWithHeaders += '[Date "' + dateStr + '"]\n';
@@ -1152,7 +1652,7 @@ function savePGNFile() {
     pgnWithHeaders += '[Black "' + blackName + '"]\n';
     pgnWithHeaders += '[Result "*"]\n';
     pgnWithHeaders += '\n';
-    pgnWithHeaders += pgnContent;
+    pgnWithHeaders += pgnMoves;
     pgnWithHeaders += ' *\n';
     
     // Create filename with player names
@@ -1184,6 +1684,97 @@ function savePGNFile() {
     setTimeout(function() {
         btn.textContent = originalText;
     }, 1500);
+}
+
+// Parse PGN with variants (recursive)
+function parsePGNWithVariants(pgnText) {
+    // Remove comments in braces
+    pgnText = pgnText.replace(/\{[^}]*\}/g, '');
+    
+    // Remove annotations like !, ?, !!, ??, !?, ?!
+    pgnText = pgnText.replace(/[!?]+/g, '');
+    
+    // Remove result markers
+    pgnText = pgnText.replace(/\s*(1-0|0-1|1\/2-1\/2|\*)\s*$/, '');
+    
+    const result = {
+        mainLine: [],
+        variants: {}
+    };
+    
+    let i = 0;
+    let currentPosition = 0;
+    
+    function parseMovesRecursive() {
+        const moves = [];
+        const localVariants = {};
+        
+        while (i < pgnText.length) {
+            const char = pgnText[i];
+            
+            // Skip whitespace
+            if (char === ' ' || char === '\n' || char === '\t') {
+                i++;
+                continue;
+            }
+            
+            // Start of variant
+            if (char === '(') {
+                i++; // Skip opening paren
+                const variantStartPos = currentPosition;
+                const savedPosition = currentPosition;
+                
+                // Parse variant recursively
+                const variantData = parseMovesRecursive();
+                currentPosition = savedPosition; // Restore position after variant
+                
+                // Store variant
+                if (!localVariants[variantStartPos]) {
+                    localVariants[variantStartPos] = [];
+                }
+                localVariants[variantStartPos].push(variantData.mainLine);
+                
+                // Merge any nested variants
+                for (const pos in variantData.variants) {
+                    if (!localVariants[pos]) {
+                        localVariants[pos] = [];
+                    }
+                    localVariants[pos].push(...variantData.variants[pos]);
+                }
+                continue;
+            }
+            
+            // End of variant
+            if (char === ')') {
+                i++; // Skip closing paren
+                return { mainLine: moves, variants: localVariants };
+            }
+            
+            // Parse move number (e.g., "1." or "1...")
+            const moveNumMatch = pgnText.substring(i).match(/^(\d+)\.(\.\.)?/);
+            if (moveNumMatch) {
+                i += moveNumMatch[0].length;
+                continue;
+            }
+            
+            // Parse move (SAN notation)
+            const moveMatch = pgnText.substring(i).match(/^([NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](?:=[NBRQ])?|O-O(?:-O)?)/);
+            if (moveMatch) {
+                moves.push(moveMatch[1]);
+                currentPosition++;
+                i += moveMatch[1].length;
+                continue;
+            }
+            
+            // Unknown character, skip it
+            i++;
+        }
+        
+        return { mainLine: moves, variants: localVariants };
+    }
+    
+    const parsed = parseMovesRecursive();
+    return parsed;
 }
 
 // Load PGN from text string
@@ -1224,43 +1815,28 @@ function loadPGNFromText(text) {
             .join(' ')
             .trim();
         
-        // Remove comments in braces and parentheses
-        movesOnly = movesOnly.replace(/\{[^}]*\}/g, '');
-        movesOnly = movesOnly.replace(/\([^)]*\)/g, '');
+        // Parse PGN with variants
+        const parsed = parsePGNWithVariants(movesOnly);
         
-        // Remove result markers
-        movesOnly = movesOnly.replace(/\s*(1-0|0-1|1\/2-1\/2|\*)\s*$/, '');
-        
-        // Remove annotations like !, ?, !!, ??, !?, ?!
-        movesOnly = movesOnly.replace(/[!?]+/g, '');
-        
-        // Extract moves (format: 1. e4 e5 2. Nf3 Nc6...)
-        const movePattern = /\d+\.\s*([^\s]+)(?:\s+([^\s]+))?/g;
-        const moves = [];
-        let match;
-        
-        while ((match = movePattern.exec(movesOnly)) !== null) {
-            if (match[1]) moves.push(match[1]);
-            if (match[2]) moves.push(match[2]);
-        }
-        
-        if (moves.length === 0) {
-            alert('No valid moves found in clipboard!');
+        if (parsed.mainLine.length === 0) {
+            alert('No valid moves found in PGN!');
             return;
         }
         
-        // Reset game and apply moves
+        // Reset game and apply main line moves
         game.reset();
         board.position('start');
         gameState.moveHistory = [];
+        gameState.variants = {};
+        gameState.variantStack = [];
         clearLastMoveHighlight();
         
         // Clear any analysis arrows
         board.clearArrow();
         
-        // Apply each move
-        for (let i = 0; i < moves.length; i++) {
-            const san = moves[i];
+        // Apply each main line move
+        for (let i = 0; i < parsed.mainLine.length; i++) {
+            const san = parsed.mainLine[i];
             
             try {
                 const move = game.move(san);
@@ -1274,12 +1850,44 @@ function loadPGNFromText(text) {
                 gameState.moveHistory.push(uciMove);
                 
                 // Highlight last move
-                if (i === moves.length - 1) {
+                if (i === parsed.mainLine.length - 1) {
                     highlightLastMove(move.from, move.to);
                 }
             } catch (err) {
                 alert('Error applying move ' + (i + 1) + ': ' + san + '\n' + err.message);
                 break;
+            }
+        }
+        
+        // Convert variants from SAN to UCI
+        for (const pos in parsed.variants) {
+            const variantPosition = parseInt(pos);
+            gameState.variants[variantPosition] = [];
+            
+            for (const variantMoves of parsed.variants[pos]) {
+                // Create a game at the variant starting position
+                const variantGame = new Chess();
+                for (let j = 0; j < variantPosition; j++) {
+                    const uciMove = gameState.moveHistory[j];
+                    const from = uciMove.substring(0, 2);
+                    const to = uciMove.substring(2, 4);
+                    const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+                    variantGame.move({ from, to, promotion });
+                }
+                
+                // Apply variant moves and convert to UCI
+                const uciVariant = [];
+                for (const san of variantMoves) {
+                    const move = variantGame.move(san);
+                    if (move) {
+                        const uciMove = move.from + move.to + (move.promotion || '');
+                        uciVariant.push(uciMove);
+                    }
+                }
+                
+                if (uciVariant.length > 0) {
+                    gameState.variants[variantPosition].push(uciVariant);
+                }
             }
         }
         
@@ -1387,6 +1995,8 @@ function newGame() {
     game.reset();
     board.position('start');
     gameState.moveHistory = [];
+    gameState.variants = {};
+    gameState.variantStack = [];
     gameState.currentPosition = 0;
     gameState.isNavigating = false;
     gameState.wasClockRunning = false;
@@ -1953,6 +2563,14 @@ $(document).ready(function() {
                 e.preventDefault();
                 stepForward();
                 break;
+            case 'ArrowDown':
+                e.preventDefault();
+                goToVariant();
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                exitVariant();
+                break;
             case 'Home':
                 e.preventDefault();
                 goToStart();
@@ -1966,4 +2584,256 @@ $(document).ready(function() {
     
     // Check if computer should move
     window.setTimeout(checkForComputerMove, 500);
+    
+    // Initialize variant mode detection
+    initializeVariantMode();
 });
+
+// -------------------------------------------------------------------------
+// Variant Support Functions
+// -------------------------------------------------------------------------
+
+var isVariantMode = false;
+var variantWindow = null;
+var mainWindow = null;
+var variantStartPosition = 0; // Track where the variant started
+
+function initializeVariantMode() {
+    // Check if this window was opened as a variant
+    if (window.opener && window.opener !== window) {
+        isVariantMode = true;
+        mainWindow = window.opener;
+        
+        // Show variant mode controls, hide start variant button
+        document.getElementById('startVariantBtn').style.display = 'none';
+        document.getElementById('variantModeControls').style.display = 'block';
+        
+        // Update page title to indicate variant mode
+        document.title = 'Chess Board - Variant';
+        
+        // Add visual indicator
+        const header = document.querySelector('h1');
+        if (header) {
+            header.textContent = '♟️ Go Chess Board - Variant Mode ♟️';
+            header.style.color = '#ff9800';
+        }
+        
+        // Listen for messages from main window
+        window.addEventListener('message', handleVariantMessage);
+        
+        // Notify main window that variant is ready
+        mainWindow.postMessage({ type: 'variant-ready' }, window.location.origin);
+    } else {
+        // Main window mode - listen for messages from variant windows
+        window.addEventListener('message', handleMainWindowMessage);
+    }
+}
+
+function startVariant() {
+    // When viewing a move, we want to create a variant that's an alternative to that move
+    // The variant should be stored AFTER the previous move (before the current move)
+    // currentPosition is "after N moves", so the current move index is currentPosition - 1
+    const currentMoveIndex = gameState.currentPosition - 1;
+    
+    // The variant will be stored at the position of the current move
+    // This means it appears AFTER the previous move in PGN standard format
+    const variantStartPos = currentMoveIndex;
+    
+    // Build FEN for the position before the current move (after the previous move)
+    const tempGame = new Chess();
+    for (let i = 0; i < currentMoveIndex; i++) {
+        const uciMove = gameState.moveHistory[i];
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        tempGame.move({ from, to, promotion });
+    }
+    
+    // Collect current game state up to (but not including) the current move
+    const movesBeforeVariant = gameState.moveHistory.slice(0, currentMoveIndex);
+    const variantData = {
+        type: 'start-variant',
+        fen: tempGame.fen(),
+        moveHistory: movesBeforeVariant,
+        currentPosition: movesBeforeVariant.length,
+        variantStartPosition: variantStartPos, // Track where variant starts
+        analysisActive: analysisActive,
+        analysisEngine: document.getElementById('analysisEngine').value,
+        whitePlayer: getWhitePlayer(),
+        blackPlayer: getBlackPlayer(),
+        timeControl: gameState.timeControl,
+        whiteTimeMs: gameState.whiteTimeMs,
+        blackTimeMs: gameState.blackTimeMs
+    };
+    
+    // Open new window with same URL
+    const windowFeatures = 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no';
+    variantWindow = window.open(window.location.href, '_blank', windowFeatures);
+    
+    // Wait for variant window to be ready, then send data
+    const sendDataInterval = setInterval(function() {
+        if (variantWindow && !variantWindow.closed) {
+            try {
+                variantWindow.postMessage(variantData, window.location.origin);
+            } catch (e) {
+                console.error('Error sending variant data:', e);
+            }
+        } else {
+            clearInterval(sendDataInterval);
+        }
+    }, 100);
+    
+    // Stop trying after 5 seconds
+    setTimeout(function() {
+        clearInterval(sendDataInterval);
+    }, 5000);
+}
+
+function handleVariantMessage(event) {
+    // Verify origin for security
+    if (event.origin !== window.location.origin) {
+        return;
+    }
+    
+    const data = event.data;
+    
+    if (data.type === 'start-variant') {
+        // Load the game state from main window
+        console.log('Loading variant data:', data);
+        
+        // Reset game to starting position first
+        game.reset();
+        
+        // Replay moves up to current position
+        for (let i = 0; i < data.moveHistory.length; i++) {
+            const uciMove = data.moveHistory[i];
+            const from = uciMove.substring(0, 2);
+            const to = uciMove.substring(2, 4);
+            const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+            
+            game.move({ from, to, promotion });
+        }
+        
+        // Update board position
+        board.position(game.fen());
+        
+        // Set game state
+        gameState.moveHistory = data.moveHistory.slice();
+        gameState.currentPosition = data.currentPosition;
+        gameState.timeControl = data.timeControl;
+        gameState.whiteTimeMs = data.whiteTimeMs;
+        gameState.blackTimeMs = data.blackTimeMs;
+        
+        // Store where the variant started
+        variantStartPosition = data.variantStartPosition;
+        
+        // Highlight last move if any
+        if (data.moveHistory.length > 0) {
+            const lastMove = data.moveHistory[data.moveHistory.length - 1];
+            const from = lastMove.substring(0, 2);
+            const to = lastMove.substring(2, 4);
+            highlightLastMove(from, to);
+        }
+        
+        // Set player selections
+        document.getElementById('whitePlayer').value = data.whitePlayer;
+        document.getElementById('blackPlayer').value = data.blackPlayer;
+        
+        // Update all displays
+        updateMoveHistoryDisplay();
+        updateClockDisplay();
+        updateInfoText();
+        updateOpeningDisplay();
+        updatePositionIndicator();
+        
+        // Start analysis if it was active in main window
+        if (data.analysisActive) {
+            document.getElementById('analysisEngine').value = data.analysisEngine;
+            setTimeout(function() {
+                startAnalysis();
+            }, 500);
+        }
+    }
+}
+
+function handleMainWindowMessage(event) {
+    // Verify origin for security
+    if (event.origin !== window.location.origin) {
+        return;
+    }
+    
+    const data = event.data;
+    
+    if (data.type === 'variant-ready') {
+        console.log('Variant window is ready');
+    } else if (data.type === 'merge-variant') {
+        // Add variant as a branch in PGN notation
+        console.log('Main window received merge request:', data);
+        
+        const variantStartPos = data.variantStartPosition;
+        const variantMoves = data.moveHistory.slice(variantStartPos);
+        
+        console.log('Variant start position:', variantStartPos);
+        console.log('Extracted variant moves:', variantMoves);
+        console.log('Current main line length:', gameState.moveHistory.length);
+        
+        if (variantMoves.length === 0) {
+            alert('No variant moves to merge!');
+            return;
+        }
+        
+        // Initialize variants object if needed
+        if (!gameState.variants) {
+            gameState.variants = {};
+        }
+        
+        // Add variant at the starting position
+        if (!gameState.variants[variantStartPos]) {
+            gameState.variants[variantStartPos] = [];
+        }
+        
+        gameState.variants[variantStartPos].push(variantMoves);
+        
+        console.log('Variants after merge:', gameState.variants);
+        
+        // Update display to show the variant
+        updateMoveHistoryDisplay();
+        
+        alert('Variant added successfully!');
+    }
+}
+
+function mergeVariant() {
+    if (!isVariantMode || !mainWindow) {
+        alert('This is not a variant window!');
+        return;
+    }
+    
+    console.log('Merging variant - Start position:', variantStartPosition);
+    console.log('Total move history length:', gameState.moveHistory.length);
+    console.log('Variant moves:', gameState.moveHistory.slice(variantStartPosition));
+    
+    // Send variant data back to main window
+    const variantData = {
+        type: 'merge-variant',
+        moveHistory: gameState.moveHistory,
+        variantStartPosition: variantStartPosition,
+        fen: game.fen()
+    };
+    
+    mainWindow.postMessage(variantData, window.location.origin);
+    
+    // Close this variant window
+    setTimeout(function() {
+        window.close();
+    }, 500);
+}
+
+function closeVariant() {
+    if (!isVariantMode) {
+        alert('This is not a variant window!');
+        return;
+    }
+    
+    window.close();
+}

@@ -93,6 +93,15 @@
                     <button id="analysisToggle" onclick="toggleAnalysis()">🔍 Start Analysis</button>
                 </div>
                 
+                <!-- Variant Controls -->
+                <div class="controls" id="variantControls">
+                    <button onclick="startVariant()" id="startVariantBtn" title="Open a new window to explore a variant">🔀 Start Variant</button>
+                    <div id="variantModeControls" style="display: none;">
+                        <button onclick="mergeVariant()" id="mergeVariantBtn" title="Merge this variant back to the main game">✅ Merge Variant</button>
+                        <button onclick="closeVariant()" id="closeVariantBtn" title="Close this variant window">❌ Close Variant</button>
+                    </div>
+                </div>
+                
                 <!-- Analysis Engine Selection -->
                 <div class="analysis-engine-selection">
                     <label for="analysisEngine">🔧 Analysis Engine:</label>
@@ -130,11 +139,13 @@
                         </div>
                     </div>
                     <div class="navigation-controls">
-                        <button onclick="goToStart()" class="nav-btn" title="Go to start">⏮️</button>
-                        <button onclick="stepBackward()" class="nav-btn" title="Step backward">◀️</button>
+                        <button onclick="goToStart()" class="nav-btn" title="To first move">⏮️</button>
+                        <button onclick="stepBackward()" class="nav-btn" title="To previous move">◀️</button>
+                        <button onclick="goToVariant()" id="goToVariantBtn" class="nav-btn" title="Go to variant" disabled>🔽</button>
                         <span id="positionIndicator" class="position-indicator">0/0</span>
-                        <button onclick="stepForward()" class="nav-btn" title="Step forward">▶️</button>
-                        <button onclick="goToEnd()" class="nav-btn" title="Go to end">⏭️</button>
+                        <button onclick="exitVariant()" id="exitVariantBtn" class="nav-btn" title="Exit variant" disabled>🔼</button>
+                        <button onclick="stepForward()" class="nav-btn" title="To next move">▶️</button>
+                        <button onclick="goToEnd()" class="nav-btn" title="To last move">⏭️</button>
                     </div>
                     <textarea id="moveHistoryText" class="move-history-text" placeholder="Load PGN file or play moves..."></textarea>
                     <input type="file" id="pgnFileInput" accept=".pgn" style="display: none;">
