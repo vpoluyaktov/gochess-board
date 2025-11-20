@@ -74,18 +74,20 @@ function buildPGNWithVariants() {
                 
                 // Add prefix only for first line (with branch symbol)
                 if (isFirstLine) {
-                    currentLine = firstLinePrefix + san;
+                    currentLine = firstLinePrefix + san.padEnd(6);
                 } else {
                     // Align with the first move (after the opening parenthesis)
-                    currentLine = indent + moveNumber + '. ' + san;
+                    currentLine = indent + moveNumber + '. ' + san.padEnd(6);
                 }
             } else {
-                currentLine += '  ' + san;
+                currentLine += san;
             }
             
             // Check for sub-variants at this position within the variant
+            // But skip if this is the first move of the variant (i === 0) because that would be
+            // checking the same position where this variant itself is stored
             const subVariantPosition = moveIndex;
-            if (gameState.variants[subVariantPosition]) {
+            if (i > 0 && gameState.variants[subVariantPosition]) {
                 // Finish current line before adding sub-variants
                 if (currentLine.length > 0) {
                     variantLines.push(currentLine);
@@ -126,7 +128,7 @@ function buildPGNWithVariants() {
     
     // Build main line with move pairs
     let currentLine = '';
-    let lastWasVariant = false;
+    let pendingVariantPosition = -1; // Track if we need to show variant after completing the pair
     
     for (let i = 0; i < gameState.moveHistory.length; i++) {
         const isWhiteMove = i % 2 === 0;
@@ -141,46 +143,72 @@ function buildPGNWithVariants() {
                 lines.push(currentLine);
             }
             currentLine = moveNumber + '. ' + san.padEnd(6);
-            lastWasVariant = false;
         } else {
-            // Black move - if it follows a variant, start a new line
-            if (lastWasVariant) {
-                currentLine = moveNumber + '... ' + san;
-            } else {
-                currentLine += san;
-            }
-            lastWasVariant = false;
-        }
-        
-        // Check for variants AFTER this move (alternatives to this move)
-        if (gameState.variants[i]) {
-            // Finish the current line first
-            if (currentLine.length > 0) {
-                lines.push(currentLine);
-                currentLine = '';
-            }
+            // Black move - add to current line (completing the move pair)
+            currentLine += san;
             
-            // Add variants with tree branches
-            for (const variant of gameState.variants[i]) {
-                const variantGame = new Chess();
-                // Replay moves up to the position before this move
-                for (let j = 0; j < i; j++) {
-                    uciToSan(gameState.moveHistory[j], variantGame);
+            // If there's a pending variant from the white move, show it now
+            if (pendingVariantPosition >= 0) {
+                // Push the completed line first
+                if (currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = '';
                 }
                 
-                const variantStartPos = i;
-                const isVariantWhiteMove = variantStartPos % 2 === 0;
-                const variantMoveNum = Math.floor(variantStartPos / 2) + 1;
-                
-                // Add branch symbol and opening parenthesis with first move
-                const firstMovePrefix = isVariantWhiteMove 
-                    ? '   └─ (' + variantMoveNum + '. '
-                    : '   └─ (' + variantMoveNum + '... ';
-                
-                const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix, 0);
-                lines.push(...variantLines);
+                // Add the variant
+                const variantPos = pendingVariantPosition;
+                for (const variant of gameState.variants[variantPos]) {
+                    const variantGame = new Chess();
+                    for (let j = 0; j < variantPos; j++) {
+                        uciToSan(gameState.moveHistory[j], variantGame);
+                    }
+                    
+                    const isVariantWhiteMove = variantPos % 2 === 0;
+                    const variantMoveNum = Math.floor(variantPos / 2) + 1;
+                    
+                    const firstMovePrefix = isVariantWhiteMove 
+                        ? '   └─ (' + variantMoveNum + '. '
+                        : '   └─ (' + variantMoveNum + '... ';
+                    
+                    const variantLines = buildVariantLines(variant, variantPos, variantGame, firstMovePrefix, 0);
+                    lines.push(...variantLines);
+                }
+                pendingVariantPosition = -1;
             }
-            lastWasVariant = true;
+        }
+        
+        // Check for variants AFTER this move
+        if (gameState.variants[i]) {
+            const isVariantAfterWhiteMove = i % 2 === 0;
+            
+            if (isVariantAfterWhiteMove) {
+                // Variant after white move - defer until black move completes the pair
+                pendingVariantPosition = i;
+            } else {
+                // Variant after black move - show it now
+                if (currentLine.length > 0) {
+                    lines.push(currentLine);
+                    currentLine = '';
+                }
+                
+                for (const variant of gameState.variants[i]) {
+                    const variantGame = new Chess();
+                    for (let j = 0; j < i; j++) {
+                        uciToSan(gameState.moveHistory[j], variantGame);
+                    }
+                    
+                    const variantStartPos = i;
+                    const isVariantWhiteMove = variantStartPos % 2 === 0;
+                    const variantMoveNum = Math.floor(variantStartPos / 2) + 1;
+                    
+                    const firstMovePrefix = isVariantWhiteMove 
+                        ? '   └─ (' + variantMoveNum + '. '
+                        : '   └─ (' + variantMoveNum + '... ';
+                    
+                    const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix, 0);
+                    lines.push(...variantLines);
+                }
+            }
         }
     }
     
