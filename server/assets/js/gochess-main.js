@@ -107,7 +107,6 @@ $(document).ready(function() {
         // Use the wrapper element to catch clicks
         moveHistoryEditor.getWrapperElement().addEventListener('click', function(e) {
             const pos = moveHistoryEditor.coordsChar({left: e.pageX, top: e.pageY});
-            console.log('Click coords:', e.pageX, e.pageY, '-> pos:', pos);
             e.preventDefault();  // Prevent default click behavior
             e.stopPropagation();  // Stop event from bubbling
             navigateToMoveAtClick(pos.line, pos.ch);
