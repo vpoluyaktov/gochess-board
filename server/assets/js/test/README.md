@@ -12,8 +12,9 @@ Uses **Mocha** (test runner) + **Chai** (assertions)
 - **history-tests.js** - PGN tree visualization and move history display (11 tests)
 - **chessboard-tests.js** - Chessboard library utilities and API (9 tests)
 - **navigation-tests.js** - Position navigation and click handling (25 tests, 2 pending)
+- **codemirror-integration-tests.js** - CodeMirror API integration (23 tests)
 
-**Total: 67 tests (65 passing, 2 pending)**
+**Total: 90 tests (88 passing, 2 pending)**
 
 ## Running Tests
 
@@ -165,6 +166,52 @@ require a real browser environment and should be tested with `test-runner.html`.
 
 **Note:** 2 tests are pending (skipped) as they test edge cases in variant display 
 that will be addressed in a future update.
+
+### CodeMirror Integration Tests (codemirror-integration-tests.js)
+
+#### 1. Text Content Management
+- ✓ Set and get text content (setValue/getValue)
+- ✓ Count lines correctly (lineCount)
+- ✓ Handle empty content
+- ✓ Get individual lines (getLine)
+
+#### 2. Text Marking and Highlighting
+- ✓ Create text marks (markText)
+- ✓ Clear individual marks (mark.clear)
+- ✓ Clear all marks (getAllMarks)
+- ✓ Support multiple marks on same line
+
+#### 3. Scrolling Behavior
+- ✓ Scroll to specific position (scrollIntoView)
+- ✓ Scroll to bottom when at end of game
+
+#### 4. Event Handling
+- ✓ Register paste event handler
+- ✓ Register beforeChange event handler
+- ✓ Access wrapper element for click handling
+
+#### 5. Coordinate Conversion
+- ✓ Convert mouse coordinates to character position (coordsChar)
+
+#### 6. Integration with updateMoveHistoryDisplay
+- ✓ Update editor content when move history changes
+- ✓ Clear editor when move history is empty
+- ✓ Skip update if content is unchanged
+
+#### 7. Integration with highlightCurrentMove
+- ✓ Highlight current move
+- ✓ Clear previous highlights before adding new one
+- ✓ No highlight when at start position
+- ✓ Handle highlighting at end of game
+
+#### 8. PGN Paste Handling
+- ✓ Handle paste event structure
+
+#### 9. Read-only Enforcement
+- ✓ Register beforeChange handler to prevent edits
+
+**Purpose:** These tests ensure all CodeMirror API calls used in the application 
+are properly abstracted and will help identify breaking changes when migrating to CodeMirror 6.
 
 ## Test Structure
 
