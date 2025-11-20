@@ -334,10 +334,15 @@ function navigateToMoveAtClick(lineNum, ch) {
     
     const line = lines[lineNum];
     
-    // Skip variant lines (those with └─ or indentation)
+    // Check if this is a variant line (those with └─ or indentation)
     if (line.includes('└─') || line.startsWith('       ')) {
+        // Clicked on a variant line - highlight it and enable Open Variant button
+        selectVariantLine(lineNum);
         return;
     }
+    
+    // Clear any selected variant when clicking on main line
+    gameState.selectedVariant = null;
     
     // Parse main line format: "1. e4    e5"
     // Extract move number and moves
@@ -379,4 +384,118 @@ function navigateToMoveAtClick(lineNum, ch) {
     if (targetPosition !== undefined && targetPosition >= 0 && targetPosition <= gameState.moveHistory.length) {
         goToPosition(targetPosition);
     }
+}
+
+// Highlight a range of variant lines
+function highlightVariantLines(startLine, endLine) {
+    if (!moveHistoryEditor) return;
+    
+    // Clear all current markers first
+    moveHistoryEditor.getAllMarks().forEach(mark => mark.clear());
+    
+    // Highlight all lines in the variant range
+    for (let i = startLine; i <= endLine; i++) {
+        const lineContent = moveHistoryEditor.getLine(i);
+        if (lineContent) {
+            moveHistoryEditor.markText(
+                {line: i, ch: 0},
+                {line: i, ch: lineContent.length},
+                {className: 'chess-selected-variant'}
+            );
+        }
+    }
+    
+    // Scroll to the variant
+    moveHistoryEditor.scrollIntoView({line: startLine, ch: 0}, 100);
+}
+
+// Select a variant line when clicked
+function selectVariantLine(lineNum) {
+    const text = moveHistoryEditor.getValue();
+    const lines = text.split('\n');
+    
+    if (lineNum >= lines.length) return;
+    
+    const line = lines[lineNum];
+    
+    // Parse variant line to extract position and find which variant it is
+    // Variant format: "   └─ (14. Kxf4 ..." or "       14. Qe4+ ..."
+    
+    // Extract move number from variant line
+    let moveNumberMatch = line.match(/\((\d+)\./) || line.match(/\((\d+)\.\.\./);
+    if (!moveNumberMatch) {
+        // Try to find move number without parenthesis (continuation lines)
+        moveNumberMatch = line.match(/(\d+)\./);
+    }
+    
+    if (!moveNumberMatch) return;
+    
+    const moveNumber = parseInt(moveNumberMatch[1]);
+    
+    // Determine if this is a white or black move variant
+    const isBlackVariant = line.includes('...');
+    const variantPosition = isBlackVariant ? (moveNumber - 1) * 2 + 1 : (moveNumber - 1) * 2;
+    
+    // Find which variant index this is by scanning backwards to find the variant start
+    let variantIndex = 0;
+    let variantStartLine = lineNum;
+    
+    // Scan backwards to find the start of this variant (line with └─)
+    for (let i = lineNum; i >= 0; i--) {
+        if (lines[i].includes('└─')) {
+            variantStartLine = i;
+            break;
+        }
+    }
+    
+    // Count how many variants at this position come before this one
+    for (let i = 0; i < variantStartLine; i++) {
+        if (lines[i].includes('└─')) {
+            const prevMatch = lines[i].match(/\((\d+)\./) || lines[i].match(/\((\d+)\.\.\./);
+            if (prevMatch) {
+                const prevMoveNum = parseInt(prevMatch[1]);
+                const prevIsBlack = lines[i].includes('...');
+                const prevPos = prevIsBlack ? (prevMoveNum - 1) * 2 + 1 : (prevMoveNum - 1) * 2;
+                if (prevPos === variantPosition) {
+                    variantIndex++;
+                }
+            }
+        }
+    }
+    
+    // Find the end of this variant (next non-indented line or next variant)
+    let variantEndLine = lineNum;
+    const baseIndent = lines[variantStartLine].match(/^(\s*)/)[1].length;
+    
+    for (let i = variantStartLine + 1; i < lines.length; i++) {
+        const currentIndent = lines[i].match(/^(\s*)/)[1].length;
+        
+        // Stop if we hit a line with less or equal indentation (unless it's a sub-variant)
+        if (currentIndent <= baseIndent && !lines[i].includes('└─')) {
+            variantEndLine = i - 1;
+            break;
+        }
+        
+        // Stop if we hit another variant at the same level
+        if (currentIndent === baseIndent && lines[i].includes('└─') && i !== variantStartLine) {
+            variantEndLine = i - 1;
+            break;
+        }
+        
+        variantEndLine = i;
+    }
+    
+    // Store selected variant info
+    gameState.selectedVariant = {
+        position: variantPosition,
+        index: variantIndex,
+        startLine: variantStartLine,
+        endLine: variantEndLine
+    };
+    
+    // Highlight the variant lines
+    highlightVariantLines(variantStartLine, variantEndLine);
+    
+    // Enable the Open Variant button
+    updateVariantButtons();
 }

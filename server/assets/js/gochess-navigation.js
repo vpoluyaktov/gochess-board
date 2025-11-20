@@ -248,23 +248,40 @@ function goToEnd() {
 // -------------------------------------------------------------------------
 
 function openVariation() {
-    // Open variant of the currently displayed move
-    // If at position N (after move N-1), the variant is stored at index N-1
-    const currentMoveIndex = gameState.currentPosition > 0 ? gameState.currentPosition - 1 : -1;
+    // Determine which variant to open
+    let variantPosition, variantIndex;
     
-    if (currentMoveIndex < 0 || !gameState.variants[currentMoveIndex] || 
-        gameState.variants[currentMoveIndex].length === 0) {
+    if (gameState.selectedVariant) {
+        // Use the clicked/selected variant
+        variantPosition = gameState.selectedVariant.position;
+        variantIndex = gameState.selectedVariant.index;
+    } else {
+        // Use variant at current position (legacy behavior)
+        const currentMoveIndex = gameState.currentPosition > 0 ? gameState.currentPosition - 1 : -1;
+        
+        if (currentMoveIndex < 0 || !gameState.variants[currentMoveIndex] || 
+            gameState.variants[currentMoveIndex].length === 0) {
+            return;
+        }
+        
+        variantPosition = currentMoveIndex;
+        variantIndex = 0; // Default to first variant
+    }
+    
+    // Validate variant exists
+    if (!gameState.variants[variantPosition] || 
+        !gameState.variants[variantPosition][variantIndex]) {
         return;
     }
     
-    // Get the first variant (could be extended to choose between multiple variants)
-    const variant = gameState.variants[currentMoveIndex][0];
+    // Get the selected variant
+    const variant = gameState.variants[variantPosition][variantIndex];
     
     if (variant.length === 0) return;
     
-    // Build FEN for the position BEFORE the current move (where the variant branches)
+    // Build FEN for the position BEFORE the variant branches
     const tempGame = new Chess();
-    for (let i = 0; i < currentMoveIndex; i++) {
+    for (let i = 0; i < variantPosition; i++) {
         const uciMove = gameState.moveHistory[i];
         const from = uciMove.substring(0, 2);
         const to = uciMove.substring(2, 4);
@@ -276,10 +293,10 @@ function openVariation() {
     const variantData = {
         type: 'start-variant',
         fen: tempGame.fen(),
-        moveHistory: gameState.moveHistory.slice(0, currentMoveIndex),
-        currentPosition: currentMoveIndex,
-        variantStartPosition: currentMoveIndex,
-        variantIndex: 0, // Track which variant was opened (always first one for now)
+        moveHistory: gameState.moveHistory.slice(0, variantPosition),
+        currentPosition: variantPosition,
+        variantStartPosition: variantPosition,
+        variantIndex: variantIndex, // Track which variant was opened
         variantMoves: variant, // Include the variant moves to apply
         analysisActive: analysisActive,
         analysisEngine: document.getElementById('analysisEngine').value,
@@ -317,16 +334,21 @@ function updateVariantButtons() {
     const openVariationBtn = document.getElementById('openVariationBtn');
     
     if (openVariationBtn) {
-        // Enable "Open variation" button when viewing a move that has variant alternatives
-        // currentPosition is the number of moves made (position after the last move)
-        // To check if the CURRENT DISPLAYED move has variants, we check currentPosition - 1
-        // Example: at position 27 (after move 14 White "Kh3"), check variants[26] 
-        // because the variant "14. Kxf4" is stored as an alternative at that position
-        const currentMoveIndex = gameState.currentPosition > 0 ? gameState.currentPosition - 1 : -1;
-        const hasVariant = currentMoveIndex >= 0 && 
-                          gameState.variants[currentMoveIndex] && 
-                          gameState.variants[currentMoveIndex].length > 0;
-        openVariationBtn.disabled = !hasVariant;
+        // Enable "Open variation" button in two cases:
+        // 1. When a variant line is explicitly selected (clicked)
+        // 2. When viewing a move that has variant alternatives
+        
+        if (gameState.selectedVariant) {
+            // A variant line was clicked - enable button
+            openVariationBtn.disabled = false;
+        } else {
+            // Check if current move has variants
+            const currentMoveIndex = gameState.currentPosition > 0 ? gameState.currentPosition - 1 : -1;
+            const hasVariant = currentMoveIndex >= 0 && 
+                              gameState.variants[currentMoveIndex] && 
+                              gameState.variants[currentMoveIndex].length > 0;
+            openVariationBtn.disabled = !hasVariant;
+        }
     }
 }
 

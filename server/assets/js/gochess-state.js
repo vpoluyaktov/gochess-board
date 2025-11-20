@@ -18,7 +18,8 @@ var gameState = {
     blackMoves: 0,
     currentPosition: 0,        // Current position in move history (0 = start, moveHistory.length = end)
     isNavigating: false,       // True when viewing a historical position
-    wasClockRunning: false     // Remember if clock was running before navigation
+    wasClockRunning: false,    // Remember if clock was running before navigation
+    selectedVariant: null      // Selected variant info: { position: N, index: M, lineNum: L }
 };
 
 // Save game state to localStorage

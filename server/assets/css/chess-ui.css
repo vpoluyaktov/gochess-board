@@ -746,6 +746,13 @@ button:hover {
     box-shadow: 0 0 4px rgba(255, 235, 59, 0.6);
 }
 
+/* Selected variant highlight */
+.chess-selected-variant {
+    background: #b3e5fc;
+    border-radius: 2px;
+    box-shadow: 0 0 4px rgba(3, 169, 244, 0.4);
+}
+
 /* Future moves (after current position) - slightly grayed out */
 .chess-future-move {
     opacity: 0.4;
