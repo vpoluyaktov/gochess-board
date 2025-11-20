@@ -725,10 +725,12 @@ function loadPGNFromText(text) {
             }
         }
         
-        // Update board and displays
-        board.position(game.fen());
-        gameState.currentPosition = gameState.moveHistory.length;
+        // Update board and displays - start at beginning position
+        game.reset();
+        board.position('start');
+        gameState.currentPosition = 0;
         gameState.isNavigating = false;
+        clearLastMoveHighlight();
         updateMoveHistoryDisplay();
         updateOpeningDisplay();
         updateInfoText();
