@@ -103,6 +103,12 @@ $(document).ready(function() {
             viewportMargin: Infinity
         });
         
+        // Add click handler for move navigation
+        moveHistoryEditor.on('mousedown', function(cm, e) {
+            const pos = cm.coordsChar({left: e.clientX, top: e.clientY});
+            navigateToMoveAtClick(pos.line, pos.ch);
+        });
+        
         // Add paste event handler
         moveHistoryEditor.on('paste', function(cm, e) {
             e.preventDefault();

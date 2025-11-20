@@ -324,3 +324,59 @@ function highlightCurrentMove() {
         }
     }
 }
+
+// Navigate to a specific move position by clicking on it
+function navigateToMoveAtClick(lineNum, ch) {
+    const text = moveHistoryEditor.getValue();
+    const lines = text.split('\n');
+    
+    if (lineNum >= lines.length) return;
+    
+    const line = lines[lineNum];
+    
+    // Skip variant lines (those with └─ or indentation)
+    if (line.includes('└─') || line.startsWith('       ')) {
+        return;
+    }
+    
+    // Parse main line format: "1. e4    e5"
+    // Extract move number and moves
+    const mainLinePattern = /^(\d+)\.\s+(\S+)(?:\s+(\S+))?/;
+    const match = line.match(mainLinePattern);
+    
+    if (!match) return;
+    
+    const moveNumber = parseInt(match[1]);
+    const whiteMove = match[2];
+    const blackMove = match[3];
+    
+    // Determine which move was clicked based on character position
+    const whiteMoveStart = line.indexOf(whiteMove);
+    const whiteMoveEnd = whiteMoveStart + whiteMove.length;
+    
+    let targetPosition;
+    
+    if (ch >= whiteMoveStart && ch <= whiteMoveEnd) {
+        // Clicked on white's move
+        targetPosition = (moveNumber - 1) * 2 + 1;
+    } else if (blackMove) {
+        const blackMoveStart = line.indexOf(blackMove, whiteMoveEnd);
+        const blackMoveEnd = blackMoveStart + blackMove.length;
+        
+        if (ch >= blackMoveStart && ch <= blackMoveEnd) {
+            // Clicked on black's move
+            targetPosition = (moveNumber - 1) * 2 + 2;
+        } else {
+            // Clicked elsewhere on the line, default to white's move
+            targetPosition = (moveNumber - 1) * 2 + 1;
+        }
+    } else {
+        // Only white's move exists
+        targetPosition = (moveNumber - 1) * 2 + 1;
+    }
+    
+    // Navigate to the target position
+    if (targetPosition !== undefined && targetPosition >= 0 && targetPosition <= gameState.moveHistory.length) {
+        goToPosition(targetPosition);
+    }
+}

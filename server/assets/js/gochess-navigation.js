@@ -148,6 +148,53 @@ function stepForward() {
     updateAnalysisForCurrentPosition();
 }
 
+// Navigate to a specific position in the move history
+function goToPosition(targetPosition) {
+    if (targetPosition < 0 || targetPosition > gameState.moveHistory.length) return;
+    if (targetPosition === gameState.currentPosition) return; // Already at this position
+    
+    // Pause clock if running
+    if (gameState.clockRunning && !gameState.isNavigating) {
+        gameState.wasClockRunning = true;
+        pauseClock();
+    }
+    
+    gameState.isNavigating = true;
+    gameState.currentPosition = targetPosition;
+    
+    // Rebuild game state up to target position
+    game.reset();
+    const tempGame = new Chess();
+    
+    for (let i = 0; i < targetPosition; i++) {
+        const uciMove = gameState.moveHistory[i];
+        const from = uciMove.substring(0, 2);
+        const to = uciMove.substring(2, 4);
+        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+        
+        tempGame.move({ from, to, promotion });
+    }
+    
+    game.load(tempGame.fen());
+    board.position(game.fen());
+    
+    // Highlight last move if not at start
+    if (targetPosition > 0) {
+        const lastMove = gameState.moveHistory[targetPosition - 1];
+        const from = lastMove.substring(0, 2);
+        const to = lastMove.substring(2, 4);
+        highlightLastMove(from, to);
+    } else {
+        lastMoveSquares = { from: null, to: null };
+        clearLastMoveHighlight();
+    }
+    
+    updateMoveHistoryDisplay();
+    updateInfoText();
+    updateOpeningDisplay();
+    updateAnalysisForCurrentPosition();
+}
+
 function goToEnd() {
     // If at the end and clock was running before navigation, resume it
     const shouldResumeClock = gameState.wasClockRunning && gameState.currentPosition < gameState.moveHistory.length;
