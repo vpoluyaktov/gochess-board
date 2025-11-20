@@ -19,7 +19,6 @@ var analysisActive = false;
 var gameState = {
     moveHistory: [],           // UCI move list (e.g., ["e2e4", "e7e5"])
     variants: {},              // Variants at each position: { position: [[variant moves], ...] }
-    variantStack: [],          // Stack to track variant navigation
     whiteTimeMs: 300000,       // 5 minutes default
     blackTimeMs: 300000,
     timeControl: {
@@ -632,95 +631,12 @@ function highlightCurrentMove() {
     // Clear all current move markers
     moveHistoryEditor.getAllMarks().forEach(mark => mark.clear());
     
-    if (gameState.moveHistory.length === 0 && (!gameState.variantStack || gameState.variantStack.length === 0)) {
+    if (gameState.moveHistory.length === 0) {
         return;
     }
     
     const text = moveHistoryEditor.getValue();
     const lines = text.split('\n');
-    
-    // Check if we're in a variant
-    if (gameState.variantStack && gameState.variantStack.length > 0) {
-        const variantInfo = gameState.variantStack[gameState.variantStack.length - 1];
-        
-        // We need to find the Nth move in the variant (where N = currentMoveInVariant)
-        const targetMoveInVariant = variantInfo.currentMoveInVariant;
-        
-        // Find the variant starting position
-        const variantStartMoveNum = Math.floor(variantInfo.mainLinePosition / 2) + 1;
-        
-        // Find the variant in the display
-        let inCorrectVariant = false;
-        let movesSeenInVariant = -1; // -1 because we'll increment before checking
-        
-        for (let lineNum = 0; lineNum < lines.length; lineNum++) {
-            const line = lines[lineNum];
-            
-            // Check if this is the start of our variant (look for the branch symbol and starting move number)
-            if (line.includes('└─ (') && line.includes(variantStartMoveNum + '.')) {
-                inCorrectVariant = true;
-            }
-            
-            if (inCorrectVariant) {
-                // Count moves in this line (look for SAN moves, not move numbers)
-                // A line can have 1 or 2 moves (white's move, or white's + black's move)
-                
-                // Match move numbers followed by moves: "10. c3  Bxc3" or "11. bxc3  Qe1"
-                const movePattern = /\d+\.\s+(\S+)(?:\s+(\S+))?/g;
-                let match;
-                
-                while ((match = movePattern.exec(line)) !== null) {
-                    // Check white's move
-                    if (match[1] && !match[1].includes(')')) {
-                        movesSeenInVariant++;
-                        if (movesSeenInVariant === targetMoveInVariant) {
-                            const moveText = match[1];
-                            const moveStart = match.index + match[0].indexOf(moveText);
-                            const moveEnd = moveStart + moveText.length;
-                            
-                            moveHistoryEditor.markText(
-                                {line: lineNum, ch: moveStart},
-                                {line: lineNum, ch: moveEnd},
-                                {className: 'chess-current-move'}
-                            );
-                            
-                            if (gameState.isNavigating) {
-                                moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
-                            }
-                            return;
-                        }
-                    }
-                    
-                    // Check black's move
-                    if (match[2] && !match[2].includes(')')) {
-                        movesSeenInVariant++;
-                        if (movesSeenInVariant === targetMoveInVariant) {
-                            const moveText = match[2].replace(')', ''); // Remove closing paren if present
-                            const moveStart = line.indexOf(moveText, match.index);
-                            const moveEnd = moveStart + moveText.length;
-                            
-                            moveHistoryEditor.markText(
-                                {line: lineNum, ch: moveStart},
-                                {line: lineNum, ch: moveEnd},
-                                {className: 'chess-current-move'}
-                            );
-                            
-                            if (gameState.isNavigating) {
-                                moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
-                            }
-                            return;
-                        }
-                    }
-                }
-                
-                // Stop searching if we hit the end of the variant
-                if (line.includes(')') && !line.includes('└─')) {
-                    break;
-                }
-            }
-        }
-        return;
-    }
     
     // Main line highlighting
     if (gameState.currentPosition === 0) {
@@ -861,58 +777,6 @@ function goToStart() {
 }
 
 function stepBackward() {
-    // Check if we're in a variant
-    if (gameState.variantStack && gameState.variantStack.length > 0) {
-        const variantInfo = gameState.variantStack[gameState.variantStack.length - 1];
-        
-        // If at the start of the variant, exit it
-        if (variantInfo.currentMoveInVariant === 0) {
-            exitVariant();
-            return;
-        }
-        
-        // Move back within the variant
-        variantInfo.currentMoveInVariant--;
-        
-        // Rebuild game state: main line + variant moves up to current position
-        game.reset();
-        const tempGame = new Chess();
-        
-        // Apply main line moves up to variant start
-        for (let i = 0; i < variantInfo.mainLinePosition; i++) {
-            const uciMove = gameState.moveHistory[i];
-            const from = uciMove.substring(0, 2);
-            const to = uciMove.substring(2, 4);
-            const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
-            tempGame.move({ from, to, promotion });
-        }
-        
-        // Apply variant moves up to current position in variant
-        for (let i = 0; i <= variantInfo.currentMoveInVariant; i++) {
-            const uciMove = variantInfo.variant[i];
-            const from = uciMove.substring(0, 2);
-            const to = uciMove.substring(2, 4);
-            const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
-            tempGame.move({ from, to, promotion });
-        }
-        
-        game.load(tempGame.fen());
-        board.position(game.fen());
-        
-        // Highlight last move
-        const lastMove = variantInfo.variant[variantInfo.currentMoveInVariant];
-        const from = lastMove.substring(0, 2);
-        const to = lastMove.substring(2, 4);
-        highlightLastMove(from, to);
-        
-        updateMoveHistoryDisplay();
-        updateInfoText();
-        updateOpeningDisplay();
-        updateAnalysisForCurrentPosition();
-        return;
-    }
-    
-    // Normal main line navigation
     if (gameState.currentPosition === 0) return;
     
     // Pause clock if running
@@ -958,37 +822,6 @@ function stepBackward() {
 }
 
 function stepForward() {
-    // Check if we're in a variant
-    if (gameState.variantStack && gameState.variantStack.length > 0) {
-        const variantInfo = gameState.variantStack[gameState.variantStack.length - 1];
-        
-        // If at the end of the variant, exit it
-        if (variantInfo.currentMoveInVariant >= variantInfo.variant.length - 1) {
-            exitVariant();
-            return;
-        }
-        
-        // Move forward within the variant
-        variantInfo.currentMoveInVariant++;
-        
-        // Apply the next move in the variant
-        const uciMove = variantInfo.variant[variantInfo.currentMoveInVariant];
-        const from = uciMove.substring(0, 2);
-        const to = uciMove.substring(2, 4);
-        const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
-        
-        game.move({ from, to, promotion });
-        board.position(game.fen());
-        highlightLastMove(from, to);
-        
-        updateMoveHistoryDisplay();
-        updateInfoText();
-        updateOpeningDisplay();
-        updateAnalysisForCurrentPosition();
-        return;
-    }
-    
-    // Normal main line navigation
     if (gameState.currentPosition >= gameState.moveHistory.length) return;
     
     // Pause clock if running
@@ -1069,7 +902,7 @@ function goToEnd() {
 // Variant Navigation Functions
 // -------------------------------------------------------------------------
 
-function goToVariant() {
+function openVariation() {
     // Check if there's a variant after the current position
     const variantPosition = gameState.currentPosition;
     
@@ -1077,108 +910,86 @@ function goToVariant() {
         return;
     }
     
-    // For now, go to the first variant (could be extended to choose between multiple variants)
+    // Get the first variant (could be extended to choose between multiple variants)
     const variant = gameState.variants[variantPosition][0];
     
     if (variant.length === 0) return;
     
-    // Pause clock if running
-    if (gameState.clockRunning && !gameState.isNavigating) {
-        gameState.wasClockRunning = true;
-        pauseClock();
-    }
-    
-    gameState.isNavigating = true;
-    
-    // Store that we're in a variant BEFORE applying the move
-    if (!gameState.variantStack) {
-        gameState.variantStack = [];
-    }
-    gameState.variantStack.push({
-        mainLinePosition: variantPosition,
-        variantIndex: 0,
-        variant: variant,
-        currentMoveInVariant: 0
-    });
-    
-    // Apply the first move of the variant
-    const uciMove = variant[0];
-    const from = uciMove.substring(0, 2);
-    const to = uciMove.substring(2, 4);
-    const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
-    
-    game.move({ from, to, promotion });
-    board.position(game.fen());
-    highlightLastMove(from, to);
-    
-    updateMoveHistoryDisplay();
-    updateInfoText();
-    updateOpeningDisplay();
-    updateAnalysisForCurrentPosition();
-    updateVariantButtons();
-}
-
-function exitVariant() {
-    // Check if we're in a variant
-    if (!gameState.variantStack || gameState.variantStack.length === 0) {
-        return;
-    }
-    
-    // Pop the variant stack
-    const variantInfo = gameState.variantStack.pop();
-    
-    // Return to the position before entering the variant
-    gameState.currentPosition = variantInfo.mainLinePosition;
-    
-    // Rebuild game state up to that position
-    game.reset();
+    // Build FEN for the position at the current move
     const tempGame = new Chess();
-    
-    for (let i = 0; i < gameState.currentPosition; i++) {
+    for (let i = 0; i < variantPosition; i++) {
         const uciMove = gameState.moveHistory[i];
         const from = uciMove.substring(0, 2);
         const to = uciMove.substring(2, 4);
         const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
-        
         tempGame.move({ from, to, promotion });
     }
     
-    game.load(tempGame.fen());
-    board.position(game.fen());
+    // Apply the variant moves to get the complete move history for the new window
+    const variantMoveHistory = gameState.moveHistory.slice(0, variantPosition).concat(variant);
     
-    // Highlight last move if not at start
-    if (gameState.currentPosition > 0) {
-        const lastMove = gameState.moveHistory[gameState.currentPosition - 1];
-        const from = lastMove.substring(0, 2);
-        const to = lastMove.substring(2, 4);
-        highlightLastMove(from, to);
-    } else {
-        lastMoveSquares = { from: null, to: null };
-        clearLastMoveHighlight();
-    }
+    // Prepare variant data for the new window
+    const variantData = {
+        type: 'start-variant',
+        fen: tempGame.fen(),
+        moveHistory: gameState.moveHistory.slice(0, variantPosition),
+        currentPosition: variantPosition,
+        variantStartPosition: variantPosition,
+        analysisActive: analysisActive,
+        analysisEngine: document.getElementById('analysisEngine').value,
+        whitePlayer: getWhitePlayer(),
+        blackPlayer: getBlackPlayer(),
+        timeControl: gameState.timeControl,
+        whiteTimeMs: gameState.whiteTimeMs,
+        blackTimeMs: gameState.blackTimeMs
+    };
     
-    updateMoveHistoryDisplay();
-    updateInfoText();
-    updateOpeningDisplay();
-    updateAnalysisForCurrentPosition();
-    updateVariantButtons();
+    // Open new window with same URL
+    const windowFeatures = 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no';
+    variantWindow = window.open(window.location.href, '_blank', windowFeatures);
+    
+    // Wait for variant window to be ready, then send data
+    const sendDataInterval = setInterval(function() {
+        if (variantWindow && !variantWindow.closed) {
+            try {
+                variantWindow.postMessage(variantData, window.location.origin);
+            } catch (e) {
+                console.error('Error sending variant data:', e);
+            }
+        } else {
+            clearInterval(sendDataInterval);
+        }
+    }, 100);
+    
+    // Stop trying after 5 seconds
+    setTimeout(function() {
+        clearInterval(sendDataInterval);
+    }, 5000);
+    
+    // Apply the variant moves in the new window
+    setTimeout(function() {
+        if (variantWindow && !variantWindow.closed) {
+            try {
+                // Send the variant moves to be applied
+                variantWindow.postMessage({
+                    type: 'apply-variant-moves',
+                    moves: variant
+                }, window.location.origin);
+            } catch (e) {
+                console.error('Error sending variant moves:', e);
+            }
+        }
+    }, 500);
 }
 
 function updateVariantButtons() {
-    const goToVariantBtn = document.getElementById('goToVariantBtn');
-    const exitVariantBtn = document.getElementById('exitVariantBtn');
+    const openVariationBtn = document.getElementById('openVariationBtn');
     
-    if (goToVariantBtn) {
-        // Enable "Go to variant" button if there's a variant after current position
+    if (openVariationBtn) {
+        // Enable "Open variation" button if there's a variant after current position
         const hasVariant = gameState.variants[gameState.currentPosition] && 
                           gameState.variants[gameState.currentPosition].length > 0;
-        goToVariantBtn.disabled = !hasVariant;
-    }
-    
-    if (exitVariantBtn) {
-        // Enable "Exit variant" button if we're in a variant
-        const inVariant = gameState.variantStack && gameState.variantStack.length > 0;
-        exitVariantBtn.disabled = !inVariant;
+        openVariationBtn.disabled = !hasVariant;
     }
 }
 
@@ -1828,7 +1639,6 @@ function loadPGNFromText(text) {
         board.position('start');
         gameState.moveHistory = [];
         gameState.variants = {};
-        gameState.variantStack = [];
         clearLastMoveHighlight();
         
         // Clear any analysis arrows
@@ -1996,7 +1806,6 @@ function newGame() {
     board.position('start');
     gameState.moveHistory = [];
     gameState.variants = {};
-    gameState.variantStack = [];
     gameState.currentPosition = 0;
     gameState.isNavigating = false;
     gameState.wasClockRunning = false;
@@ -2563,14 +2372,6 @@ $(document).ready(function() {
                 e.preventDefault();
                 stepForward();
                 break;
-            case 'ArrowDown':
-                e.preventDefault();
-                goToVariant();
-                break;
-            case 'ArrowUp':
-                e.preventDefault();
-                exitVariant();
-                break;
             case 'Home':
                 e.preventDefault();
                 goToStart();
@@ -2753,6 +2554,38 @@ function handleVariantMessage(event) {
                 startAnalysis();
             }, 500);
         }
+    } else if (data.type === 'apply-variant-moves') {
+        // Apply variant moves to the current position
+        console.log('Applying variant moves:', data.moves);
+        
+        for (let i = 0; i < data.moves.length; i++) {
+            const uciMove = data.moves[i];
+            const from = uciMove.substring(0, 2);
+            const to = uciMove.substring(2, 4);
+            const promotion = uciMove.length > 4 ? uciMove.substring(4) : undefined;
+            
+            game.move({ from, to, promotion });
+            gameState.moveHistory.push(uciMove);
+            gameState.currentPosition++;
+        }
+        
+        // Update board position
+        board.position(game.fen());
+        
+        // Highlight last move
+        if (data.moves.length > 0) {
+            const lastMove = data.moves[data.moves.length - 1];
+            const from = lastMove.substring(0, 2);
+            const to = lastMove.substring(2, 4);
+            highlightLastMove(from, to);
+        }
+        
+        // Update all displays
+        updateMoveHistoryDisplay();
+        updateInfoText();
+        updateOpeningDisplay();
+        updatePositionIndicator();
+        updateAnalysisForCurrentPosition();
     }
 }
 

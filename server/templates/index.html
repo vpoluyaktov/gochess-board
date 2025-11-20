@@ -141,9 +141,8 @@
                     <div class="navigation-controls">
                         <button onclick="goToStart()" class="nav-btn" title="To first move">⏮️</button>
                         <button onclick="stepBackward()" class="nav-btn" title="To previous move">◀️</button>
-                        <button onclick="goToVariant()" id="goToVariantBtn" class="nav-btn" title="Go to variant" disabled>🔽</button>
+                        <button onclick="openVariation()" id="openVariationBtn" class="nav-btn" title="Open variation in new window" disabled>🔀</button>
                         <span id="positionIndicator" class="position-indicator">0/0</span>
-                        <button onclick="exitVariant()" id="exitVariantBtn" class="nav-btn" title="Exit variant" disabled>🔼</button>
                         <button onclick="stepForward()" class="nav-btn" title="To next move">▶️</button>
                         <button onclick="goToEnd()" class="nav-btn" title="To last move">⏭️</button>
                     </div>
@@ -207,7 +206,18 @@
     <script src="/assets/js/codemirror.min.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/codemirror-chess-mode.js?v={{.CacheBuster}}"></script>
 
-    <!-- Chess UI Logic -->
-    <script src="/assets/js/chess-ui.js?v={{.CacheBuster}}"></script>
+    <!-- Chess UI Logic - Modular -->
+    <script src="/assets/js/gochess-state.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-players.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-board.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-engine.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-clock.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-history.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-navigation.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-opening.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-analysis.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-pgn.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-variants.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-main.js?v={{.CacheBuster}}"></script>
 </body>
 </html>

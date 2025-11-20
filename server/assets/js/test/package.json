@@ -1,0 +1,16 @@
+{
+  "name": "go-chess-tests",
+  "version": "1.0.0",
+  "description": "Unit tests for Go Chess variant logic",
+  "scripts": {
+    "test": "mocha --require test-setup.js variant-tests.js",
+    "test:watch": "mocha --require test-setup.js variant-tests.js --watch",
+    "test:browser": "open test-runner.html"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "chai": "^4.3.10",
+    "jsdom": "^23.0.0",
+    "jquery": "^3.7.1"
+  }
+}

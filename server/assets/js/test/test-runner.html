@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Go Chess Variant Tests</title>
+    <link rel="stylesheet" href="https://unpkg.com/mocha@10.2.0/mocha.css">
+</head>
+<body>
+    <div id="mocha"></div>
+    
+    <!-- Mocha and Chai -->
+    <script src="https://unpkg.com/mocha@10.2.0/mocha.js"></script>
+    <script src="https://unpkg.com/chai@4.3.10/chai.js"></script>
+    
+    <!-- Setup Mocha -->
+    <script>
+        mocha.setup('bdd');
+        mocha.checkLeaks();
+    </script>
+    
+    <!-- Load dependencies -->
+    <script src="../jquery-3.5.1.min.js"></script>
+    <script src="../chess.js"></script>
+    
+    <!-- Load application code -->
+    <script src="../gochess-state.js"></script>
+    <script src="../gochess-pgn.js"></script>
+    <script src="../gochess-history.js"></script>
+    <script src="../gochess-variants.js"></script>
+    <script src="../gochess-navigation.js"></script>
+    
+    <!-- Load tests -->
+    <script src="variant-tests.js"></script>
+    
+    <!-- Run tests -->
+    <script>
+        mocha.run();
+    </script>
+</body>
+</html>
