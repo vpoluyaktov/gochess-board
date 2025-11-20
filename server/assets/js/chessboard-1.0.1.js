@@ -612,7 +612,7 @@
         'Please include jQuery ' + MINIMUM_JQUERY_VERSION + ' or higher on the page' +
         '\n\n' +
         'Exiting' + ELLIPSIS
-      window.alert(errorMsg)
+      console.error(errorMsg)
       return false
     }
 
@@ -626,7 +626,7 @@
         'The first argument to Chessboard() cannot be an empty string.' +
         '\n\n' +
         'Exiting' + ELLIPSIS
-      window.alert(errorMsg1)
+      console.error(errorMsg1)
       return false
     }
 
@@ -644,7 +644,7 @@
         'an ID query selector, or a single DOM node.' +
         '\n\n' +
         'Exiting' + ELLIPSIS
-      window.alert(errorMsg2)
+      console.error(errorMsg2)
       return false
     }
 
@@ -722,12 +722,12 @@
         return
       }
 
-      // alert errors
+      // alert errors (replaced with console.error for better UX)
       if (config.showErrors === 'alert') {
         if (obj) {
           errorText += '\n\n' + JSON.stringify(obj)
         }
-        window.alert(errorText)
+        console.error(errorText)
         return
       }
 
