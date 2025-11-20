@@ -50,12 +50,34 @@ global.CodeMirror = {
 };
 
 // Mock board and game objects
+// Note: board is initially null in gochess-board.js, but gets set during initialization
+// For tests, we provide a mock that's always available
 global.board = {
-    position: function() {},
+    position: function(fen) {
+        // Mock implementation - just return success
+        return true;
+    },
     resize: function() {}
 };
 
 global.game = new Chess();
+global.lastMoveSquares = { from: null, to: null };
+global.squareClass = 'square-55d63';
+
+// Mock UI update functions that aren't needed for navigation tests
+global.updateMoveHistoryDisplay = function() {};
+global.updateInfoText = function() {};
+global.updateOpeningDisplay = function() {};
+global.updateAnalysisForCurrentPosition = function() {};
+global.updatePositionIndicator = function() {};
+global.updateVariantButtons = function() {};
+global.pauseClock = function() {};
+global.resumeClock = function() {};
+global.checkForComputerMove = function() {};
+
+// Mock analysis variables
+global.analysisActive = false;
+global.analysisEngine = null;
 
 // Load application code using vm to execute in current context
 function loadAppCode(filename) {
@@ -71,8 +93,31 @@ loadAppCode('chessboard-1.0.1.js');
 global.Chessboard = window.Chessboard || window['Chessboard'];
 global.ChessBoard = window.ChessBoard || window['ChessBoard'];
 
+// Mock highlighting functions (from gochess-board.js)
+// These use jQuery/DOM which we don't need in tests
+global.clearLastMoveHighlight = function() {
+    // Mock - just clear the tracking
+    global.lastMoveSquares = { from: null, to: null };
+};
+
+global.highlightLastMove = function(from, to) {
+    // Mock - just track the squares
+    global.lastMoveSquares = { from: from, to: to };
+};
+
 // Load modules in dependency order
 loadAppCode('gochess-state.js');
+
+// Don't load gochess-board.js since it has jQuery dependencies
+// We've mocked the functions we need above
+
+global.board = {
+    position: function(fen) { return true; },
+    resize: function() {},
+    clearArrow: function() {},
+    drawArrow: function() {}
+};
+
 loadAppCode('gochess-pgn.js');
 loadAppCode('gochess-history.js');
 loadAppCode('gochess-variants.js');
