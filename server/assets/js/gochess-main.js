@@ -104,9 +104,9 @@ $(document).ready(function() {
         });
         
         // Add click handler for move navigation
-        moveHistoryEditor.on('mousedown', function(cm, e) {
-            // Get position using pageX/pageY for accurate coordinates
-            const pos = cm.coordsChar({left: e.pageX, top: e.pageY});
+        // Use the wrapper element to catch clicks
+        moveHistoryEditor.getWrapperElement().addEventListener('click', function(e) {
+            const pos = moveHistoryEditor.coordsChar({left: e.pageX, top: e.pageY});
             console.log('Click coords:', e.pageX, e.pageY, '-> pos:', pos);
             e.preventDefault();  // Prevent default click behavior
             e.stopPropagation();  // Stop event from bubbling
