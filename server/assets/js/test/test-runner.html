@@ -2,10 +2,42 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Go Chess Variant Tests</title>
+    <title>Go Chess Test Suite</title>
     <link rel="stylesheet" href="https://unpkg.com/mocha@10.2.0/mocha.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+        }
+        #mocha {
+            margin: 20px;
+        }
+        .test-info {
+            background: #f0f0f0;
+            padding: 15px;
+            margin: 20px;
+            border-radius: 5px;
+            border-left: 4px solid #4CAF50;
+        }
+        .test-info h2 {
+            margin-top: 0;
+            color: #333;
+        }
+        .test-info ul {
+            margin: 10px 0;
+        }
+    </style>
 </head>
 <body>
+    <div class="test-info">
+        <h2>Go Chess Test Suite</h2>
+        <p><strong>42 tests</strong> covering variant logic, move history display, and chessboard library</p>
+        <ul>
+            <li><strong>variant-tests.js</strong> - 22 tests for variant creation, merging, and PGN handling</li>
+            <li><strong>history-tests.js</strong> - 11 tests for PGN tree visualization</li>
+            <li><strong>chessboard-tests.js</strong> - 9 tests for chessboard utilities</li>
+        </ul>
+    </div>
+    
     <div id="mocha"></div>
     
     <!-- Mocha and Chai -->
@@ -22,6 +54,9 @@
     <script src="../jquery-3.5.1.min.js"></script>
     <script src="../chess.js"></script>
     
+    <!-- Load chessboard library -->
+    <script src="../chessboard-1.0.1.js"></script>
+    
     <!-- Load application code -->
     <script src="../gochess-state.js"></script>
     <script src="../gochess-pgn.js"></script>
@@ -31,6 +66,8 @@
     
     <!-- Load tests -->
     <script src="variant-tests.js"></script>
+    <script src="history-tests.js"></script>
+    <script src="chessboard-tests.js"></script>
     
     <!-- Run tests -->
     <script>
