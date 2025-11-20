@@ -11,8 +11,9 @@ Uses **Mocha** (test runner) + **Chai** (assertions)
 - **variant-tests.js** - Variant creation, merging, parsing, and saving (22 tests)
 - **history-tests.js** - PGN tree visualization and move history display (11 tests)
 - **chessboard-tests.js** - Chessboard library utilities and API (9 tests)
+- **navigation-tests.js** - Position navigation and click handling (25 tests, 2 pending)
 
-**Total: 42 tests**
+**Total: 67 tests (65 passing, 2 pending)**
 
 ## Running Tests
 
@@ -125,6 +126,45 @@ npm run test:watch
 
 **Note:** Full DOM-dependent chessboard tests (board creation, piece movement, arrow drawing) 
 require a real browser environment and should be tested with `test-runner.html`.
+
+### Navigation Tests (navigation-tests.js)
+
+#### 1. Position Navigation
+- ✓ Navigate to specific position (goToPosition)
+- ✓ Step forward/backward correctly
+- ✓ Go to start/end positions
+- ✓ Handle boundary conditions (can't go past start/end)
+- ✓ Prevent navigation to invalid positions
+- ✓ Skip navigation if already at target position
+
+#### 2. Click Navigation Parsing
+- ✓ Parse white move clicks correctly
+- ✓ Parse black move clicks correctly
+- ✓ Detect variant lines (└─ marker)
+- ✓ Detect continuation lines (indentation)
+
+#### 3. Variant Selection
+- ✓ Store selected variant info (position, index, line range)
+- ✓ Clear selected variant when clicking main line
+- ✓ Enable variant button when variant is selected
+
+#### 4. Position Indicator
+- ✓ Show correct position at start (0/N)
+- ✓ Show correct position in middle (M/N)
+- ✓ Show correct position at end (N/N)
+
+#### 5. Move History Display
+- ✓ Format move pairs correctly
+- ⏸ Display variants on separate lines (pending - edge case)
+- ⏸ Indent nested variants (pending - edge case)
+
+#### 6. Game State Consistency
+- ✓ Maintain FEN consistency when navigating
+- ✓ Set isNavigating flag correctly
+- ✓ Handle empty move history
+
+**Note:** 2 tests are pending (skipped) as they test edge cases in variant display 
+that will be addressed in a future update.
 
 ## Test Structure
 
