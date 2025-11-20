@@ -327,6 +327,8 @@ function highlightCurrentMove() {
 
 // Navigate to a specific move position by clicking on it
 function navigateToMoveAtClick(lineNum, ch) {
+    if (!moveHistoryEditor) return;
+    
     const text = moveHistoryEditor.getValue();
     const lines = text.split('\n');
     
@@ -334,9 +336,12 @@ function navigateToMoveAtClick(lineNum, ch) {
     
     const line = lines[lineNum];
     
+    console.log('Clicked line', lineNum, 'ch', ch, ':', line);
+    
     // Check if this is a variant line (those with └─ or indentation)
     if (line.includes('└─') || line.startsWith('       ')) {
         // Clicked on a variant line - highlight it and enable Open Variant button
+        console.log('Variant line detected');
         selectVariantLine(lineNum);
         return;
     }
@@ -381,8 +386,11 @@ function navigateToMoveAtClick(lineNum, ch) {
     }
     
     // Navigate to the target position
+    console.log('Target position:', targetPosition, 'Current:', gameState.currentPosition);
     if (targetPosition !== undefined && targetPosition >= 0 && targetPosition <= gameState.moveHistory.length) {
         goToPosition(targetPosition);
+    } else {
+        console.log('Invalid target position');
     }
 }
 

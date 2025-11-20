@@ -98,13 +98,14 @@ $(document).ready(function() {
             mode: 'chess',
             lineNumbers: false,
             lineWrapping: true,
-            readOnly: true,
+            readOnly: 'nocursor',  // Prevent cursor and editing
             theme: 'default',
             viewportMargin: Infinity
         });
         
         // Add click handler for move navigation
         moveHistoryEditor.on('mousedown', function(cm, e) {
+            e.preventDefault();  // Prevent default click behavior
             const pos = cm.coordsChar({left: e.clientX, top: e.clientY});
             navigateToMoveAtClick(pos.line, pos.ch);
         });
