@@ -75,12 +75,20 @@ function buildPGNWithVariants() {
                 // Add prefix only for first line (with branch symbol)
                 if (isFirstLine) {
                     currentLine = firstLinePrefix + san.padEnd(6);
+                    isFirstLine = false;
                 } else {
                     // Align with the first move (after the opening parenthesis)
                     currentLine = indent + moveNumber + '. ' + san.padEnd(6);
                 }
             } else {
-                currentLine += san;
+                // Black move
+                if (isFirstLine) {
+                    // First move is black - need to start with the prefix
+                    currentLine = firstLinePrefix + san;
+                    isFirstLine = false;
+                } else {
+                    currentLine += san;
+                }
             }
             
             // Check for sub-variants at this position within the variant
