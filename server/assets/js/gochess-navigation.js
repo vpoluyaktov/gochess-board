@@ -150,8 +150,15 @@ function stepForward() {
 
 // Navigate to a specific position in the move history
 function goToPosition(targetPosition) {
-    if (targetPosition < 0 || targetPosition > gameState.moveHistory.length) return;
-    if (targetPosition === gameState.currentPosition) return; // Already at this position
+    console.log('goToPosition called with:', targetPosition, 'current:', gameState.currentPosition);
+    if (targetPosition < 0 || targetPosition > gameState.moveHistory.length) {
+        console.log('Invalid position range');
+        return;
+    }
+    if (targetPosition === gameState.currentPosition) {
+        console.log('Already at this position');
+        return; // Already at this position
+    }
     
     // Pause clock if running
     if (gameState.clockRunning && !gameState.isNavigating) {

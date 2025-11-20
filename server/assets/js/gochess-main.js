@@ -105,8 +105,11 @@ $(document).ready(function() {
         
         // Add click handler for move navigation
         moveHistoryEditor.on('mousedown', function(cm, e) {
+            // Get position using pageX/pageY for accurate coordinates
+            const pos = cm.coordsChar({left: e.pageX, top: e.pageY});
+            console.log('Click coords:', e.pageX, e.pageY, '-> pos:', pos);
             e.preventDefault();  // Prevent default click behavior
-            const pos = cm.coordsChar({left: e.clientX, top: e.clientY});
+            e.stopPropagation();  // Stop event from bubbling
             navigateToMoveAtClick(pos.line, pos.ch);
         });
         
