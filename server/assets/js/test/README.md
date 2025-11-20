@@ -1,10 +1,18 @@
-# Go Chess Variant Tests
+# Go Chess Test Suite
 
-Comprehensive unit tests for variant creation, merging, loading, and saving logic.
+Comprehensive unit tests for variant logic, move history display, and chessboard library.
 
 ## Test Framework
 
 Uses **Mocha** (test runner) + **Chai** (assertions)
+
+## Test Files
+
+- **variant-tests.js** - Variant creation, merging, parsing, and saving (22 tests)
+- **history-tests.js** - PGN tree visualization and move history display (11 tests)
+- **chessboard-tests.js** - Chessboard library utilities and API (9 tests)
+
+**Total: 42 tests**
 
 ## Running Tests
 
@@ -41,43 +49,82 @@ npm run test:watch
 
 ## Test Coverage
 
-### 1. Basic Variant Storage
+### Variant Tests (variant-tests.js)
+
+#### 1. Basic Variant Storage
 - ✓ Store variant at correct position
 - ✓ Support multiple variants at same position
 
-### 2. Nested Variant Storage
+#### 2. Nested Variant Storage
 - ✓ Store nested variants with position adjustment
 - ✓ Handle deeply nested variants (3+ levels)
 
-### 3. Variant Merging
+#### 3. Variant Merging
 - ✓ Add new variant (variantIndex = -1)
 - ✓ Replace existing variant (variantIndex >= 0)
 - ✓ Merge sub-variants with position adjustment
 
-### 4. PGN Parsing with Variants
+#### 4. PGN Parsing with Variants
 - ✓ Parse simple PGN with one variant
 - ✓ Parse PGN with nested variants
 - ✓ Parse PGN with multiple variants at same position
 - ✓ Handle black move variants correctly
 
-### 5. PGN Building with Variants
+#### 5. PGN Building with Variants
 - ✓ Build standard PGN with simple variant
 - ✓ Build PGN with nested variants
 - ✓ Build PGN with multiple variants
 
-### 6. Variant Navigation
+#### 6. Variant Navigation
 - ✓ Enable/disable Open Variation button correctly
 - ✓ Detect variants at current position
 
-### 7. Edge Cases
+#### 7. Edge Cases
 - ✓ Empty move history
 - ✓ Variant with no moves
 - ✓ Variant at invalid position
 - ✓ Deeply nested variants (5+ levels)
 
-### 8. Round-trip Testing
+#### 8. Round-trip Testing
 - ✓ Preserve variants through save/load cycle
 - ✓ Preserve multiple variants through round-trip
+
+### History Tests (history-tests.js)
+
+#### 1. PGN Tree Visualization
+- ✓ Display variant after white move on same line as move pair
+- ✓ Keep variant move pairs on same line
+- ✓ Handle variant after white move with black continuation
+- ✓ Display variant after black move correctly
+- ✓ Handle multiple variants at same position
+- ✓ Handle nested variants
+- ✓ Not break move pairs when variant exists
+- ✓ Handle empty move history
+- ✓ Handle game with no variants
+
+#### 2. Move Pair Formatting
+- ✓ Pad white moves for alignment
+- ✓ Format move numbers correctly
+
+### Chessboard Tests (chessboard-tests.js)
+
+#### 1. Library Loading
+- ✓ Chessboard constructor available
+- ✓ ChessBoard alias available
+- ✓ Utility functions available (fenToObj, objToFen)
+
+#### 2. FEN Utility Functions
+- ✓ Convert FEN to position object
+- ✓ Convert position object to FEN
+- ✓ Handle empty position
+- ✓ Round-trip FEN conversion
+
+#### 3. Custom Modifications
+- ✓ Arrow drawing feature documented
+- ✓ console.error instead of alert
+
+**Note:** Full DOM-dependent chessboard tests (board creation, piece movement, arrow drawing) 
+require a real browser environment and should be tested with `test-runner.html`.
 
 ## Test Structure
 
@@ -97,7 +144,11 @@ describe('Test Category', function() {
 
 ## Adding New Tests
 
-1. Open `variant-tests.js`
+1. Choose the appropriate test file:
+   - `variant-tests.js` for variant logic
+   - `history-tests.js` for PGN display
+   - `chessboard-tests.js` for chessboard utilities
+
 2. Add new test in appropriate `describe` block:
 
 ```javascript
