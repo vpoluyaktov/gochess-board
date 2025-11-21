@@ -64,6 +64,9 @@ global.game = new Chess();
 global.lastMoveSquares = { from: null, to: null };
 global.squareClass = 'square-55d63';
 
+// Silence console.log during tests (keep console.error for debugging)
+global.console.log = function() {};
+
 // Mock UI update functions that aren't needed for tests
 global.updateMoveHistoryDisplay = function() {};
 global.updateInfoText = function() {};
