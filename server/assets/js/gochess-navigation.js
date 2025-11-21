@@ -311,22 +311,38 @@ function openVariation() {
     const windowFeatures = 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no';
     variantWindow = window.open(window.location.href, '_blank', windowFeatures);
     
-    // Wait for variant window to be ready, then send data
-    const sendDataInterval = setInterval(function() {
-        if (variantWindow && !variantWindow.closed) {
+    // Wait for variant window to signal it's ready
+    let messageSent = false;
+    const readyListener = function(event) {
+        if (event.origin !== window.location.origin) return;
+        if (event.data.type === 'variant-ready' && !messageSent) {
+            console.log('Variant window is ready, sending data');
+            messageSent = true;
             try {
+                console.log('Sending variant data to child window:', variantData);
                 variantWindow.postMessage(variantData, window.location.origin);
+                console.log('Variant data sent successfully');
             } catch (e) {
                 console.error('Error sending variant data:', e);
             }
-        } else {
-            clearInterval(sendDataInterval);
+            window.removeEventListener('message', readyListener);
         }
-    }, 100);
+    };
     
-    // Stop trying after 5 seconds
+    window.addEventListener('message', readyListener);
+    
+    // Fallback: if no ready signal after 5 seconds, try sending anyway
     setTimeout(function() {
-        clearInterval(sendDataInterval);
+        if (!messageSent && variantWindow && !variantWindow.closed) {
+            console.log('Timeout waiting for ready signal, sending anyway');
+            try {
+                variantWindow.postMessage(variantData, window.location.origin);
+                messageSent = true;
+            } catch (e) {
+                console.error('Error sending variant data:', e);
+            }
+        }
+        window.removeEventListener('message', readyListener);
     }, 5000);
 }
 

@@ -34,7 +34,9 @@ function initializeVariantMode() {
         window.addEventListener('message', handleMainWindowMessage);
         
         // Notify parent window that variant is ready
+        console.log('Variant window initialized, sending ready signal to parent');
         mainWindow.postMessage({ type: 'variant-ready' }, window.location.origin);
+        console.log('Ready signal sent');
     } else {
         // Main window mode - listen for messages from variant windows
         window.addEventListener('message', handleMainWindowMessage);
@@ -83,34 +85,68 @@ function startVariant() {
     const windowFeatures = 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no';
     variantWindow = window.open(window.location.href, '_blank', windowFeatures);
     
-    // Wait for variant window to be ready, then send data
-    const sendDataInterval = setInterval(function() {
-        if (variantWindow && !variantWindow.closed) {
+    // Wait for variant window to signal it's ready
+    let messageSent = false;
+    const readyListener = function(event) {
+        if (event.origin !== window.location.origin) return;
+        if (event.data.type === 'variant-ready' && !messageSent) {
+            console.log('Variant window is ready, sending data');
+            messageSent = true;
             try {
+                console.log('Sending new variant data to child window:', variantData);
                 variantWindow.postMessage(variantData, window.location.origin);
+                console.log('New variant data sent successfully');
             } catch (e) {
                 console.error('Error sending variant data:', e);
             }
-        } else {
-            clearInterval(sendDataInterval);
+            window.removeEventListener('message', readyListener);
         }
-    }, 100);
+    };
     
-    // Stop trying after 5 seconds
+    window.addEventListener('message', readyListener);
+    
+    // Fallback: if no ready signal after 5 seconds, try sending anyway
     setTimeout(function() {
-        clearInterval(sendDataInterval);
+        if (!messageSent && variantWindow && !variantWindow.closed) {
+            console.log('Timeout waiting for ready signal, sending anyway');
+            try {
+                variantWindow.postMessage(variantData, window.location.origin);
+                messageSent = true;
+            } catch (e) {
+                console.error('Error sending variant data:', e);
+            }
+        }
+        window.removeEventListener('message', readyListener);
     }, 5000);
 }
 
 function handleVariantMessage(event) {
     // Verify origin for security
     if (event.origin !== window.location.origin) {
+        console.log('Rejected message from wrong origin:', event.origin);
         return;
     }
     
     const data = event.data;
     
+    // Filter out noise from browser extensions
+    if (!data || !data.type || data.source === 'react-devtools-content-script') {
+        return;
+    }
+    
+    console.log('Received message:', data.type, data);
+    
     if (data.type === 'start-variant') {
+        // Prevent processing the same message multiple times
+        if (window.variantDataLoaded) {
+            console.log('Ignoring duplicate variant data message');
+            return;
+        }
+        window.variantDataLoaded = true;
+        
+        // Check if moveHistoryEditor is initialized
+        console.log('moveHistoryEditor initialized:', moveHistoryEditor !== null);
+        
         // Load the game state from main window
         console.log('Loading variant data:', data);
         
@@ -186,6 +222,12 @@ function handleVariantMessage(event) {
         // Don't clear variants - allow sub-variants in variant windows
         
         // Update all displays
+        console.log('Updating displays with gameState:', {
+            moveHistory: gameState.moveHistory,
+            currentPosition: gameState.currentPosition,
+            variantStartPosition: variantStartPosition,
+            variantIndex: variantIndex
+        });
         updateMoveHistoryDisplay();
         updateClockDisplay();
         updateInfoText();

@@ -64,7 +64,7 @@ global.game = new Chess();
 global.lastMoveSquares = { from: null, to: null };
 global.squareClass = 'square-55d63';
 
-// Mock UI update functions that aren't needed for navigation tests
+// Mock UI update functions that aren't needed for tests
 global.updateMoveHistoryDisplay = function() {};
 global.updateInfoText = function() {};
 global.updateOpeningDisplay = function() {};
@@ -74,6 +74,9 @@ global.updateVariantButtons = function() {};
 global.pauseClock = function() {};
 global.resumeClock = function() {};
 global.checkForComputerMove = function() {};
+global.updateClockDisplay = function() {};
+global.getWhitePlayer = function() { return 'human'; };
+global.getBlackPlayer = function() { return 'human'; };
 
 // Mock analysis variables
 global.analysisActive = false;

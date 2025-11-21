@@ -12,9 +12,10 @@ Uses **Mocha** (test runner) + **Chai** (assertions)
 - **history-tests.js** - PGN tree visualization and move history display (11 tests)
 - **chessboard-tests.js** - Chessboard library utilities and API (9 tests)
 - **navigation-tests.js** - Position navigation and click handling (25 tests, 2 pending)
-- **codemirror-integration-tests.js** - CodeMirror API integration (23 tests)
+- **codemirror-integration-tests.js** - CodeMirror 5 API integration (23 tests)
+- **variant-window-tests.js** - Window messaging for variant windows (9 tests)
 
-**Total: 90 tests (88 passing, 2 pending)**
+**Total: 99 tests (97 passing, 2 pending)**
 
 ## Running Tests
 
@@ -212,6 +213,30 @@ that will be addressed in a future update.
 
 **Purpose:** These tests ensure all CodeMirror API calls used in the application 
 are properly abstracted and will help identify breaking changes when migrating to CodeMirror 6.
+
+---
+
+### Variant Window Messaging Tests (variant-window-tests.js)
+
+#### 1. Message Sending (3 tests)
+- ✓ Send variant data to new window
+- ✓ Stop sending after first successful send
+- ✓ Not send if window is closed
+
+#### 2. Message Receiving (4 tests)
+- ✓ Process variant data message
+- ✓ Ignore duplicate messages
+- ✓ Reject messages from different origin
+- ✓ Ignore non-variant messages
+
+#### 3. Message Data Validation (2 tests)
+- ✓ Include all required fields in variant data
+- ✓ Correctly calculate FEN for variant position
+
+**Purpose:** These tests verify the window.postMessage communication between the main 
+window and variant windows. They ensure that variant data is sent correctly, received 
+only once, and validated for security. This prevents the "chaotic piece movement" bug 
+where messages were processed multiple times.
 
 ## Test Structure
 

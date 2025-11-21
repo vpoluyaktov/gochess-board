@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Unit tests for Go Chess variant logic",
   "scripts": {
-    "test": "mocha --require test-setup.js variant-tests.js history-tests.js chessboard-tests.js navigation-tests.js codemirror-integration-tests.js",
-    "test:watch": "mocha --require test-setup.js variant-tests.js history-tests.js chessboard-tests.js navigation-tests.js codemirror-integration-tests.js --watch",
+    "test": "mocha --require test-setup.js variant-tests.js history-tests.js chessboard-tests.js navigation-tests.js codemirror-integration-tests.js variant-window-tests.js",
+    "test:watch": "mocha --require test-setup.js variant-tests.js history-tests.js chessboard-tests.js navigation-tests.js codemirror-integration-tests.js variant-window-tests.js --watch",
     "test:browser": "open test-runner.html"
   },
   "devDependencies": {
