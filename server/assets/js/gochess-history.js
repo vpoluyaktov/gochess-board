@@ -34,10 +34,14 @@ function updateMoveHistoryDisplay() {
     updatePositionIndicator();
 }
 
+// Global mapping of line numbers to variant metadata
+var lineToVariantMap = {};
+
 function buildPGNWithVariants() {
     // Build tree-style notation with variants on separate lines
     const tempGame = new Chess();
     let lines = [];
+    lineToVariantMap = {}; // Reset the mapping
     
     function uciToSan(uciMove, game) {
         const from = uciMove.substring(0, 2);
@@ -48,7 +52,7 @@ function buildPGNWithVariants() {
         return move ? move.san : null;
     }
     
-    function buildVariantLines(variantMoves, startPosition, startGame, firstLinePrefix, depth) {
+    function buildVariantLines(variantMoves, startPosition, startGame, firstLinePrefix, depth, variantPosition, variantIndex) {
         const variantGame = new Chess(startGame.fen());
         const variantLines = [];
         let currentLine = '';
@@ -165,7 +169,8 @@ function buildPGNWithVariants() {
                 
                 // Add the variant
                 const variantPos = pendingVariantPosition;
-                for (const variant of gameState.variants[variantPos]) {
+                for (let variantIdx = 0; variantIdx < gameState.variants[variantPos].length; variantIdx++) {
+                    const variant = gameState.variants[variantPos][variantIdx];
                     const variantGame = new Chess();
                     for (let j = 0; j < variantPos; j++) {
                         uciToSan(gameState.moveHistory[j], variantGame);
@@ -178,7 +183,16 @@ function buildPGNWithVariants() {
                         ? '   └─ (' + variantMoveNum + '. '
                         : '   └─ (' + variantMoveNum + '... ';
                     
-                    const variantLines = buildVariantLines(variant, variantPos, variantGame, firstMovePrefix, 0);
+                    const variantLines = buildVariantLines(variant, variantPos, variantGame, firstMovePrefix, 0, variantPos, variantIdx);
+                    // Store mapping for each line in the variant
+                    const startLineNum = lines.length;
+                    for (let k = 0; k < variantLines.length; k++) {
+                        lineToVariantMap[startLineNum + k] = {
+                            position: variantPos,
+                            index: variantIdx,
+                            isStart: k === 0
+                        };
+                    }
                     lines.push(...variantLines);
                 }
                 pendingVariantPosition = -1;
@@ -199,7 +213,8 @@ function buildPGNWithVariants() {
                     currentLine = '';
                 }
                 
-                for (const variant of gameState.variants[i]) {
+                for (let variantIdx = 0; variantIdx < gameState.variants[i].length; variantIdx++) {
+                    const variant = gameState.variants[i][variantIdx];
                     const variantGame = new Chess();
                     for (let j = 0; j < i; j++) {
                         uciToSan(gameState.moveHistory[j], variantGame);
@@ -213,7 +228,16 @@ function buildPGNWithVariants() {
                         ? '   └─ (' + variantMoveNum + '. '
                         : '   └─ (' + variantMoveNum + '... ';
                     
-                    const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix, 0);
+                    const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix, 0, variantStartPos, variantIdx);
+                    // Store mapping for each line in the variant
+                    const startLineNum = lines.length;
+                    for (let k = 0; k < variantLines.length; k++) {
+                        lineToVariantMap[startLineNum + k] = {
+                            position: variantStartPos,
+                            index: variantIdx,
+                            isStart: k === 0
+                        };
+                    }
                     lines.push(...variantLines);
                 }
             }
@@ -227,7 +251,8 @@ function buildPGNWithVariants() {
         // Check for variants after the last move
         const lastMoveIndex = gameState.moveHistory.length;
         if (gameState.variants[lastMoveIndex]) {
-            for (const variant of gameState.variants[lastMoveIndex]) {
+            for (let variantIdx = 0; variantIdx < gameState.variants[lastMoveIndex].length; variantIdx++) {
+                const variant = gameState.variants[lastMoveIndex][variantIdx];
                 const variantGame = new Chess();
                 for (let j = 0; j < gameState.moveHistory.length; j++) {
                     uciToSan(gameState.moveHistory[j], variantGame);
@@ -237,12 +262,20 @@ function buildPGNWithVariants() {
                 const isVariantWhiteMove = variantStartPos % 2 === 0;
                 const variantMoveNum = Math.floor(variantStartPos / 2) + 1;
                 
-                // Add branch symbol and opening parenthesis with first move
                 const firstMovePrefix = isVariantWhiteMove 
                     ? '   └─ (' + variantMoveNum + '. '
                     : '   └─ (' + variantMoveNum + '... ';
                 
-                const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix, 0);
+                const variantLines = buildVariantLines(variant, variantStartPos, variantGame, firstMovePrefix, 0, variantStartPos, variantIdx);
+                // Store mapping for each line in the variant
+                const startLineNum = lines.length;
+                for (let k = 0; k < variantLines.length; k++) {
+                    lineToVariantMap[startLineNum + k] = {
+                        position: variantStartPos,
+                        index: variantIdx,
+                        isStart: k === 0
+                    };
+                }
                 lines.push(...variantLines);
             }
         }
@@ -413,84 +446,53 @@ function highlightVariantLines(startLine, endLine) {
 
 // Select a variant line when clicked
 function selectVariantLine(lineNum) {
+    // Use the pre-built mapping instead of parsing text
+    const variantInfo = lineToVariantMap[lineNum];
+    
+    if (!variantInfo) {
+        // Not a variant line, ignore
+        return;
+    }
+    
+    const { position, index } = variantInfo;
+    
+    // Validate that the variant still exists
+    if (!gameState.variants[position] || !gameState.variants[position][index]) {
+        console.warn('Variant no longer exists:', position, index);
+        return;
+    }
+    
     const text = moveHistoryEditor.getValue();
     const lines = text.split('\n');
     
-    if (lineNum >= lines.length) return;
-    
-    const line = lines[lineNum];
-    
-    // Parse variant line to extract position and find which variant it is
-    // Variant format: "   └─ (14. Kxf4 ..." or "       14. Qe4+ ..."
-    
-    // Extract move number from variant line
-    let moveNumberMatch = line.match(/\((\d+)\./) || line.match(/\((\d+)\.\.\./);
-    if (!moveNumberMatch) {
-        // Try to find move number without parenthesis (continuation lines)
-        moveNumberMatch = line.match(/(\d+)\./);
-    }
-    
-    if (!moveNumberMatch) return;
-    
-    const moveNumber = parseInt(moveNumberMatch[1]);
-    
-    // Determine if this is a white or black move variant
-    const isBlackVariant = line.includes('...');
-    const variantPosition = isBlackVariant ? (moveNumber - 1) * 2 + 1 : (moveNumber - 1) * 2;
-    
-    // Find which variant index this is by scanning backwards to find the variant start
-    let variantIndex = 0;
+    // Find the start and end lines of this variant for highlighting
     let variantStartLine = lineNum;
-    
-    // Scan backwards to find the start of this variant (line with └─)
     for (let i = lineNum; i >= 0; i--) {
-        if (lines[i].includes('└─')) {
+        if (lineToVariantMap[i] && 
+            lineToVariantMap[i].position === position && 
+            lineToVariantMap[i].index === index &&
+            lineToVariantMap[i].isStart) {
             variantStartLine = i;
             break;
         }
     }
     
-    // Count how many variants at this position come before this one
-    for (let i = 0; i < variantStartLine; i++) {
-        if (lines[i].includes('└─')) {
-            const prevMatch = lines[i].match(/\((\d+)\./) || lines[i].match(/\((\d+)\.\.\./);
-            if (prevMatch) {
-                const prevMoveNum = parseInt(prevMatch[1]);
-                const prevIsBlack = lines[i].includes('...');
-                const prevPos = prevIsBlack ? (prevMoveNum - 1) * 2 + 1 : (prevMoveNum - 1) * 2;
-                if (prevPos === variantPosition) {
-                    variantIndex++;
-                }
-            }
-        }
-    }
-    
-    // Find the end of this variant (next non-indented line or next variant)
+    // Find the end line of this variant
     let variantEndLine = lineNum;
-    const baseIndent = lines[variantStartLine].match(/^(\s*)/)[1].length;
-    
-    for (let i = variantStartLine + 1; i < lines.length; i++) {
-        const currentIndent = lines[i].match(/^(\s*)/)[1].length;
-        
-        // Stop if we hit a line with less or equal indentation (unless it's a sub-variant)
-        if (currentIndent <= baseIndent && !lines[i].includes('└─')) {
-            variantEndLine = i - 1;
+    for (let i = lineNum + 1; i < lines.length; i++) {
+        if (lineToVariantMap[i] && 
+            lineToVariantMap[i].position === position && 
+            lineToVariantMap[i].index === index) {
+            variantEndLine = i;
+        } else {
             break;
         }
-        
-        // Stop if we hit another variant at the same level
-        if (currentIndent === baseIndent && lines[i].includes('└─') && i !== variantStartLine) {
-            variantEndLine = i - 1;
-            break;
-        }
-        
-        variantEndLine = i;
     }
     
-    // Store selected variant info
+    // Store selected variant info using the correct position and index from mapping
     gameState.selectedVariant = {
-        position: variantPosition,
-        index: variantIndex,
+        position: position,
+        index: index,
         startLine: variantStartLine,
         endLine: variantEndLine
     };

@@ -255,22 +255,34 @@ function openVariation() {
         // Use the clicked/selected variant
         variantPosition = gameState.selectedVariant.position;
         variantIndex = gameState.selectedVariant.index;
+        console.log('Opening selected variant:', { variantPosition, variantIndex, selectedVariant: gameState.selectedVariant });
     } else {
         // Use variant at current position (legacy behavior)
         const currentMoveIndex = gameState.currentPosition > 0 ? gameState.currentPosition - 1 : -1;
         
         if (currentMoveIndex < 0 || !gameState.variants[currentMoveIndex] || 
             gameState.variants[currentMoveIndex].length === 0) {
+            console.log('No variant at current position:', currentMoveIndex);
             return;
         }
         
         variantPosition = currentMoveIndex;
         variantIndex = 0; // Default to first variant
+        console.log('Opening variant at current position:', { variantPosition, variantIndex });
     }
     
     // Validate variant exists
+    console.log('Checking if variant exists:', { 
+        variantPosition, 
+        variantIndex,
+        variantExists: gameState.variants[variantPosition] !== undefined,
+        variantAtIndex: gameState.variants[variantPosition] ? gameState.variants[variantPosition][variantIndex] : undefined
+    });
+    
     if (!gameState.variants[variantPosition] || 
         !gameState.variants[variantPosition][variantIndex]) {
+        console.log('Variant does not exist at position', variantPosition, 'index', variantIndex);
+        console.log('Available variants:', gameState.variants);
         return;
     }
     

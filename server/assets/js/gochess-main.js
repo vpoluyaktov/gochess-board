@@ -103,13 +103,55 @@ $(document).ready(function() {
             viewportMargin: Infinity
         });
         
-        // Add click handler for move navigation
+        // Add click handler for move navigation with double-click detection
         // Use the wrapper element to catch clicks
+        let clickTimer = null;
+        let lastClickLine = null;
+        
         moveHistoryEditor.getWrapperElement().addEventListener('click', function(e) {
             const pos = moveHistoryEditor.coordsChar({left: e.pageX, top: e.pageY});
             e.preventDefault();  // Prevent default click behavior
             e.stopPropagation();  // Stop event from bubbling
-            navigateToMoveAtClick(pos.line, pos.ch);
+            
+            const isVariantLine = lineToVariantMap[pos.line] !== undefined;
+            
+            // Check for double-click (two clicks on same line within 300ms)
+            if (clickTimer && lastClickLine === pos.line) {
+                // Double-click detected
+                clearTimeout(clickTimer);
+                clickTimer = null;
+                lastClickLine = null;
+                
+                console.log('Double-click detected at line:', pos.line);
+                console.log('Variant info at line:', lineToVariantMap[pos.line]);
+                
+                // Check if this is a variant line
+                if (isVariantLine) {
+                    console.log('Opening variant at line', pos.line);
+                    // Select the variant first
+                    selectVariantLine(pos.line);
+                    // Then open it
+                    openVariation();
+                } else {
+                    console.log('Not a variant line, navigating normally');
+                    navigateToMoveAtClick(pos.line, pos.ch);
+                }
+            } else {
+                // Single click
+                if (isVariantLine) {
+                    // On variant line - delay to detect potential double-click
+                    lastClickLine = pos.line;
+                    clickTimer = setTimeout(function() {
+                        // Single click confirmed
+                        navigateToMoveAtClick(pos.line, pos.ch);
+                        clickTimer = null;
+                        lastClickLine = null;
+                    }, 300);
+                } else {
+                    // Not a variant line - execute immediately (no delay)
+                    navigateToMoveAtClick(pos.line, pos.ch);
+                }
+            }
         });
         
         // Add paste event handler
