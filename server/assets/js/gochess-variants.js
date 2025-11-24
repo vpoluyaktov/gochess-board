@@ -81,9 +81,8 @@ function startVariant() {
         blackTimeMs: gameState.blackTimeMs
     };
     
-    // Open new window with same URL
-    const windowFeatures = 'width=1400,height=900,menubar=no,toolbar=no,location=no,status=no';
-    variantWindow = window.open(window.location.href, '_blank', windowFeatures);
+    // Open new tab with same URL
+    variantWindow = window.open(window.location.href, '_blank');
     
     // Wait for variant window to signal it's ready
     let messageSent = false;
