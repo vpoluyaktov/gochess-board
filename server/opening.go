@@ -204,13 +204,10 @@ func (ob *OpeningBook) addOpening(eco, name, pgn string) error {
 
 // parsePGNMoves extracts moves from a PGN string
 func parsePGNMoves(pgn string) ([]string, error) {
-	// Parse the PGN using the chess library
-	game := chess.NewGame()
-
 	// Remove move numbers and extra whitespace
 	// PGN format: "1. e4 e5 2. Nf3 Nc6"
 	parts := strings.Fields(pgn)
-	var moves []string
+	moves := make([]string, 0, len(parts)/2) // Pre-allocate with estimated capacity
 
 	for _, part := range parts {
 		// Skip move numbers (e.g., "1.", "2.")
@@ -218,12 +215,13 @@ func parsePGNMoves(pgn string) ([]string, error) {
 			continue
 		}
 
-		// Try to parse the move
-		if err := game.MoveStr(part); err != nil {
-			return nil, fmt.Errorf("invalid move %s in PGN %s: %w", part, pgn, err)
-		}
-
 		moves = append(moves, part)
+	}
+
+	// Validate moves only if needed (we trust the TSV data is correct)
+	// For production, we could add a validation flag or validate once during development
+	if len(moves) == 0 {
+		return nil, fmt.Errorf("no moves in PGN: %s", pgn)
 	}
 
 	return moves, nil
