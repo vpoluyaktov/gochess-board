@@ -869,3 +869,447 @@ button:hover {
 .chess-future-move {
     opacity: 0.4;
 }
+
+/* ========================================
+   MOBILE RESPONSIVE STYLES
+   ======================================== */
+
+/* Tablet and smaller screens */
+@media screen and (max-width: 1024px) {
+    .container {
+        padding: 20px;
+        max-width: 100%;
+        width: 100%;
+        box-sizing: border-box;
+    }
+    
+    .game-layout {
+        gap: 15px;
+    }
+    
+    #myBoard {
+        width: 400px;
+    }
+    
+    .sidebar {
+        min-width: 220px;
+        max-width: 250px;
+    }
+    
+    .move-history-panel {
+        flex: 0 0 250px;
+    }
+}
+
+/* Mobile devices - Stack layout vertically */
+@media screen and (max-width: 768px) {
+    body {
+        padding: 10px;
+        min-height: auto;
+    }
+    
+    .container {
+        padding: 15px;
+        border-radius: 8px;
+        box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+    }
+    
+    h1 {
+        font-size: 20px;
+        margin-bottom: 15px;
+    }
+    
+    /* Stack the layout vertically */
+    .game-layout {
+        flex-direction: column;
+        gap: 15px;
+        min-height: auto;
+    }
+    
+    /* Board area takes full width */
+    .board-area {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    /* Scale board to fit mobile screen */
+    #myBoard {
+        width: 100% !important;
+        max-width: 400px;
+    }
+    
+    /* Player info adjustments */
+    .player-info {
+        width: 100%;
+        max-width: 400px;
+        padding: 8px 12px;
+        gap: 10px;
+    }
+    
+    .player-select {
+        font-size: 14px;
+        padding: 6px 10px;
+    }
+    
+    .clock-compact {
+        padding: 6px 15px;
+        min-width: 80px;
+    }
+    
+    .clock-time {
+        font-size: 20px;
+    }
+    
+    /* Move history panel full width */
+    .move-history-panel {
+        width: 100%;
+        flex: 0 0 auto;
+        order: 2;
+    }
+    
+    .move-history {
+        min-height: 250px;
+        max-height: 300px;
+    }
+    
+    .move-history-text {
+        min-height: 150px;
+    }
+    
+    /* Sidebar full width */
+    .sidebar {
+        width: 100%;
+        min-width: auto;
+        max-width: 100%;
+        order: 3;
+    }
+    
+    /* Adjust button sizes */
+    button {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+    
+    .controls {
+        gap: 6px;
+    }
+    
+    /* Modal adjustments */
+    .modal-content {
+        width: 95%;
+        max-height: 85vh;
+    }
+    
+    .modal-header h2 {
+        font-size: 18px;
+    }
+    
+    .modal-body {
+        padding: 15px;
+    }
+    
+    .game-table {
+        font-size: 12px;
+    }
+    
+    .game-table th,
+    .game-table td {
+        padding: 8px 6px;
+    }
+}
+
+/* Small mobile devices */
+@media screen and (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+    
+    .container {
+        padding: 10px;
+        border-radius: 5px;
+    }
+    
+    h1 {
+        font-size: 18px;
+        margin-bottom: 10px;
+    }
+    
+    .game-layout {
+        gap: 10px;
+    }
+    
+    /* Smaller board for very small screens */
+    #myBoard {
+        max-width: 320px;
+    }
+    
+    .player-info {
+        max-width: 320px;
+        padding: 6px 10px;
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+    
+    .player-select {
+        font-size: 13px;
+        padding: 5px 8px;
+        flex: 1 1 100%;
+        order: 1;
+    }
+    
+    .player-controls {
+        order: 2;
+        flex: 1 1 auto;
+    }
+    
+    .clock-compact {
+        padding: 5px 12px;
+        min-width: 70px;
+        order: 3;
+        flex: 1 1 auto;
+    }
+    
+    .clock-time {
+        font-size: 18px;
+    }
+    
+    .resign-btn,
+    .draw-btn {
+        padding: 3px 6px;
+        font-size: 10px;
+    }
+    
+    /* Compact navigation controls */
+    .navigation-controls {
+        gap: 2px;
+        padding: 5px 3px;
+    }
+    
+    .nav-btn {
+        padding: 3px 5px;
+        font-size: 11px;
+        min-width: 24px;
+    }
+    
+    /* Smaller buttons */
+    button {
+        padding: 7px 12px;
+        font-size: 12px;
+    }
+    
+    .history-footer-btn,
+    .variant-bottom-btn {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+    
+    /* Compact move history */
+    .move-history {
+        min-height: 200px;
+        max-height: 250px;
+    }
+    
+    .move-history-text {
+        min-height: 120px;
+        font-size: 12px;
+    }
+    
+    .move-history-header {
+        padding: 8px;
+        font-size: 13px;
+    }
+    
+    /* Compact form elements */
+    .time-control-selection,
+    .analysis-engine-selection {
+        gap: 4px;
+        margin-bottom: 10px;
+    }
+    
+    .time-control-selection label,
+    .analysis-engine-selection label {
+        font-size: 12px;
+    }
+    
+    .time-control-selection select,
+    .analysis-engine-selection select {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
+    
+    .analysis-display-options {
+        padding: 10px;
+        gap: 8px;
+    }
+    
+    .analysis-option label {
+        font-size: 12px;
+    }
+    
+    .analysis-depth {
+        font-size: 12px;
+        padding: 5px 10px;
+    }
+    
+    .info {
+        padding: 8px;
+        font-size: 12px;
+    }
+    
+    .opening-compact {
+        padding: 6px 8px;
+        font-size: 11px;
+    }
+    
+    /* Modal adjustments for small screens */
+    .modal-content {
+        width: 98%;
+        max-height: 90vh;
+    }
+    
+    .modal-header {
+        padding: 15px;
+    }
+    
+    .modal-header h2 {
+        font-size: 16px;
+    }
+    
+    .modal-close {
+        font-size: 28px;
+    }
+    
+    .modal-body {
+        padding: 10px;
+    }
+    
+    .modal-info {
+        font-size: 14px;
+        margin-bottom: 15px;
+    }
+    
+    .game-table {
+        font-size: 11px;
+    }
+    
+    .game-table th,
+    .game-table td {
+        padding: 6px 4px;
+    }
+    
+    .game-table th:first-child {
+        width: 35px;
+    }
+    
+    .modal-footer {
+        padding: 10px 15px;
+    }
+    
+    .modal-btn {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+}
+
+/* Landscape orientation adjustments for mobile */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    .game-layout {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+    
+    .board-area {
+        flex: 0 0 auto;
+        order: 1;
+    }
+    
+    #myBoard {
+        max-width: 350px;
+    }
+    
+    .move-history-panel {
+        flex: 1 1 250px;
+        order: 2;
+        min-width: 200px;
+    }
+    
+    .sidebar {
+        flex: 1 1 100%;
+        order: 3;
+    }
+}
+
+/* PGN Game Selector Modal - Mobile Optimizations */
+@media screen and (max-width: 768px) {
+    /* Hide less important columns on mobile */
+    .game-table th:nth-child(5), /* Event */
+    .game-table td:nth-child(5) {
+        display: none;
+    }
+    
+    .game-table th:nth-child(7), /* Opening */
+    .game-table td:nth-child(7) {
+        display: none;
+    }
+    
+    /* Adjust remaining columns */
+    .game-table th:nth-child(2), /* White */
+    .game-table td:nth-child(2),
+    .game-table th:nth-child(3), /* Black */
+    .game-table td:nth-child(3) {
+        max-width: 120px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    
+    .game-table th:nth-child(4), /* Result */
+    .game-table td:nth-child(4) {
+        width: 50px;
+    }
+    
+    .game-table th:nth-child(6), /* Date */
+    .game-table td:nth-child(6) {
+        font-size: 11px;
+        max-width: 80px;
+    }
+}
+
+@media screen and (max-width: 480px) {
+    /* Even more compact on small screens */
+    .game-table th:nth-child(6), /* Date */
+    .game-table td:nth-child(6) {
+        display: none;
+    }
+    
+    .game-table th:nth-child(2), /* White */
+    .game-table td:nth-child(2),
+    .game-table th:nth-child(3), /* Black */
+    .game-table td:nth-child(3) {
+        max-width: 90px;
+        font-size: 11px;
+    }
+    
+    .game-table th:nth-child(4), /* Result */
+    .game-table td:nth-child(4) {
+        width: 40px;
+        font-size: 11px;
+    }
+    
+    /* Adjust game table container */
+    .game-table-container {
+        max-height: 400px;
+    }
+    
+    /* Make rows more touch-friendly */
+    .game-table tbody tr {
+        min-height: 44px;
+    }
+    
+    .game-table th,
+    .game-table td {
+        padding: 10px 4px;
+    }
+}
