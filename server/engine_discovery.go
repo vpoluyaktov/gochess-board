@@ -11,6 +11,8 @@ import (
 	"runtime"
 	"strings"
 	"time"
+
+	"go-chess/utils"
 )
 
 // getExecutableName returns the platform-specific executable name
@@ -26,7 +28,7 @@ func getExecutableName(name string) string {
 func getEngineNames(baseNames []string) []string {
 	names := make([]string, len(baseNames))
 	for i, name := range baseNames {
-		names[i] = getExecutableName(name)
+		names[i] = utils.GetExecutableName(name)
 	}
 	return names
 }
@@ -79,7 +81,7 @@ func tryGetVersionFromBinary(path string) string {
 	if len(lines) > 0 {
 		firstLine := strings.TrimSpace(lines[0])
 		// Extract version from output like "GNU Chess 6.2.9"
-		return extractVersion(firstLine)
+		return utils.ExtractVersion(firstLine)
 	}
 	return ""
 }
@@ -275,7 +277,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 
 			if strings.HasPrefix(line, "id name ") {
 				info.Name = strings.TrimPrefix(line, "id name ")
-				info.Version = extractVersion(info.Name)
+				info.Version = utils.ExtractVersion(info.Name)
 			}
 
 			// Parse UCI options
@@ -285,7 +287,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 
 			if strings.HasPrefix(line, "uciok") {
 				if info.Name == "" {
-					info.Name = formatEngineName(path)
+					info.Name = utils.TitleCase(filepath.Base(path))
 				}
 				info.ID = strings.ToLower(strings.ReplaceAll(info.Name, " ", "_"))
 				info.Type = "uci"
@@ -428,9 +430,9 @@ func getCECPEngineInfo(path string) (EngineInfo, bool) {
 			// CECP engines send "feature done=1" when ready
 			if strings.Contains(line, "done=1") {
 				if info.Name == "" {
-					info.Name = formatEngineName(path)
+					info.Name = utils.TitleCase(filepath.Base(path))
 				}
-				info.Version = extractVersion(info.Name)
+				info.Version = utils.ExtractVersion(info.Name)
 				if info.Version == "" {
 					info.Version = tryGetVersionFromBinary(path)
 				}
@@ -447,9 +449,9 @@ func getCECPEngineInfo(path string) (EngineInfo, bool) {
 		// If we found feature lines but no done=1, still consider it CECP
 		if foundFeature {
 			if info.Name == "" {
-				info.Name = formatEngineName(path)
+				info.Name = utils.TitleCase(filepath.Base(path))
 			}
-			info.Version = extractVersion(info.Name)
+			info.Version = utils.ExtractVersion(info.Name)
 			if info.Version == "" {
 				info.Version = tryGetVersionFromBinary(path)
 			}

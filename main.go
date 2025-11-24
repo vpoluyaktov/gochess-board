@@ -5,13 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
 	"go-chess/server"
 	"go-chess/tui"
+	"go-chess/utils"
 )
 
 const (
@@ -55,7 +54,7 @@ func main() {
 
 	// Handle restart flag - kill process using our port
 	if *restart {
-		err := killProcessOnPort(*port)
+		err := utils.KillProcessOnPort(*port)
 		if err == nil {
 			// Successfully killed a process
 			fmt.Printf("Killed process using port %s\n", *port)
@@ -107,7 +106,7 @@ func main() {
 	// Open browser automatically unless disabled
 	if !*noBrowser {
 		fmt.Printf("Opening %s in your browser...\n", url)
-		if err := openBrowser(url); err != nil {
+		if err := utils.OpenBrowser(url); err != nil {
 			log.Printf("Failed to open browser: %v", err)
 			fmt.Printf("Please open %s manually\n", url)
 		}
@@ -129,70 +128,4 @@ func main() {
 		// Block forever
 		select {}
 	}
-}
-
-// openBrowser opens the default browser with the given URL
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default:
-		return fmt.Errorf("unsupported platform")
-	}
-
-	return cmd.Start()
-}
-
-// killProcessOnPort kills the process listening on the specified port
-// Returns nil if a process was killed, an error if something went wrong,
-// or a special error if no process was found
-func killProcessOnPort(port string) error {
-	var checkCmd, killCmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "linux", "darwin":
-		// First check if there's a process on the port
-		checkCmd = exec.Command("sh", "-c", fmt.Sprintf("lsof -ti:%s", port))
-		output, err := checkCmd.CombinedOutput()
-
-		// If lsof returns nothing or errors, no process is using the port
-		if err != nil || len(output) == 0 {
-			return fmt.Errorf("no process found on port %s", port)
-		}
-
-		// Kill the process
-		killCmd = exec.Command("sh", "-c",
-			fmt.Sprintf("lsof -ti:%s | xargs kill -9 2>/dev/null", port))
-		if err := killCmd.Run(); err != nil {
-			return fmt.Errorf("failed to kill process on port %s", port)
-		}
-
-	case "windows":
-		// Check if there's a process on the port
-		checkCmd = exec.Command("cmd", "/C",
-			fmt.Sprintf("netstat -ano | findstr :%s", port))
-		output, err := checkCmd.CombinedOutput()
-
-		if err != nil || len(output) == 0 {
-			return fmt.Errorf("no process found on port %s", port)
-		}
-
-		// Kill the process
-		killCmd = exec.Command("cmd", "/C",
-			fmt.Sprintf("for /f \"tokens=5\" %%a in ('netstat -ano ^| findstr :%s') do taskkill /F /PID %%a", port))
-		if err := killCmd.Run(); err != nil {
-			return fmt.Errorf("failed to kill process on port %s", port)
-		}
-
-	default:
-		return fmt.Errorf("unsupported platform for restart")
-	}
-
-	return nil
 }
