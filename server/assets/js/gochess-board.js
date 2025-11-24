@@ -30,6 +30,7 @@ function onDragStart(source, piece, position, orientation) {
     if (isComputerThinking) return false;
 
     const currentPlayer = getCurrentPlayer();
+    console.log('onDragStart - currentPlayer:', currentPlayer, 'isHuman:', isHuman(currentPlayer));
     if (!isHuman(currentPlayer)) return false;
 
     const turn = game.turn();
