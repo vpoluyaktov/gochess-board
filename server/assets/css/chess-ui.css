@@ -14,8 +14,8 @@ body {
     padding: 30px;
     border-radius: 10px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
-    max-width: 900px;
-    width: 90%;
+    max-width: fit-content;
+    width: auto;
 }
 
 h1 {
@@ -27,7 +27,15 @@ h1 {
 .game-layout {
     display: flex;
     gap: 20px;
-    align-items: flex-start;
+    align-items: stretch;
+    min-height: 600px;
+}
+
+.move-history-panel {
+    flex: 0 0 280px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 }
 
 .board-area {
@@ -39,8 +47,9 @@ h1 {
 }
 
 .sidebar {
-    flex: 1;
+    flex: 0 0 auto;
     min-width: 250px;
+    max-width: 280px;
     display: flex;
     flex-direction: column;
     gap: 15px;
@@ -123,6 +132,46 @@ button:hover {
     margin-top: 15px;
 }
 
+.player-controls {
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+}
+
+.resign-btn {
+    background: #ef5350;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.resign-btn:hover {
+    background: #e53935;
+}
+
+.draw-btn {
+    background: #66bb6a;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.draw-btn:hover {
+    background: #57a85c;
+}
+
 .player-select {
     flex: 1;
     padding: 8px 15px;
@@ -148,27 +197,28 @@ button:hover {
 
 .time-control-selection {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 6px;
     margin-bottom: 15px;
-    font-size: 16px;
 }
 
 .time-control-selection label {
     font-weight: bold;
     color: #667eea;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .time-control-selection select {
-    padding: 8px 15px;
-    font-size: 16px;
+    padding: 8px 12px;
+    font-size: 14px;
     border: 2px solid #667eea;
     border-radius: 5px;
     background: white;
     color: #333;
     cursor: pointer;
     transition: all 0.3s;
+    width: 100%;
 }
 
 .time-control-selection select:hover {
@@ -184,20 +234,20 @@ button:hover {
 
 .analysis-engine-selection {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
+    flex-direction: column;
+    gap: 6px;
     margin-bottom: 15px;
-    font-size: 14px;
 }
 
 .analysis-engine-selection label {
     font-weight: bold;
     color: #667eea;
+    font-size: 13px;
+    white-space: nowrap;
 }
 
 .analysis-engine-selection select {
-    padding: 8px 15px;
+    padding: 8px 12px;
     font-size: 14px;
     border: 2px solid #667eea;
     border-radius: 5px;
@@ -205,7 +255,7 @@ button:hover {
     color: #333;
     cursor: pointer;
     transition: all 0.3s;
-    flex: 1;
+    width: 100%;
 }
 
 .analysis-engine-selection select:hover {
@@ -219,33 +269,48 @@ button:hover {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
-.analysis-pv-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+.analysis-display-options {
+    background: #f9f9f9;
+    border-radius: 5px;
+    padding: 12px;
     margin-bottom: 15px;
-    padding: 0 10px;
-    font-size: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
-.analysis-pv-toggle label {
+.analysis-option {
+    display: flex;
+    align-items: center;
+}
+
+.analysis-option label {
     display: flex;
     align-items: center;
     gap: 8px;
     cursor: pointer;
-    color: #555;
+    color: #333;
     user-select: none;
+    font-size: 13px;
+    font-weight: 500;
 }
 
-.analysis-pv-toggle input[type="checkbox"] {
-    width: 18px;
-    height: 18px;
+.analysis-option input[type="radio"] {
+    width: 16px;
+    height: 16px;
     cursor: pointer;
     accent-color: #667eea;
+    flex-shrink: 0;
 }
 
-.analysis-pv-toggle label:hover {
+.analysis-option label:hover {
     color: #667eea;
+}
+
+.analysis-depth-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 4px;
 }
 
 .analysis-depth {
@@ -253,9 +318,10 @@ button:hover {
     font-weight: 600;
     color: #667eea;
     background: #f0f4ff;
-    padding: 4px 10px;
+    padding: 6px 12px;
     border-radius: 4px;
     border: 1px solid #d0d8ff;
+    white-space: nowrap;
 }
 
 .clock-compact {
@@ -309,7 +375,8 @@ button:hover {
     display: flex;
     flex-direction: column;
     flex: 1;
-    min-height: 300px;
+    min-height: 0;
+    height: 100%;
 }
 
 .move-history-header {
@@ -319,39 +386,40 @@ button:hover {
     font-weight: bold;
     text-align: center;
     font-size: 14px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
 }
 
-.move-history-buttons {
+.move-history-footer {
     display: flex;
     gap: 6px;
+    padding: 8px;
+    background: #f0f0f0;
+    border-top: 1px solid #e0e0e0;
 }
 
-.history-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+.history-footer-btn {
+    flex: 1;
+    background: #667eea;
+    border: none;
     color: white;
-    padding: 5px 10px;
-    border-radius: 3px;
+    padding: 8px 10px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
     transition: all 0.2s;
-    margin: 0;
-    width: auto;
     white-space: nowrap;
 }
 
-.history-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+.history-footer-btn:hover {
+    background: #5568d3;
     transform: translateY(-1px);
 }
 
 .move-history-text {
-    flex: 1;
+    flex: 1 1 0;
     width: calc(100% - 8px);
-    min-height: 250px;
+    height: 0;
+    min-height: 200px;
+    max-height: 100%;
     padding: 12px;
     margin: 4px;
     font-family: 'Courier New', monospace;
@@ -362,7 +430,7 @@ button:hover {
     background: #fafafa;
     color: #333;
     resize: none;
-    overflow-y: scroll;
+    overflow-y: auto !important;
     overflow-x: hidden;
     white-space: pre-wrap;
     word-wrap: break-word;
@@ -386,22 +454,23 @@ button:hover {
     display: flex;
     justify-content: center;
     align-items: center;
-    gap: 8px;
-    padding: 10px;
+    gap: 3px;
+    padding: 6px 4px;
     background: #f0f0f0;
     border-bottom: 1px solid #e0e0e0;
+    flex-wrap: nowrap;
 }
 
 .nav-btn {
     background: #667eea;
     border: none;
     color: white;
-    padding: 8px 12px;
-    border-radius: 4px;
+    padding: 4px 6px;
+    border-radius: 3px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 12px;
     transition: all 0.2s;
-    min-width: 40px;
+    min-width: 28px;
 }
 
 .nav-btn:hover:not(:disabled) {
@@ -421,10 +490,10 @@ button:hover {
 
 .position-indicator {
     font-family: 'Courier New', monospace;
-    font-size: 14px;
+    font-size: 11px;
     font-weight: bold;
     color: #333;
-    min-width: 60px;
+    min-width: 40px;
     text-align: center;
 }
 
@@ -434,16 +503,42 @@ button:hover {
     background: linear-gradient(135deg, #fff9e6 0%, #ffe8cc 100%);
     border-radius: 5px;
     border-left: 3px solid #ffb74d;
-    font-size: 13px;
+    font-size: 12px;
     color: #333;
     font-weight: 500;
     text-align: left;
-    line-height: 1.3;
+    line-height: 1.4;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 .opening-compact #openingText {
     color: #333;
     font-weight: 600;
+}
+
+/* Variant Controls Bottom - Aligned with History Footer */
+.variant-controls-bottom {
+    margin-top: auto;
+    padding-top: 0;
+}
+
+.variant-bottom-btn {
+    width: 100%;
+    background: #667eea;
+    border: none;
+    color: white;
+    padding: 8px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+
+.variant-bottom-btn:hover {
+    background: #5568d3;
+    transform: translateY(-1px);
 }
 
 /* Modal Styles */
@@ -658,8 +753,9 @@ button:hover {
 
 /* CodeMirror Chess Notation Styling */
 .CodeMirror {
-    height: auto;
-    min-height: 250px;
+    height: 100% !important;
+    max-height: 100%;
+    flex: 1 1 0;
     font-family: 'Courier New', monospace;
     font-size: 13px;
     line-height: 1.8;
@@ -670,7 +766,8 @@ button:hover {
 }
 
 .CodeMirror-scroll {
-    min-height: 250px;
+    max-height: 100%;
+    overflow-y: auto !important;
 }
 
 .CodeMirror-lines {
