@@ -18,7 +18,7 @@
     <div class="container">
         <h1>♟️ Go Chess Board ♟️</h1>
         
-        <!-- Main Game Area: Board + Sidebar -->
+        <!-- Main Game Area: Three Column Layout -->
         <div class="game-layout">
             <!-- Left: Board Area -->
             <div class="board-area">
@@ -61,7 +61,30 @@
                 </div>
             </div>
             
-            <!-- Right: Controls & Stats Sidebar -->
+            <!-- Center: Move History Panel -->
+            <div class="move-history-panel">
+                <div class="move-history">
+                    <div class="move-history-header">
+                        📜 Move History
+                        <div class="move-history-buttons">
+                            <button onclick="loadPGNFile()" class="history-btn" title="Load PGN from file">📂 Load PGN</button>
+                            <button onclick="savePGNFile()" class="history-btn" title="Save PGN to file">💾 Save PGN</button>
+                        </div>
+                    </div>
+                    <div class="navigation-controls">
+                        <button onclick="goToStart()" class="nav-btn" title="To first move">⏮️</button>
+                        <button onclick="stepBackward()" class="nav-btn" title="To previous move">◀️</button>
+                        <button onclick="openVariation()" id="openVariationBtn" class="nav-btn" title="Open variation in new window" disabled>🔀</button>
+                        <span id="positionIndicator" class="position-indicator">0/0</span>
+                        <button onclick="stepForward()" class="nav-btn" title="To next move">▶️</button>
+                        <button onclick="goToEnd()" class="nav-btn" title="To last move">⏭️</button>
+                    </div>
+                    <textarea id="moveHistoryText" class="move-history-text" placeholder="Load PGN file or play moves..."></textarea>
+                    <input type="file" id="pgnFileInput" accept=".pgn" style="display: none;">
+                </div>
+            </div>
+            
+            <!-- Right: Controls & Settings Sidebar -->
             <div class="sidebar">
                 <!-- Time Control Selection -->
                 <div class="time-control-selection">
@@ -128,26 +151,6 @@
                 <!-- Opening Name Display -->
                 <div class="opening-compact" id="openingDisplay" style="display: none;">
                     📖 <span id="openingText">-</span>
-                </div>
-                
-                <div class="move-history">
-                    <div class="move-history-header">
-                        📜 Move History
-                        <div class="move-history-buttons">
-                            <button onclick="loadPGNFile()" class="history-btn" title="Load PGN from file">📂 Load PGN</button>
-                            <button onclick="savePGNFile()" class="history-btn" title="Save PGN to file">💾 Save PGN</button>
-                        </div>
-                    </div>
-                    <div class="navigation-controls">
-                        <button onclick="goToStart()" class="nav-btn" title="To first move">⏮️</button>
-                        <button onclick="stepBackward()" class="nav-btn" title="To previous move">◀️</button>
-                        <button onclick="openVariation()" id="openVariationBtn" class="nav-btn" title="Open variation in new window" disabled>🔀</button>
-                        <span id="positionIndicator" class="position-indicator">0/0</span>
-                        <button onclick="stepForward()" class="nav-btn" title="To next move">▶️</button>
-                        <button onclick="goToEnd()" class="nav-btn" title="To last move">⏭️</button>
-                    </div>
-                    <textarea id="moveHistoryText" class="move-history-text" placeholder="Load PGN file or play moves..."></textarea>
-                    <input type="file" id="pgnFileInput" accept=".pgn" style="display: none;">
                 </div>
             </div>
         </div>
