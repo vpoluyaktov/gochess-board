@@ -132,6 +132,46 @@ button:hover {
     margin-top: 15px;
 }
 
+.player-controls {
+    display: flex;
+    gap: 3px;
+    flex-wrap: nowrap;
+}
+
+.resign-btn {
+    background: #ef5350;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.resign-btn:hover {
+    background: #e53935;
+}
+
+.draw-btn {
+    background: #66bb6a;
+    color: white;
+    border: none;
+    padding: 4px 8px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+    transition: all 0.2s;
+    white-space: nowrap;
+    min-width: 0;
+}
+
+.draw-btn:hover {
+    background: #57a85c;
+}
+
 .player-select {
     flex: 1;
     padding: 8px 15px;
@@ -325,37 +365,35 @@ button:hover {
 .move-history-header {
     background: #667eea;
     color: white;
-    padding: 10px 8px;
+    padding: 10px;
     font-weight: bold;
     text-align: center;
-    font-size: 12px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: center;
+    font-size: 14px;
 }
 
-.move-history-buttons {
+.move-history-footer {
     display: flex;
     gap: 6px;
+    padding: 8px;
+    background: #f0f0f0;
+    border-top: 1px solid #e0e0e0;
 }
 
-.history-btn {
-    background: rgba(255, 255, 255, 0.2);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+.history-footer-btn {
+    flex: 1;
+    background: #667eea;
+    border: none;
     color: white;
-    padding: 5px 10px;
-    border-radius: 3px;
+    padding: 8px 10px;
+    border-radius: 4px;
     cursor: pointer;
     font-size: 12px;
     transition: all 0.2s;
-    margin: 0;
-    width: auto;
     white-space: nowrap;
 }
 
-.history-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+.history-footer-btn:hover {
+    background: #5568d3;
     transform: translateY(-1px);
 }
 
