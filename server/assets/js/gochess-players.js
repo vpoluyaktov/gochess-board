@@ -36,21 +36,15 @@ function addPlayerToDropdown(dropdownId, playerName) {
 }
 
 function getWhitePlayer() {
-    const value = document.getElementById('whitePlayer').value;
-    console.log('getWhitePlayer:', value);
-    return value;
+    return document.getElementById('whitePlayer').value;
 }
 
 function getBlackPlayer() {
-    const value = document.getElementById('blackPlayer').value;
-    console.log('getBlackPlayer:', value);
-    return value;
+    return document.getElementById('blackPlayer').value;
 }
 
 function getCurrentPlayer() {
-    const player = game.turn() === 'w' ? getWhitePlayer() : getBlackPlayer();
-    console.log('getCurrentPlayer - turn:', game.turn(), 'player:', player);
-    return player;
+    return game.turn() === 'w' ? getWhitePlayer() : getBlackPlayer();
 }
 
 function isHuman(playerValue) {

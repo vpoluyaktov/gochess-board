@@ -30,7 +30,6 @@ function onDragStart(source, piece, position, orientation) {
     if (isComputerThinking) return false;
 
     const currentPlayer = getCurrentPlayer();
-    console.log('onDragStart - currentPlayer:', currentPlayer, 'isHuman:', isHuman(currentPlayer));
     if (!isHuman(currentPlayer)) return false;
 
     const turn = game.turn();
@@ -72,8 +71,9 @@ function onDrop(source, target) {
     }
     
     // Add increment to the player who just moved (only if clock is running)
+    // Note: move.color is the color that just moved ('w' or 'b')
     if (gameState.clockRunning) {
-        if (isWhiteMove) {
+        if (move.color === 'w') {
             gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
         } else {
             gameState.blackTimeMs += gameState.timeControl.increment * 1000;
