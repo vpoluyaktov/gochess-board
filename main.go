@@ -4,12 +4,13 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"os/exec"
-	"runtime"
+	"os"
+	"strings"
 	"time"
 
 	"go-chess/server"
 	"go-chess/tui"
+	"go-chess/utils"
 )
 
 const (
@@ -26,6 +27,8 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "        Don't automatically open browser\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --no-tui\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Don't show TUI interface\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --restart\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Kill any existing go-chess process before starting\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --book-file string\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Path to opening book file for polyglot (optional)\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --log-level string\n")
@@ -36,6 +39,7 @@ func main() {
 	port := flag.String("port", defaultPort, "Port to run the web server on")
 	noBrowser := flag.Bool("no-browser", false, "Don't automatically open browser")
 	noTUI := flag.Bool("no-tui", false, "Don't show TUI interface")
+	restart := flag.Bool("restart", false, "Kill any existing go-chess process before starting")
 	bookFile := flag.String("book-file", "", "Path to opening book file for polyglot (optional)")
 	logLevel := flag.String("log-level", "INFO", "Log level: DEBUG, INFO, WARN, ERROR")
 	flag.Parse()
@@ -48,6 +52,21 @@ func main() {
 	// Set log level from command line
 	server.SetLogLevel(*logLevel)
 
+	// Handle restart flag - kill process using our port
+	if *restart {
+		err := utils.KillProcessOnPort(*port)
+		if err == nil {
+			// Successfully killed a process
+			fmt.Printf("Killed process using port %s\n", *port)
+			// Give process time to clean up
+			time.Sleep(500 * time.Millisecond)
+		} else if !strings.Contains(err.Error(), "no process found") {
+			// Real error (not just "no process found")
+			fmt.Printf("Warning: Failed to kill process on port %s: %v\n", *port, err)
+		}
+		// If no process found, silently continue
+	}
+
 	addr := fmt.Sprintf(":%s", *port)
 	url := fmt.Sprintf("http://localhost:%s", *port)
 
@@ -58,19 +77,36 @@ func main() {
 	// Start the web server in a goroutine
 	srv := server.New(addr, *bookFile)
 	fmt.Println("Server initialized successfully!")
+
+	// Channel to receive server startup errors
+	errChan := make(chan error, 1)
+
 	go func() {
 		if err := srv.Start(); err != nil {
-			log.Fatalf("Server error: %v", err)
+			// Print user-friendly error to stderr
+			fmt.Fprintf(os.Stderr, "\nError: Failed to start server on %s\n", url)
+			fmt.Fprintf(os.Stderr, "Reason: %v\n", err)
+			fmt.Fprintf(os.Stderr, "\nThis usually means the port is already in use.\n")
+			fmt.Fprintf(os.Stderr, "Try using a different port with: go run . --port <port_number>\n")
+			errChan <- err
 		}
 	}()
 
-	// Give the server a moment to start
+	// Give the server a moment to start and check for errors
 	time.Sleep(500 * time.Millisecond)
+
+	// Check if server failed to start
+	select {
+	case <-errChan:
+		os.Exit(1)
+	default:
+		// Server started successfully
+	}
 
 	// Open browser automatically unless disabled
 	if !*noBrowser {
 		fmt.Printf("Opening %s in your browser...\n", url)
-		if err := openBrowser(url); err != nil {
+		if err := utils.OpenBrowser(url); err != nil {
 			log.Printf("Failed to open browser: %v", err)
 			fmt.Printf("Please open %s manually\n", url)
 		}
@@ -92,22 +128,4 @@ func main() {
 		// Block forever
 		select {}
 	}
-}
-
-// openBrowser opens the default browser with the given URL
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	case "darwin":
-		cmd = exec.Command("open", url)
-	default:
-		return fmt.Errorf("unsupported platform")
-	}
-
-	return cmd.Start()
 }

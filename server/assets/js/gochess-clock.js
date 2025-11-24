@@ -25,28 +25,27 @@ function updateClockDisplay() {
     document.getElementById('whiteClockTime').textContent = formatTime(gameState.whiteTimeMs);
     document.getElementById('blackClockTime').textContent = formatTime(gameState.blackTimeMs);
     
-    // Update active clock styling
+    // Update active clock styling - always show whose turn it is
     var whiteClock = document.getElementById('whiteClock');
     var blackClock = document.getElementById('blackClock');
     
-    if (gameState.clockRunning) {
-        if (game.turn() === 'w') {
-            whiteClock.classList.add('active');
-            blackClock.classList.remove('active');
-        } else {
-            blackClock.classList.add('active');
-            whiteClock.classList.remove('active');
-        }
-    } else {
-        whiteClock.classList.remove('active');
+    // Always indicate whose turn it is, regardless of clock running state
+    if (game.turn() === 'w') {
+        whiteClock.classList.add('active');
         blackClock.classList.remove('active');
+    } else {
+        blackClock.classList.add('active');
+        whiteClock.classList.remove('active');
     }
     
-    // Add time warnings (skip if unlimited time mode)
+    // Add time warnings - always show, not just when clock is running
     whiteClock.classList.remove('time-low', 'time-critical');
     blackClock.classList.remove('time-low', 'time-critical');
     
-    if (gameState.timeControl.initial > 0) {
+    // Show time warnings only for timed games (not unlimited/stopwatch mode)
+    var isUnlimitedMode = gameState.timeControl.initial === 0;
+    
+    if (!isUnlimitedMode) {
         if (gameState.whiteTimeMs < 60000 && gameState.whiteTimeMs > 10000) {
             whiteClock.classList.add('time-low');
         } else if (gameState.whiteTimeMs <= 10000) {
@@ -58,10 +57,8 @@ function updateClockDisplay() {
         } else if (gameState.blackTimeMs <= 10000) {
             blackClock.classList.add('time-critical');
         }
-    }
-    
-    // Check for time out (skip if unlimited time mode)
-    if (gameState.timeControl.initial > 0) {
+        
+        // Check for time out (only in timed mode)
         if (gameState.whiteTimeMs <= 0) {
             stopClock();
             alert('Time out! Black wins!');
@@ -83,10 +80,21 @@ function startClockInterval() {
         var elapsed = now - gameState.lastClockUpdate;
         gameState.lastClockUpdate = now;
         
+        // Check if we're in unlimited mode (stopwatch) or timed mode (countdown)
+        var isUnlimitedMode = gameState.timeControl.initial === 0;
+        
         if (game.turn() === 'w') {
-            gameState.whiteTimeMs -= elapsed;
+            if (isUnlimitedMode) {
+                gameState.whiteTimeMs += elapsed; // Count UP for stopwatch
+            } else {
+                gameState.whiteTimeMs -= elapsed; // Count DOWN for timer
+            }
         } else {
-            gameState.blackTimeMs -= elapsed;
+            if (isUnlimitedMode) {
+                gameState.blackTimeMs += elapsed; // Count UP for stopwatch
+            } else {
+                gameState.blackTimeMs -= elapsed; // Count DOWN for timer
+            }
         }
         
         updateClockDisplay();

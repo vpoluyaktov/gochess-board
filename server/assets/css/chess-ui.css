@@ -335,20 +335,33 @@ button:hover {
 }
 
 .clock-compact.active {
-    border-color: #667eea;
-    box-shadow: 0 0 10px rgba(102, 126, 234, 0.4);
-    background: #e8eeff;
+    border-color: #4a90e2;
+    box-shadow: 0 0 12px rgba(74, 144, 226, 0.5);
+    background: #4a90e2;
 }
 
+.clock-compact.active .clock-time {
+    color: white;
+}
+
+/* Time warnings override active state */
 .clock-compact.time-low {
     border-color: #ff9800;
     background: #fff3e0;
+}
+
+.clock-compact.time-low .clock-time {
+    color: #333;
 }
 
 .clock-compact.time-critical {
     border-color: #f44336;
     background: #ffebee;
     animation: pulse 1s infinite;
+}
+
+.clock-compact.time-critical .clock-time {
+    color: #333;
 }
 
 @keyframes pulse {

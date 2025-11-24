@@ -65,13 +65,15 @@ function onDrop(source, target) {
     gameState.currentPosition = gameState.moveHistory.length;
     
     // Auto-start clock on first move if not already running
-    if (!gameState.clockRunning && gameState.timeControl.initial > 0 && gameState.moveHistory.length === 1) {
+    // Start clock for any first move, regardless of time control setting
+    if (!gameState.clockRunning && gameState.moveHistory.length === 1) {
         startClock();
     }
     
     // Add increment to the player who just moved (only if clock is running)
+    // Note: move.color is the color that just moved ('w' or 'b')
     if (gameState.clockRunning) {
-        if (isWhiteMove) {
+        if (move.color === 'w') {
             gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
         } else {
             gameState.blackTimeMs += gameState.timeControl.increment * 1000;
