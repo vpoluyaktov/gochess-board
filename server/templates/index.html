@@ -115,15 +115,6 @@
                     <button id="analysisToggle" onclick="toggleAnalysis()">🔍 Start Analysis</button>
                 </div>
                 
-                <!-- Variant Controls -->
-                <div class="controls" id="variantControls">
-                    <button onclick="startVariant()" id="startVariantBtn" title="Open a new window to explore a variant">🔀 Start Variant</button>
-                    <div id="variantModeControls" style="display: none;">
-                        <button onclick="mergeVariant()" id="mergeVariantBtn" title="Merge this variant back to the main game">✅ Merge Variant</button>
-                        <button onclick="closeVariant()" id="closeVariantBtn" title="Close this variant window">❌ Close Variant</button>
-                    </div>
-                </div>
-                
                 <!-- Analysis Engine Selection -->
                 <div class="analysis-engine-selection">
                     <label for="analysisEngine">🔧 Analysis Engine:</label>
@@ -134,13 +125,23 @@
                     </select>
                 </div>
                 
-                <!-- PV Display Toggle -->
-                <div class="analysis-pv-toggle">
-                    <label>
-                        <input type="checkbox" id="showPVArrows" checked>
-                        Show principal variation (3 moves)
-                    </label>
-                    <span id="analysisDepth" class="analysis-depth">Depth: -</span>
+                <!-- Analysis Display Options -->
+                <div class="analysis-display-options">
+                    <div class="analysis-option">
+                        <label>
+                            <input type="radio" name="analysisDisplay" id="showPVArrows" value="pv" checked>
+                            Show principal variation
+                        </label>
+                    </div>
+                    <div class="analysis-option">
+                        <label>
+                            <input type="radio" name="analysisDisplay" id="showBestMoves" value="best">
+                            Show 3 best moves
+                        </label>
+                    </div>
+                    <div class="analysis-depth-container">
+                        <span id="analysisDepth" class="analysis-depth">Depth: -</span>
+                    </div>
                 </div>
                 
                 <div class="info" id="gameInfo">
@@ -150,6 +151,15 @@
                 <!-- Opening Name Display -->
                 <div class="opening-compact" id="openingDisplay" style="display: none;">
                     📖 <span id="openingText">-</span>
+                </div>
+                
+                <!-- Variant Controls - Aligned with History Footer -->
+                <div class="variant-controls-bottom" id="variantControls">
+                    <button onclick="startVariant()" id="startVariantBtn" class="variant-bottom-btn" title="Open a new window to explore a variant">🔀 Start Variant</button>
+                    <div id="variantModeControls" style="display: none; margin-top: 8px;">
+                        <button onclick="mergeVariant()" id="mergeVariantBtn" class="variant-bottom-btn" title="Merge this variant back to the main game">✅ Merge Variant</button>
+                        <button onclick="closeVariant()" id="closeVariantBtn" class="variant-bottom-btn" title="Close this variant window">❌ Close Variant</button>
+                    </div>
                 </div>
             </div>
         </div>
