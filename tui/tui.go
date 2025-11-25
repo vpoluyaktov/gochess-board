@@ -178,13 +178,10 @@ func (m model) View() string {
 	// Server uptime
 	uptime := time.Since(m.startTime).Round(time.Second)
 
-	// Left column: Server Info
+	// Left column: Server Info (compact format)
 	openingsInfo := ""
 	if m.openingStats != nil && m.openingStats["total_openings"] > 0 {
-		openingsInfo = fmt.Sprintf("\n📖 OPENING DATABASE\n\n"+
-			"Openings: %d\n"+
-			"Nodes:    %d\n"+
-			"Max Depth: %d\n",
+		openingsInfo = fmt.Sprintf("\n📖 OPENINGS: %d | Nodes: %d | Depth: %d",
 			m.openingStats["total_openings"],
 			m.openingStats["total_nodes"],
 			m.openingStats["max_depth"])
@@ -192,17 +189,13 @@ func (m model) View() string {
 
 	bookInfo := ""
 	if m.bookLoaded {
-		bookInfo = fmt.Sprintf("\n📚 POLYGLOT BOOK\n\n"+
-			"Status:  Loaded\n"+
-			"Entries: %d\n",
-			m.bookEntries)
+		bookInfo = fmt.Sprintf("\n📚 BOOK: %d entries", m.bookEntries)
 	}
 
-	serverInfoContent := fmt.Sprintf("🖥️  SERVER STATUS\n\n"+
+	serverInfoContent := fmt.Sprintf("🖥️  SERVER STATUS\n"+
 		"URL:     %s\n"+
-		"Uptime:  %s\n"+
-		"Mode:    Stateless%s%s\n\n"+
-		"📡 API ENDPOINTS\n\n"+
+		"Uptime:  %s%s%s\n\n"+
+		"📡 API ENDPOINTS\n"+
 		"• /api/computer-move\n"+
 		"• /api/analysis\n"+
 		"• /api/engines\n"+
