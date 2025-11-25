@@ -84,6 +84,14 @@ func (s *Server) GetEngines() []EngineInfo {
 	return s.engines
 }
 
+// GetPolyglotBookInfo returns information about the loaded Polyglot book
+func (s *Server) GetPolyglotBookInfo() (loaded bool, entryCount int) {
+	if s.polyglotBook == nil {
+		return false, 0
+	}
+	return true, len(s.polyglotBook.entries)
+}
+
 // Start starts the HTTP server
 func (s *Server) Start() error {
 	// Serve static assets
