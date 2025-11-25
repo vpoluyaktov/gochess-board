@@ -172,15 +172,22 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 		}
 	}
 
-	// Discover CECP engines only if polyglot is available
-	// Store them separately - they will only be added as polyglot-wrapped variants
-	var cecpEngines []EngineInfo
-	if hasPolyglot {
-		Info("ENGINE_DISCOVERY", "Discovering CECP engines...")
-		cecpEngines = discoverEngineList(getEngineNames(cecpEngineBaseNames), getCECPEngineInfo)
+	// Discover CECP engines (we now have native CECP support, no polyglot needed)
+	Info("ENGINE_DISCOVERY", "Discovering CECP engines...")
+	cecpEngines := discoverEngineList(getEngineNames(cecpEngineBaseNames), getCECPEngineInfo)
+	for _, engine := range cecpEngines {
+		Info("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
+			engine.Name, engine.Path)
+	}
+
+	// Add CECP engines directly (we now have native CECP support)
+	if len(cecpEngines) > 0 {
+		Info("ENGINE_DISCOVERY", "Adding CECP engines with native support...")
 		for _, engine := range cecpEngines {
-			Info("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
-				engine.Name, engine.Path)
+			if !seen[engine.Path] {
+				engines = append(engines, engine)
+				seen[engine.Path] = true
+			}
 		}
 	}
 
@@ -193,13 +200,6 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 			engines = append(engines, polyglotEngines...)
 		} else {
 			Info("ENGINE_DISCOVERY", "No book file specified, skipping UCI + Book variants")
-		}
-
-		// Always create variants for CECP engines (required - only way to use them)
-		if len(cecpEngines) > 0 {
-			Info("ENGINE_DISCOVERY", "Creating CECP engine variants via Polyglot...")
-			cecpPolyglotEngines := createPolyglotVariantsWithBook(cecpEngines, bookFile)
-			engines = append(engines, cecpPolyglotEngines...)
 		}
 	}
 
@@ -631,18 +631,23 @@ func createPolyglotConfig(enginePath string, bookPath string) (string, error) {
 		absEnginePath = enginePath
 	}
 
-	engineDir := filepath.Dir(absEnginePath)
-	engineCmd := filepath.Base(absEnginePath)
+	// For CECP engines, we need to add the xboard flag to put them in engine mode
+	// Different engines use different flags:
+	// - GNU Chess: --xboard
+	// - Crafty: xboard (as a command, not a flag)
+	// We'll add xboard as an argument for engines that need it
+	engineCommand := absEnginePath
+	baseName := filepath.Base(absEnginePath)
+	if baseName == "gnuchess" {
+		engineCommand = absEnginePath + " --xboard"
+	}
+	// Note: Crafty doesn't need a flag - it enters xboard mode when it receives the "xboard" command
 
 	// Generate polyglot INI content
-	config := fmt.Sprintf(`[PolyGlot]
-EngineDir = %s
-EngineCommand = %s
-Book = %s
-BookFile = %s
-LogFile = %s
-BookDepth = 255
-`, engineDir, engineCmd, useBook, bookPath, logFile)
+	// UCI = true means polyglot will accept UCI commands from the GUI and translate to CECP for the engine
+	// This is what we want since we're sending UCI commands but the engine is CECP
+	config := fmt.Sprintf("[PolyGlot]\nEngineCommand = %s\nUCI = true\nBook = %s\nBookFile = %s\nLogFile = %s\nBookDepth = 255\n",
+		engineCommand, useBook, bookPath, logFile)
 
 	// Write config file
 	if err := os.WriteFile(configFile, []byte(config), 0644); err != nil {
