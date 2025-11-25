@@ -126,7 +126,6 @@ func TestEngineInfo_Structure(t *testing.T) {
 		Version:               "16",
 		ID:                    "stockfish",
 		Type:                  "uci",
-		SupportsBook:          false,
 		SupportsLimitStrength: true,
 		MinElo:                1350,
 		MaxElo:                2850,
@@ -150,28 +149,8 @@ func TestEngineInfo_Structure(t *testing.T) {
 	}
 }
 
-func TestEngineInfo_PolyglotVariant(t *testing.T) {
-	engine := EngineInfo{
-		Name:             "Stockfish with Book",
-		Type:             "polyglot-uci",
-		SupportsBook:     true,
-		BookPath:         "/path/to/book.bin",
-		UnderlyingEngine: "stockfish",
-	}
-
-	if engine.Type != "polyglot-uci" {
-		t.Errorf("Expected Type 'polyglot-uci', got %q", engine.Type)
-	}
-	if !engine.SupportsBook {
-		t.Error("Expected SupportsBook to be true")
-	}
-	if engine.BookPath != "/path/to/book.bin" {
-		t.Errorf("Expected BookPath '/path/to/book.bin', got %q", engine.BookPath)
-	}
-	if engine.UnderlyingEngine != "stockfish" {
-		t.Errorf("Expected UnderlyingEngine 'stockfish', got %q", engine.UnderlyingEngine)
-	}
-}
+// TestEngineInfo_PolyglotVariant removed - external Polyglot wrapper no longer used.
+// Opening book support is now handled natively via polyglot_book.go
 
 func TestEngineInfo_Options(t *testing.T) {
 	engine := EngineInfo{

@@ -3,9 +3,7 @@ package server
 import (
 	"bufio"
 	"context"
-	"crypto/md5"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -92,10 +90,7 @@ type EngineInfo struct {
 	Path                  string            `json:"path"`
 	Version               string            `json:"version,omitempty"` // engine version
 	ID                    string            `json:"id"`
-	Type                  string            `json:"type"`                       // "uci", "cecp", "polyglot-uci", "polyglot-cecp"
-	SupportsBook          bool              `json:"supportsBook"`               // true for polyglot variants
-	BookPath              string            `json:"bookPath,omitempty"`         // optional opening book path
-	UnderlyingEngine      string            `json:"underlyingEngine,omitempty"` // for polyglot: the actual engine being wrapped
+	Type                  string            `json:"type"` // "uci" or "cecp"
 	SupportsLimitStrength bool              `json:"supportsLimitStrength"`
 	MinElo                int               `json:"minElo,omitempty"`
 	MaxElo                int               `json:"maxElo,omitempty"`
@@ -135,21 +130,14 @@ var cecpEngineBaseNames = []string{
 }
 
 // DiscoverEngines searches for installed UCI and CECP chess engines
+// Note: Opening book support is now handled natively in Go (see polyglot_book.go)
 func DiscoverEngines(bookFile string) []EngineInfo {
 	engines := make([]EngineInfo, 0)
 	seen := make(map[string]bool)
 
-	// Check if polyglot is available first
-	hasPolyglot := isPolyglotInstalled()
-	if hasPolyglot {
-		Info("ENGINE_DISCOVERY", "Polyglot wrapper found")
-	} else {
-		Info("ENGINE_DISCOVERY", "Polyglot wrapper not found, CECP engines and book support will be unavailable")
-	}
-
 	// Log book file status
 	if bookFile != "" {
-		Info("ENGINE_DISCOVERY", "Opening book file specified: %s", bookFile)
+		Info("ENGINE_DISCOVERY", "Opening book file specified: %s (will be used with native Polyglot book reader)", bookFile)
 	} else {
 		Info("ENGINE_DISCOVERY", "No opening book file specified")
 	}
@@ -172,7 +160,7 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 		}
 	}
 
-	// Discover CECP engines (we now have native CECP support, no polyglot needed)
+	// Discover CECP engines (native CECP support, no external wrapper needed)
 	Info("ENGINE_DISCOVERY", "Discovering CECP engines...")
 	cecpEngines := discoverEngineList(getEngineNames(cecpEngineBaseNames), getCECPEngineInfo)
 	for _, engine := range cecpEngines {
@@ -180,7 +168,7 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 			engine.Name, engine.Path)
 	}
 
-	// Add CECP engines directly (we now have native CECP support)
+	// Add CECP engines directly (native CECP support)
 	if len(cecpEngines) > 0 {
 		Info("ENGINE_DISCOVERY", "Adding CECP engines with native support...")
 		for _, engine := range cecpEngines {
@@ -188,18 +176,6 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 				engines = append(engines, engine)
 				seen[engine.Path] = true
 			}
-		}
-	}
-
-	// Create polyglot-wrapped variants if polyglot is available
-	if hasPolyglot {
-		// Only create UCI+Book variants if a book file is specified
-		if bookFile != "" {
-			Info("ENGINE_DISCOVERY", "Creating UCI + Book variants with opening book...")
-			polyglotEngines := createPolyglotVariantsWithBook(engines, bookFile)
-			engines = append(engines, polyglotEngines...)
-		} else {
-			Info("ENGINE_DISCOVERY", "No book file specified, skipping UCI + Book variants")
 		}
 	}
 
@@ -487,173 +463,6 @@ func getCECPEngineInfo(path string) (EngineInfo, bool) {
 	}
 }
 
-// isPolyglotInstalled checks if polyglot is available in the system
-func isPolyglotInstalled() bool {
-	_, err := exec.LookPath("polyglot")
-	return err == nil
-}
-
-// createPolyglotVariantsWithBook creates polyglot-wrapped variants of discovered engines
-func createPolyglotVariantsWithBook(engines []EngineInfo, bookFile string) []EngineInfo {
-	variants := make([]EngineInfo, 0)
-
-	for _, engine := range engines {
-		// For UCI engines, create a polyglot variant with book support
-		if engine.Type == "uci" {
-			configFile, err := createPolyglotConfig(engine.Path, bookFile)
-			if err != nil {
-				Info("ENGINE_DISCOVERY", "Failed to create polyglot config for %s: %v", engine.Name, err)
-				continue
-			}
-
-			// Create wrapper script that runs polyglot with the config file
-			wrapperScript, err := createPolyglotWrapper(configFile)
-			if err != nil {
-				Info("ENGINE_DISCOVERY", "Failed to create polyglot wrapper for %s: %v", engine.Name, err)
-				continue
-			}
-
-			variant := EngineInfo{
-				Name:                  engine.Name + " + Book",
-				Path:                  wrapperScript,
-				Version:               engine.Version,
-				ID:                    engine.ID + "_polyglot",
-				Type:                  "polyglot-uci",
-				SupportsBook:          true,
-				BookPath:              bookFile,
-				UnderlyingEngine:      engine.Path,
-				SupportsLimitStrength: engine.SupportsLimitStrength,
-				MinElo:                engine.MinElo,
-				MaxElo:                engine.MaxElo,
-				DefaultElo:            engine.DefaultElo,
-				Options:               engine.Options,
-			}
-			variants = append(variants, variant)
-			Info("ENGINE_DISCOVERY", "Created polyglot variant: %s", variant.Name)
-		}
-
-		// For CECP engines, create a polyglot variant (required to use them)
-		if engine.Type == "cecp" {
-			configFile, err := createPolyglotConfig(engine.Path, bookFile)
-			if err != nil {
-				Info("ENGINE_DISCOVERY", "Failed to create polyglot config for %s: %v", engine.Name, err)
-				continue
-			}
-
-			// Create wrapper script that runs polyglot with the config file
-			wrapperScript, err := createPolyglotWrapper(configFile)
-			if err != nil {
-				Info("ENGINE_DISCOVERY", "Failed to create polyglot wrapper for %s: %v", engine.Name, err)
-				continue
-			}
-
-			variant := EngineInfo{
-				Name:             engine.Name + " (via Polyglot)",
-				Path:             wrapperScript,
-				Version:          engine.Version,
-				ID:               engine.ID + "_polyglot",
-				Type:             "polyglot-cecp",
-				SupportsBook:     bookFile != "",
-				BookPath:         bookFile,
-				UnderlyingEngine: engine.Path,
-				Options:          make(map[string]string),
-			}
-			variants = append(variants, variant)
-			Info("ENGINE_DISCOVERY", "Created polyglot variant for CECP engine: %s", variant.Name)
-		}
-	}
-
-	return variants
-}
-
-// createPolyglotWrapper creates an executable wrapper script that runs polyglot with a config file
-// On Unix systems, creates a shell script (.sh). On Windows, creates a batch file (.bat)
-func createPolyglotWrapper(configFile string) (string, error) {
-	// Create temp directory for polyglot wrappers
-	tempDir := filepath.Join(os.TempDir(), "go-chess-polyglot")
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create polyglot wrapper directory: %w", err)
-	}
-
-	// Create unique wrapper filename based on config file hash
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(configFile)))[:8]
-
-	var wrapperFile string
-	var script string
-
-	if runtime.GOOS == "windows" {
-		// Windows batch file
-		wrapperFile = filepath.Join(tempDir, fmt.Sprintf("polyglot-wrapper-%s.bat", hash))
-		script = fmt.Sprintf(`@echo off
-polyglot "%s"
-`, configFile)
-	} else {
-		// Unix shell script
-		wrapperFile = filepath.Join(tempDir, fmt.Sprintf("polyglot-wrapper-%s.sh", hash))
-		script = fmt.Sprintf(`#!/bin/sh
-exec polyglot "%s"
-`, configFile)
-	}
-
-	// Write wrapper script
-	if err := os.WriteFile(wrapperFile, []byte(script), 0755); err != nil {
-		return "", fmt.Errorf("failed to write polyglot wrapper: %w", err)
-	}
-
-	return wrapperFile, nil
-}
-
-// createPolyglotConfig creates a polyglot INI configuration file for an engine
-func createPolyglotConfig(enginePath string, bookPath string) (string, error) {
-	// Create temp directory for polyglot configs
-	tempDir := filepath.Join(os.TempDir(), "go-chess-polyglot")
-	if err := os.MkdirAll(tempDir, 0755); err != nil {
-		return "", fmt.Errorf("failed to create polyglot config directory: %w", err)
-	}
-
-	// Create unique config filename based on engine path hash
-	hash := fmt.Sprintf("%x", md5.Sum([]byte(enginePath)))[:8]
-	configFile := filepath.Join(tempDir, fmt.Sprintf("polyglot-%s.ini", hash))
-
-	// Prepare book settings
-	useBook := "false"
-	if bookPath != "" {
-		useBook = "true"
-	}
-
-	// Create log file path for this engine
-	logFile := filepath.Join(tempDir, fmt.Sprintf("polyglot-%s.log", hash))
-
-	// Get absolute path to engine
-	absEnginePath, err := exec.LookPath(enginePath)
-	if err != nil {
-		// If LookPath fails, use the enginePath as-is
-		absEnginePath = enginePath
-	}
-
-	// For CECP engines, we need to add the xboard flag to put them in engine mode
-	// Different engines use different flags:
-	// - GNU Chess: --xboard
-	// - Crafty: xboard (as a command, not a flag)
-	// We'll add xboard as an argument for engines that need it
-	engineCommand := absEnginePath
-	baseName := filepath.Base(absEnginePath)
-	if baseName == "gnuchess" {
-		engineCommand = absEnginePath + " --xboard"
-	}
-	// Note: Crafty doesn't need a flag - it enters xboard mode when it receives the "xboard" command
-
-	// Generate polyglot INI content
-	// UCI = true means polyglot will accept UCI commands from the GUI and translate to CECP for the engine
-	// This is what we want since we're sending UCI commands but the engine is CECP
-	config := fmt.Sprintf("[PolyGlot]\nEngineCommand = %s\nUCI = true\nBook = %s\nBookFile = %s\nLogFile = %s\nBookDepth = 255\n",
-		engineCommand, useBook, bookPath, logFile)
-
-	// Write config file
-	if err := os.WriteFile(configFile, []byte(config), 0644); err != nil {
-		return "", fmt.Errorf("failed to write polyglot config: %w", err)
-	}
-
-	Info("ENGINE_DISCOVERY", "Created polyglot config: %s", configFile)
-	return configFile, nil
-}
+// Note: External Polyglot utility functions removed.
+// Opening book support is now handled natively in Go via polyglot_book.go
+// CECP engine support is handled natively via analysis_cecp.go

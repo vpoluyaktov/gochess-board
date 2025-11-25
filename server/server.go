@@ -18,9 +18,10 @@ var assetsFS embed.FS
 
 // Server represents the HTTP server
 type Server struct {
-	addr        string
-	engines     []EngineInfo
-	openingBook *OpeningBook
+	addr         string
+	engines      []EngineInfo
+	openingBook  *OpeningBook  // Opening name database
+	polyglotBook *PolyglotBook // Polyglot opening book for move suggestions
 }
 
 // InitDebugLogging sets up logging to a file only (no stdout to avoid breaking TUI)
@@ -46,21 +47,35 @@ func New(addr string, bookFile string) *Server {
 		Info("SERVER", "  - %s (%s)", engine.Name, engine.Path)
 	}
 
-	// Initialize opening book from embedded filesystem
-	Info("SERVER", "Loading opening database from embedded assets/openings")
+	// Initialize opening name database from embedded filesystem
+	Info("SERVER", "Loading opening name database from embedded assets/openings")
 	openingBook := NewOpeningBook()
 	if err := openingBook.LoadFromEmbedded(assetsFS, "assets/openings"); err != nil {
-		Warn("SERVER", "Failed to load opening book: %v", err)
+		Warn("SERVER", "Failed to load opening name database: %v", err)
 	} else {
 		stats := openingBook.Stats()
-		Info("SERVER", "Opening database loaded: %d openings, %d nodes, max depth %d",
+		Info("SERVER", "Opening name database loaded: %d openings, %d nodes, max depth %d",
 			stats["total_openings"], stats["total_nodes"], stats["max_depth"])
 	}
 
+	// Initialize Polyglot opening book if specified
+	var polyglotBook *PolyglotBook
+	if bookFile != "" {
+		Info("SERVER", "Loading Polyglot opening book from %s", bookFile)
+		polyglotBook = NewPolyglotBook()
+		if err := polyglotBook.LoadFromFile(bookFile); err != nil {
+			Warn("SERVER", "Failed to load Polyglot book: %v", err)
+			polyglotBook = nil
+		} else {
+			Info("SERVER", "Polyglot book loaded successfully")
+		}
+	}
+
 	return &Server{
-		addr:        addr,
-		engines:     engines,
-		openingBook: openingBook,
+		addr:         addr,
+		engines:      engines,
+		openingBook:  openingBook,
+		polyglotBook: polyglotBook,
 	}
 }
 

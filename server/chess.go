@@ -77,6 +77,40 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check opening book first (if available)
+	if s.polyglotBook != nil {
+		bookMove := s.polyglotBook.ProbeWeighted(game.Position())
+		if bookMove != "" {
+			Info("CHESS", "Book move found: %s", bookMove)
+
+			// Parse and apply the book move
+			move, err := chess.UCINotation{}.Decode(game.Position(), bookMove)
+			if err != nil {
+				Warn("CHESS", "Failed to parse book move %s: %v", bookMove, err)
+				// Continue to engine if book move is invalid
+			} else {
+				if err := game.Move(move); err != nil {
+					Warn("CHESS", "Failed to make book move %s: %v", bookMove, err)
+					// Continue to engine if book move fails
+				} else {
+					// Book move successful - return immediately
+					newFEN := game.FEN()
+					Info("CHESS", "Book move applied: %s", bookMove)
+
+					response := MoveResponse{
+						Move:      bookMove,
+						FEN:       newFEN,
+						ThinkTime: 0, // Book moves are instant
+					}
+
+					w.WriteHeader(http.StatusOK)
+					json.NewEncoder(w).Encode(response)
+					return
+				}
+			}
+		}
+	}
+
 	// Determine which engine to use
 	enginePath := req.EnginePath
 	if enginePath == "" {
