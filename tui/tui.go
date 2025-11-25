@@ -62,7 +62,7 @@ func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server
 		{Title: "Name", Width: 28},
 		{Title: "Version", Width: 10},
 		{Title: "ELO / Strength", Width: 30},
-		{Title: "UCI Options", Width: 12},
+		{Title: "Protocol", Width: 12},
 	}
 	t := table.New(
 		table.WithColumns(enginesColumns),
@@ -352,9 +352,9 @@ func buildEngineRows(engines []server.EngineInfo) []table.Row {
 		if e.SupportsLimitStrength {
 			strength = fmt.Sprintf("%d-%d (default %d)", e.MinElo, e.MaxElo, e.DefaultElo)
 		}
-		options := "0"
-		if len(e.Options) > 0 {
-			options = fmt.Sprintf("%d", len(e.Options))
+		protocol := strings.ToUpper(e.Type)
+		if protocol == "" {
+			protocol = "UCI"
 		}
 		version := e.Version
 		if version == "" {
@@ -365,7 +365,7 @@ func buildEngineRows(engines []server.EngineInfo) []table.Row {
 			e.Name,
 			version,
 			strength,
-			options,
+			protocol,
 		})
 	}
 	return rows
