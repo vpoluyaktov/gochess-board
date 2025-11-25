@@ -12,7 +12,9 @@ func TestUCIEngine_Structure(t *testing.T) {
 	// This is a compile-time check more than a runtime test
 	var engine *UCIEngine
 
-	if engine != nil {
+	if engine == nil {
+		// Expected: uninitialized pointer should be nil
+	} else {
 		t.Error("Uninitialized engine should be nil")
 	}
 }

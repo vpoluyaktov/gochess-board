@@ -1,12 +1,12 @@
 # Go Chess Board Application
 
-A Go web server that lets you play chess against multiple chess engines including **Stockfish**, **Fruit**, **Toga**, **Crafty**, and **GNU Chess**. The application supports both UCI and CECP/XBoard protocol engines with optional opening book support via Polyglot. The chess game logic runs on the backend, while the frontend provides an interactive chess board. The application automatically opens your default browser when started.
+A Go web server that lets you play chess against multiple chess engines including **Stockfish**, **Fruit**, **Toga**, **Crafty**, and **GNU Chess**. The application supports both UCI and CECP/XBoard protocol engines natively, with optional Polyglot opening book support (pure Go implementation, no external dependencies). The chess game logic runs on the backend, while the frontend provides an interactive chess board. The application automatically opens your default browser when started.
 
 ## Features
 
 - **Multiple Chess Engines**: Play against various engines (Stockfish, Fruit, Toga, Crafty, GNU Chess, and more)
-- **UCI & CECP Support**: Native UCI protocol support + CECP engines via Polyglot wrapper
-- **Opening Book Support**: Optional opening book integration for stronger play
+- **UCI & CECP Support**: Native support for both UCI and CECP/XBoard protocols
+- **Opening Book Support**: Native Polyglot .bin book reader (pure Go, no external tools needed)
 - **Opening Name Recognition**: Identifies chess openings in real-time with ECO codes (3,594 openings from Lichess database)
 - **Automatic Engine Discovery**: Detects installed engines on your system
 - **Real-time TUI**: Beautiful terminal interface showing live game stats and engine analysis
@@ -28,7 +28,6 @@ A Go web server that lets you play chess against multiple chess engines includin
 
 - Go 1.21 or higher
 - **At least one chess engine** installed (see [Installing Chess Engines](#installing-chess-engines) below)
-- **Polyglot** (optional, required for CECP engines and opening books)
 
 ## Supported Chess Engines
 
@@ -43,8 +42,8 @@ These engines work directly without any wrapper:
 - **Komodo**, **Rybka**, **Houdini** (commercial)
 - And many more UCI engines...
 
-### CECP/XBoard Protocol Engines (via Polyglot)
-These engines require Polyglot wrapper:
+### CECP/XBoard Protocol Engines (Native Support)
+These engines work directly with native CECP support:
 - **GNU Chess** - Classic free chess engine
 - **Crafty** - Strong traditional engine
 - **Sjeng** - Multi-variant engine
@@ -52,9 +51,11 @@ These engines require Polyglot wrapper:
 
 ### Opening Book Support
 When using the `--book-file` flag:
-- UCI engines get optional book variants (e.g., "Stockfish 16 + Book")
-- CECP engines always use the book when available
-- Books must be in Polyglot format (.bin files)
+- **Native Polyglot book reader** (pure Go implementation)
+- All engines (UCI and CECP) can use opening books
+- Books must be in Polyglot .bin format
+- Book moves are checked before engine calculation
+- Instant book moves (0ms think time)
 
 ## Installing Chess Engines
 
@@ -72,11 +73,8 @@ sudo apt-get install fruit
 sudo apt-get install toga2
 ```
 
-**CECP Engines + Polyglot:**
+**CECP Engines:**
 ```bash
-# Polyglot wrapper (required for CECP engines and books)
-sudo apt-get install polyglot
-
 # GNU Chess
 sudo apt-get install gnuchess
 
@@ -110,9 +108,6 @@ sudo make install
 brew install stockfish
 brew install fruit
 
-# Polyglot wrapper
-brew install polyglot
-
 # CECP Engines
 brew install gnu-chess
 brew install crafty
@@ -124,12 +119,6 @@ brew install crafty
 1. Download from https://stockfishchess.org/download/
 2. Extract to `C:\Program Files\Stockfish\`
 3. Add to PATH: `C:\Program Files\Stockfish\`
-
-**Polyglot:**
-1. Download from http://hgm.nubati.net/cgi-bin/gitweb.cgi?p=polyglot.git
-2. Or use pre-compiled binary from Arena Chess GUI
-3. Extract to `C:\Program Files\Polyglot\`
-4. Add to PATH
 
 **GNU Chess (CECP):**
 1. Download from https://ftp.gnu.org/gnu/chess/
@@ -154,11 +143,8 @@ Or check manually:
 # Test UCI engine
 echo "uci" | stockfish
 
-# Test CECP engine (via polyglot)
+# Test CECP engine (native support)
 echo "xboard" | gnuchess
-
-# Check polyglot
-polyglot --help
 ```
 
 ## Opening Books
@@ -179,21 +165,22 @@ polyglot --help
 - Available from chess programming forums and Arena Chess GUI
 
 **Create Your Own:**
-```bash
-# Install polyglot tools
-sudo apt-get install polyglot
 
-# Create book from PGN file
+You can create Polyglot books using external tools like `polyglot` or online converters:
+```bash
+# Using polyglot tool (if installed)
 polyglot make-book -pgn games.pgn -bin mybook.bin -min-game 1
 ```
+
+Or use online PGN to Polyglot converters.
 
 ### Using Opening Books
 
 ```bash
-# Run with opening book
+# Run with opening book (all engines can use it)
 ./go-chess --book-file /usr/share/games/gnuchess/book.bin
 
-# Without book (UCI engines only, no CECP)
+# Without book (engines work normally)
 ./go-chess
 ```
 
@@ -343,11 +330,10 @@ GOOS=darwin GOARCH=amd64 go build -o go-chess-macos
 
 ### Engine Discovery
 On startup, the application:
-1. Checks if Polyglot is installed
-2. Discovers UCI engines (Stockfish, Fruit, Toga, etc.)
-3. Discovers CECP engines if Polyglot is available (GNU Chess, Crafty, etc.)
-4. Creates Polyglot-wrapped variants for opening book support
-5. Generates unique configuration files in `/tmp/go-chess-polyglot/`
+1. Discovers UCI engines (Stockfish, Fruit, Toga, etc.)
+2. Discovers CECP engines with native support (GNU Chess, Crafty, etc.)
+3. Loads Polyglot opening book if `--book-file` is specified
+4. All engines can use the opening book (checked before engine calculation)
 
 ### Game Flow
 1. **You play as White** - Drag and drop pieces to make your move
@@ -356,10 +342,9 @@ On startup, the application:
 4. **Game state** - Managed by chess.js on the frontend, engine on the backend via UCI protocol
 
 ### Engine Types
-- **UCI engines** - Direct communication, no wrapper needed
-- **CECP engines** - Wrapped by Polyglot to provide UCI interface
-- **+ Book variants** - UCI engines with opening book support via Polyglot
-- **CECP via Polyglot** - CECP engines accessible through Polyglot wrapper
+- **UCI engines** - Native UCI protocol support
+- **CECP engines** - Native CECP/XBoard protocol support
+- **Opening books** - Native Polyglot .bin reader (pure Go implementation)
 
 ## API Endpoints
 
@@ -396,9 +381,9 @@ Request a computer move for the current position.
 ### Backend
 - **Go**: Backend server and application logic
 - **Chess Engines**: Multiple engine support
-  - **UCI Protocol**: Stockfish, Fruit, Toga, Leela, etc.
-  - **CECP Protocol**: GNU Chess, Crafty, Sjeng (via Polyglot)
-- **Polyglot**: Chess engine wrapper for CECP engines and opening books
+  - **UCI Protocol**: Stockfish, Fruit, Toga, Leela, etc. (native support)
+  - **CECP Protocol**: GNU Chess, Crafty, Sjeng (native support)
+- **Polyglot Book Reader**: Pure Go implementation for .bin opening books
 - **notnil/chess**: Go chess library for move generation and validation
 - **Bubble Tea**: TUI framework for the terminal interface
 - **Lipgloss**: Styling library for beautiful terminal output
@@ -422,19 +407,16 @@ Request a computer move for the current position.
 
 ### Engine Discovery
 - Engines are discovered automatically from system PATH
-- UCI engines work without any additional dependencies
-- CECP engines require Polyglot to be installed
-- Polyglot configs are generated in `/tmp/go-chess-polyglot/`
-- Each engine gets a unique config file based on MD5 hash
+- Both UCI and CECP engines work with native support (no external tools needed)
 - Check `chess-debug.log` for detailed discovery information
 
-### Opening Books (Polyglot)
+### Opening Books
 - Books must be in Polyglot binary format (.bin)
 - GNU Chess includes books at `/usr/share/games/gnuchess/book.bin`
-- Without `--book-file`, only UCI engines are available
-- With `--book-file`, UCI engines get optional "+ Book" variants
-- CECP engines always use the book when available
-- Polyglot logs book usage in `/tmp/go-chess-polyglot/polyglot-*.log`
+- Native Go implementation reads .bin files directly
+- Book moves are checked before engine calculation
+- All engines (UCI and CECP) can use opening books
+- Book moves return instantly (0ms think time)
 
 ### Opening Name Recognition
 - Opening database loaded from `server/assets/openings/*.tsv`

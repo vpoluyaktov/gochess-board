@@ -76,6 +76,14 @@ func main() {
 
 	// Start the web server in a goroutine
 	srv := server.New(addr, *bookFile)
+
+	// Display book information if loaded
+	if bookLoaded, entryCount := srv.GetPolyglotBookInfo(); bookLoaded {
+		fmt.Printf("Polyglot opening book loaded: %d entries\n", entryCount)
+	} else if *bookFile != "" {
+		fmt.Println("Warning: Book file specified but failed to load")
+	}
+
 	fmt.Println("Server initialized successfully!")
 
 	// Channel to receive server startup errors
@@ -117,8 +125,11 @@ func main() {
 		// Give browser time to open before starting TUI
 		time.Sleep(1 * time.Second)
 
+		// Get book info for TUI
+		bookLoaded, bookEntries := srv.GetPolyglotBookInfo()
+
 		// Run TUI (blocks until quit)
-		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor, srv.GetOpeningStats()); err != nil {
+		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor, srv.GetOpeningStats(), bookLoaded, bookEntries); err != nil {
 			log.Fatalf("TUI error: %v", err)
 		}
 	} else {

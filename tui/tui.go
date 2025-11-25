@@ -47,9 +47,11 @@ type model struct {
 	width        int
 	height       int
 	openingStats map[string]int
+	bookLoaded   bool
+	bookEntries  int
 }
 
-func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor, openingStats map[string]int) model {
+func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor, openingStats map[string]int, bookLoaded bool, bookEntries int) model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -60,7 +62,7 @@ func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server
 		{Title: "Name", Width: 28},
 		{Title: "Version", Width: 10},
 		{Title: "ELO / Strength", Width: 30},
-		{Title: "UCI Options", Width: 12},
+		{Title: "Protocol", Width: 12},
 	}
 	t := table.New(
 		table.WithColumns(enginesColumns),
@@ -95,6 +97,8 @@ func InitialModel(serverURL string, engines []server.EngineInfo, monitor *server
 		enginesTable: t,
 		activeTable:  activeT,
 		openingStats: openingStats,
+		bookLoaded:   bookLoaded,
+		bookEntries:  bookEntries,
 	}
 
 	// Initialize active engines table rows
@@ -174,28 +178,29 @@ func (m model) View() string {
 	// Server uptime
 	uptime := time.Since(m.startTime).Round(time.Second)
 
-	// Left column: Server Info
+	// Left column: Server Info (compact format)
 	openingsInfo := ""
 	if m.openingStats != nil && m.openingStats["total_openings"] > 0 {
-		openingsInfo = fmt.Sprintf("\n📖 OPENING DATABASE\n\n"+
-			"Openings: %d\n"+
-			"Nodes:    %d\n"+
-			"Max Depth: %d\n",
+		openingsInfo = fmt.Sprintf("\n📖 OPENINGS: %d | Nodes: %d | Depth: %d",
 			m.openingStats["total_openings"],
 			m.openingStats["total_nodes"],
 			m.openingStats["max_depth"])
 	}
 
-	serverInfoContent := fmt.Sprintf("🖥️  SERVER STATUS\n\n"+
+	bookInfo := ""
+	if m.bookLoaded {
+		bookInfo = fmt.Sprintf("\n📚 BOOK: %d entries", m.bookEntries)
+	}
+
+	serverInfoContent := fmt.Sprintf("🖥️  SERVER STATUS\n"+
 		"URL:     %s\n"+
-		"Uptime:  %s\n"+
-		"Mode:    Stateless%s\n\n"+
-		"📡 API ENDPOINTS\n\n"+
+		"Uptime:  %s%s%s\n\n"+
+		"📡 API ENDPOINTS\n"+
 		"• /api/computer-move\n"+
 		"• /api/analysis\n"+
 		"• /api/engines\n"+
 		"• /api/opening\n",
-		m.serverURL, uptime.String(), openingsInfo)
+		m.serverURL, uptime.String(), openingsInfo, bookInfo)
 
 	// Layout calculations: split the screen vertically into top/bottom halves
 	topHeight, bottomHeight := calculateHeights(height)
@@ -347,9 +352,9 @@ func buildEngineRows(engines []server.EngineInfo) []table.Row {
 		if e.SupportsLimitStrength {
 			strength = fmt.Sprintf("%d-%d (default %d)", e.MinElo, e.MaxElo, e.DefaultElo)
 		}
-		options := "0"
-		if len(e.Options) > 0 {
-			options = fmt.Sprintf("%d", len(e.Options))
+		protocol := strings.ToUpper(e.Type)
+		if protocol == "" {
+			protocol = "UCI"
 		}
 		version := e.Version
 		if version == "" {
@@ -360,7 +365,7 @@ func buildEngineRows(engines []server.EngineInfo) []table.Row {
 			e.Name,
 			version,
 			strength,
-			options,
+			protocol,
 		})
 	}
 	return rows
@@ -406,8 +411,8 @@ func (m *model) updateLayout() {
 	m.activeTable.SetHeight(bottomTableHeight)
 }
 
-func RunTUI(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor, openingStats map[string]int) error {
-	p := tea.NewProgram(InitialModel(serverURL, engines, monitor, openingStats), tea.WithAltScreen())
+func RunTUI(serverURL string, engines []server.EngineInfo, monitor *server.EngineMonitor, openingStats map[string]int, bookLoaded bool, bookEntries int) error {
+	p := tea.NewProgram(InitialModel(serverURL, engines, monitor, openingStats, bookLoaded, bookEntries), tea.WithAltScreen())
 	_, err := p.Run()
 	return err
 }
