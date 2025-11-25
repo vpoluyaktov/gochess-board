@@ -141,7 +141,9 @@ func TestAnalysisEngine_Structure(t *testing.T) {
 	// Test that AnalysisEngine struct exists and has expected structure
 	var engine *AnalysisEngine
 
-	if engine != nil {
+	if engine == nil {
+		// Expected: uninitialized pointer should be nil
+	} else {
 		t.Error("Uninitialized engine should be nil")
 	}
 }
@@ -199,6 +201,7 @@ func TestNewAnalysisEngine_WithStockfish(t *testing.T) {
 
 	if engine == nil {
 		t.Error("Engine should not be nil after successful creation")
+		return
 	}
 
 	if !engine.active {
