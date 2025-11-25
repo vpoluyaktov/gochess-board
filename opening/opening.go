@@ -1,4 +1,4 @@
-package server
+package opening
 
 import (
 	"bufio"
@@ -12,6 +12,8 @@ import (
 	"sync"
 
 	"github.com/notnil/chess"
+
+	"go-chess/logger"
 )
 
 // OpeningInfo contains information about a chess opening
@@ -65,7 +67,7 @@ func (ob *OpeningBook) LoadFromEmbedded(embedFS embed.FS, dir string) error {
 		return fmt.Errorf("no TSV files found in embedded %s", dir)
 	}
 
-	Info("Opening", "Loading opening book from %d embedded files", len(tsvFiles))
+	logger.Info("OPENING", "Loading opening book from %d embedded files", len(tsvFiles))
 
 	for _, file := range tsvFiles {
 		if err := ob.loadEmbeddedTSVFile(embedFS, file); err != nil {
@@ -73,7 +75,7 @@ func (ob *OpeningBook) LoadFromEmbedded(embedFS embed.FS, dir string) error {
 		}
 	}
 
-	Info("Opening", "Opening book loaded successfully")
+	logger.Info("OPENING", "Opening book loaded successfully")
 	return nil
 }
 
@@ -92,7 +94,7 @@ func (ob *OpeningBook) LoadFromDirectory(dir string) error {
 		return fmt.Errorf("no TSV files found in %s", dir)
 	}
 
-	Info("Opening", "Loading opening book from %d files", len(files))
+	logger.Info("OPENING", "Loading opening book from %d files", len(files))
 
 	for _, file := range files {
 		if err := ob.loadTSVFile(file); err != nil {
@@ -100,7 +102,7 @@ func (ob *OpeningBook) LoadFromDirectory(dir string) error {
 		}
 	}
 
-	Info("Opening", "Opening book loaded successfully")
+	logger.Info("OPENING", "Opening book loaded successfully")
 	return nil
 }
 
@@ -145,7 +147,7 @@ func (ob *OpeningBook) parseTSVReader(reader io.Reader, filename string) error {
 
 		parts := strings.Split(line, "\t")
 		if len(parts) < 3 {
-			Warn("Opening", "Skipping malformed line %d in %s", lineNum, filename)
+			logger.Warn("OPENING", "Skipping malformed line %d in %s", lineNum, filename)
 			continue
 		}
 
@@ -154,7 +156,7 @@ func (ob *OpeningBook) parseTSVReader(reader io.Reader, filename string) error {
 		pgn := strings.TrimSpace(parts[2])
 
 		if err := ob.addOpening(eco, name, pgn); err != nil {
-			Warn("Opening", "Failed to add opening at line %d: %v", lineNum, err)
+			logger.Warn("OPENING", "Failed to add opening at line %d: %v", lineNum, err)
 		}
 	}
 

@@ -1,4 +1,4 @@
-package server
+package analysis
 
 import (
 	"bufio"
@@ -9,6 +9,8 @@ import (
 	"sync"
 
 	"github.com/notnil/chess"
+
+	"go-chess/logger"
 )
 
 // CECPAnalysisEngine manages a CECP engine for analysis
@@ -52,19 +54,19 @@ func NewCECPAnalysisEngine(enginePath string) (*CECPAnalysisEngine, error) {
 		active: true,
 	}
 
-	Info("ANALYSIS", "Initializing CECP analysis engine: %s", enginePath)
+	logger.Info("ANALYSIS", "Initializing CECP analysis engine: %s", enginePath)
 
 	// Initialize CECP protocol
 	engine.sendCommand("xboard")
 	engine.sendCommand("protover 2")
 
 	// Wait for feature done=1
-	Info("ANALYSIS", "Waiting for feature done=1...")
+	logger.Info("ANALYSIS", "Waiting for feature done=1...")
 	for engine.stdout.Scan() {
 		line := engine.stdout.Text()
-		Debug("ANALYSIS", "<<< %s", line)
+		logger.Debug("ANALYSIS", "<<< %s", line)
 		if strings.Contains(line, "feature") && strings.Contains(line, "done=1") {
-			Info("ANALYSIS", "Got feature done=1")
+			logger.Info("ANALYSIS", "Got feature done=1")
 			break
 		}
 	}
@@ -72,7 +74,7 @@ func NewCECPAnalysisEngine(enginePath string) (*CECPAnalysisEngine, error) {
 	// Enable post mode to get thinking output
 	engine.sendCommand("post")
 
-	Info("ANALYSIS", "CECP analysis engine ready")
+	logger.Info("ANALYSIS", "CECP analysis engine ready")
 
 	return engine, nil
 }
@@ -81,7 +83,7 @@ func (e *CECPAnalysisEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	Debug("ANALYSIS", ">>> %s", cmd)
+	logger.Debug("ANALYSIS", ">>> %s", cmd)
 	_, err := e.stdin.WriteString(cmd + "\n")
 	if err != nil {
 		return err
@@ -104,31 +106,31 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 
 	// Read analysis output in a goroutine
 	go func() {
-		Info("ANALYSIS", "CECP analysis goroutine started")
+		logger.Info("ANALYSIS", "CECP analysis goroutine started")
 		for e.stdout.Scan() {
 			if !e.active {
-				Info("ANALYSIS", "CECP analysis stopped (active=false)")
+				logger.Info("ANALYSIS", "CECP analysis stopped (active=false)")
 				break
 			}
 
 			line := e.stdout.Text()
-			Debug("ANALYSIS", "<<< %s", line)
+			logger.Debug("ANALYSIS", "<<< %s", line)
 
 			// Parse CECP analysis output
 			// Format: depth score time nodes PV
 			info := parseCECPAnalysis(line, e.position)
 			if info.BestMove != "" {
-				Debug("ANALYSIS", "Sending analysis: depth=%d, score=%d, move=%s", info.Depth, info.Score, info.BestMove)
+				logger.Debug("ANALYSIS", "Sending analysis: depth=%d, score=%d, move=%s", info.Depth, info.Score, info.BestMove)
 				analysisChannel <- info
 			}
 
 			// Check for analyze complete
 			if strings.Contains(line, "analyze complete") {
-				Info("ANALYSIS", "CECP analysis complete")
+				logger.Info("ANALYSIS", "CECP analysis complete")
 				break
 			}
 		}
-		Info("ANALYSIS", "CECP analysis goroutine exited")
+		logger.Info("ANALYSIS", "CECP analysis goroutine exited")
 	}()
 
 	return nil

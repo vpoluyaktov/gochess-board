@@ -1,4 +1,4 @@
-package server
+package engine
 
 import (
 	"bufio"
@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"go-chess/logger"
 )
 
 // UCIEngine represents a UCI chess engine
@@ -52,34 +54,34 @@ func NewUCIEngine(enginePath string, engineName string) (*UCIEngine, error) {
 		name:   engineName,
 	}
 
-	Info("ENGINE", "[%s] Initializing UCI engine at path: %s", engineName, enginePath)
+	logger.Info("ENGINE", "[%s] Initializing UCI engine at path: %s", engineName, enginePath)
 
 	// Initialize UCI
 	if err := engine.sendCommand("uci"); err != nil {
-		Error("ENGINE", "[%s] Failed to send 'uci' command: %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to send 'uci' command: %v", engineName, err)
 		return nil, err
 	}
 
 	// Wait for uciok
-	Info("ENGINE", "[%s] Waiting for 'uciok' response...", engineName)
+	logger.Info("ENGINE", "[%s] Waiting for 'uciok' response...", engineName)
 	if err := engine.waitForResponse("uciok", 5*time.Second); err != nil {
-		Error("ENGINE", "[%s] Failed to get 'uciok': %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to get 'uciok': %v", engineName, err)
 		return nil, err
 	}
 
 	// Set ready
 	if err := engine.sendCommand("isready"); err != nil {
-		Error("ENGINE", "[%s] Failed to send 'isready' command: %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to send 'isready' command: %v", engineName, err)
 		return nil, err
 	}
 
-	Info("ENGINE", "[%s] Waiting for 'readyok' response...", engineName)
+	logger.Info("ENGINE", "[%s] Waiting for 'readyok' response...", engineName)
 	if err := engine.waitForResponse("readyok", 5*time.Second); err != nil {
-		Error("ENGINE", "[%s] Failed to get 'readyok': %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to get 'readyok': %v", engineName, err)
 		return nil, err
 	}
 
-	Info("ENGINE", "[%s] Successfully initialized", engineName)
+	logger.Info("ENGINE", "[%s] Successfully initialized", engineName)
 
 	return engine, nil
 }
@@ -89,7 +91,7 @@ func (e *UCIEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
+	logger.Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
 	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
 	return err
 }
@@ -101,7 +103,7 @@ func (e *UCIEngine) readLine() (string, error) {
 		return "", err
 	}
 	line = strings.TrimSpace(line)
-	Debug("ENGINE", "[%s] <<< %s", e.name, line)
+	logger.Debug("ENGINE", "[%s] <<< %s", e.name, line)
 	return line, nil
 }
 
@@ -158,25 +160,25 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 
 	// Wait for bestmove response
 	deadline := time.Now().Add(2 * time.Second)
-	Info("ENGINE", "[%s] Waiting for bestmove response...", e.name)
+	logger.Info("ENGINE", "[%s] Waiting for bestmove response...", e.name)
 
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
-			Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
+			logger.Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
 			return "", err
 		}
 
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				Info("ENGINE", "[%s] Got bestmove: %s", e.name, parts[1])
+				logger.Info("ENGINE", "[%s] Got bestmove: %s", e.name, parts[1])
 				return parts[1], nil
 			}
 		}
 	}
 
-	Error("ENGINE", "[%s] Timeout waiting for bestmove", e.name)
+	logger.Error("ENGINE", "[%s] Timeout waiting for bestmove", e.name)
 	return "", fmt.Errorf("timeout waiting for bestmove")
 }
 
@@ -209,25 +211,25 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		maxTime = blackTime
 	}
 	deadline := time.Now().Add(maxTime + 5*time.Second)
-	Info("ENGINE", "[%s] Waiting for bestmove response (timeout: %v)...", e.name, maxTime+5*time.Second)
+	logger.Info("ENGINE", "[%s] Waiting for bestmove response (timeout: %v)...", e.name, maxTime+5*time.Second)
 
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
-			Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
+			logger.Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
 			return "", err
 		}
 
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				Info("ENGINE", "[%s] Got bestmove: %s", e.name, parts[1])
+				logger.Info("ENGINE", "[%s] Got bestmove: %s", e.name, parts[1])
 				return parts[1], nil
 			}
 		}
 	}
 
-	Error("ENGINE", "[%s] Timeout waiting for bestmove", e.name)
+	logger.Error("ENGINE", "[%s] Timeout waiting for bestmove", e.name)
 	return "", fmt.Errorf("timeout waiting for bestmove")
 }
 

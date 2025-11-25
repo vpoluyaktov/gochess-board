@@ -1,4 +1,4 @@
-package server
+package book
 
 // Polyglot Zobrist hash values (official from Polyglot specification)
 var polyglotRandom64 = [781]uint64{

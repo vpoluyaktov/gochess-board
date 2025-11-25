@@ -1,4 +1,4 @@
-package server
+package book
 
 import (
 	"encoding/binary"
@@ -10,11 +10,13 @@ import (
 	"sync"
 
 	"github.com/notnil/chess"
+
+	"go-chess/logger"
 )
 
 // PolyglotBook represents a Polyglot opening book (.bin file)
 type PolyglotBook struct {
-	entries []PolyglotEntry
+	Entries []PolyglotEntry
 	mu      sync.RWMutex
 }
 
@@ -29,7 +31,7 @@ type PolyglotEntry struct {
 // NewPolyglotBook creates a new empty Polyglot book
 func NewPolyglotBook() *PolyglotBook {
 	return &PolyglotBook{
-		entries: make([]PolyglotEntry, 0),
+		Entries: make([]PolyglotEntry, 0),
 	}
 }
 
@@ -52,7 +54,7 @@ func (pb *PolyglotBook) LoadFromFile(filepath string) error {
 
 	// Each entry is 16 bytes
 	entryCount := stat.Size() / 16
-	pb.entries = make([]PolyglotEntry, 0, entryCount)
+	pb.Entries = make([]PolyglotEntry, 0, entryCount)
 
 	// Read all entries
 	for {
@@ -81,14 +83,14 @@ func (pb *PolyglotBook) LoadFromFile(filepath string) error {
 			return fmt.Errorf("failed to read entry learn: %w", err)
 		}
 
-		pb.entries = append(pb.entries, entry)
+		pb.Entries = append(pb.Entries, entry)
 	}
 
-	Info("POLYGLOT_BOOK", "Loaded %d entries from %s", len(pb.entries), filepath)
+	logger.Info("POLYGLOT_BOOK", "Loaded %d entries from %s", len(pb.Entries), filepath)
 
 	// Sort entries by key for binary search
-	sort.Slice(pb.entries, func(i, j int) bool {
-		return pb.entries[i].Key < pb.entries[j].Key
+	sort.Slice(pb.Entries, func(i, j int) bool {
+		return pb.Entries[i].Key < pb.Entries[j].Key
 	})
 
 	return nil
@@ -104,13 +106,13 @@ func (pb *PolyglotBook) Probe(position *chess.Position) []string {
 
 	// Binary search for entries with this key
 	matches := []PolyglotEntry{}
-	idx := sort.Search(len(pb.entries), func(i int) bool {
-		return pb.entries[i].Key >= key
+	idx := sort.Search(len(pb.Entries), func(i int) bool {
+		return pb.Entries[i].Key >= key
 	})
 
 	// Collect all entries with matching key
-	for idx < len(pb.entries) && pb.entries[idx].Key == key {
-		matches = append(matches, pb.entries[idx])
+	for idx < len(pb.Entries) && pb.Entries[idx].Key == key {
+		matches = append(matches, pb.Entries[idx])
 		idx++
 	}
 
@@ -140,13 +142,13 @@ func (pb *PolyglotBook) ProbeWeighted(position *chess.Position) string {
 
 	// Binary search for entries with this key
 	matches := []PolyglotEntry{}
-	idx := sort.Search(len(pb.entries), func(i int) bool {
-		return pb.entries[i].Key >= key
+	idx := sort.Search(len(pb.Entries), func(i int) bool {
+		return pb.Entries[i].Key >= key
 	})
 
 	// Collect all entries with matching key
-	for idx < len(pb.entries) && pb.entries[idx].Key == key {
-		matches = append(matches, pb.entries[idx])
+	for idx < len(pb.Entries) && pb.Entries[idx].Key == key {
+		matches = append(matches, pb.Entries[idx])
 		idx++
 	}
 
