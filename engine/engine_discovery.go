@@ -1,4 +1,4 @@
-package server
+package engine
 
 import (
 	"bufio"
@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"go-chess/logger"
 	"go-chess/utils"
 )
 
@@ -137,13 +138,13 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 
 	// Log book file status
 	if bookFile != "" {
-		Info("ENGINE_DISCOVERY", "Opening book file specified: %s (will be used with native Polyglot book reader)", bookFile)
+		logger.Warn("ENGINE_DISCOVERY", "Opening book file specified: %s (will be used with native Polyglot book reader)", bookFile)
 	} else {
-		Info("ENGINE_DISCOVERY", "No opening book file specified")
+		logger.Warn("ENGINE_DISCOVERY", "No opening book file specified")
 	}
 
 	// Discover UCI engines
-	Info("ENGINE_DISCOVERY", "Discovering UCI engines...")
+	logger.Warn("ENGINE_DISCOVERY", "Discovering UCI engines...")
 	uciEngines := discoverEngineList(getEngineNames(uciEngineBaseNames), getEngineInfo)
 	for _, engine := range uciEngines {
 		if !seen[engine.Path] {
@@ -155,22 +156,22 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 				eloInfo = fmt.Sprintf(" [ELO: %d-%d, default: %d]",
 					engine.MinElo, engine.MaxElo, engine.DefaultElo)
 			}
-			Info("ENGINE_DISCOVERY", "Discovered UCI engine: %s (command: %s)%s",
+			logger.Warn("ENGINE_DISCOVERY", "Discovered UCI engine: %s (command: %s)%s",
 				engine.Name, engine.Path, eloInfo)
 		}
 	}
 
 	// Discover CECP engines (native CECP support, no external wrapper needed)
-	Info("ENGINE_DISCOVERY", "Discovering CECP engines...")
+	logger.Warn("ENGINE_DISCOVERY", "Discovering CECP engines...")
 	cecpEngines := discoverEngineList(getEngineNames(cecpEngineBaseNames), getCECPEngineInfo)
 	for _, engine := range cecpEngines {
-		Info("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
+		logger.Warn("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
 			engine.Name, engine.Path)
 	}
 
 	// Add CECP engines directly (native CECP support)
 	if len(cecpEngines) > 0 {
-		Info("ENGINE_DISCOVERY", "Adding CECP engines with native support...")
+		logger.Warn("ENGINE_DISCOVERY", "Adding CECP engines with native support...")
 		for _, engine := range cecpEngines {
 			if !seen[engine.Path] {
 				engines = append(engines, engine)
@@ -274,7 +275,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 				return
 			}
 		}
-		Info("ENGINE_DISCOVERY", "Engine %s is not UCI compatible (no 'uciok' response)", path)
+		logger.Warn("ENGINE_DISCOVERY", "Engine %s is not UCI compatible (no 'uciok' response)", path)
 		resultChan <- struct {
 			info EngineInfo
 			ok   bool
@@ -290,7 +291,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 		cmd.Wait()
 		return result.info, result.ok
 	case <-time.After(2 * time.Second):
-		Info("ENGINE_DISCOVERY", "Engine %s is not UCI compatible (timeout)", path)
+		logger.Warn("ENGINE_DISCOVERY", "Engine %s is not UCI compatible (timeout)", path)
 		stdin.Close()
 		stdout.Close()
 		cmd.Process.Kill()

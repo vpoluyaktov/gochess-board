@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"go-chess/engine"
+	"go-chess/logger"
 	"go-chess/server"
 	"go-chess/tui"
 	"go-chess/utils"
@@ -50,7 +52,7 @@ func main() {
 	}
 
 	// Set log level from command line
-	server.SetLogLevel(*logLevel)
+	logger.SetLogLevel(*logLevel)
 
 	// Handle restart flag - kill process using our port
 	if *restart {
@@ -129,7 +131,7 @@ func main() {
 		bookLoaded, bookEntries := srv.GetPolyglotBookInfo()
 
 		// Run TUI (blocks until quit)
-		if err := tui.RunTUI(url, srv.GetEngines(), server.GlobalMonitor, srv.GetOpeningStats(), bookLoaded, bookEntries); err != nil {
+		if err := tui.RunTUI(url, srv.GetEngines(), engine.GlobalMonitor, srv.GetOpeningStats(), bookLoaded, bookEntries); err != nil {
 			log.Fatalf("TUI error: %v", err)
 		}
 	} else {

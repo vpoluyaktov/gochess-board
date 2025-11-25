@@ -6,10 +6,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go-chess/engine"
+	"go-chess/opening"
 )
 
 func TestServer_GetEngines(t *testing.T) {
-	engines := []EngineInfo{
+	engines := []engine.EngineInfo{
 		{Name: "Stockfish", Path: "/usr/bin/stockfish", Type: "uci"},
 		{Name: "Fruit", Path: "/usr/bin/fruit", Type: "uci"},
 	}
@@ -42,7 +45,7 @@ func TestServer_GetAddr(t *testing.T) {
 
 func TestServer_GetOpeningStats(t *testing.T) {
 	t.Run("with opening book", func(t *testing.T) {
-		book := NewOpeningBook()
+		book := opening.NewOpeningBook()
 		server := &Server{
 			addr:        ":8080",
 			openingBook: book,
@@ -74,7 +77,7 @@ func TestServer_GetOpeningStats(t *testing.T) {
 }
 
 func TestHandleGetEngines(t *testing.T) {
-	engines := []EngineInfo{
+	engines := []engine.EngineInfo{
 		{Name: "Stockfish", Path: "/usr/bin/stockfish", Type: "uci"},
 	}
 
@@ -97,7 +100,7 @@ func TestHandleGetEngines(t *testing.T) {
 		t.Errorf("Expected Content-Type 'application/json', got %q", contentType)
 	}
 
-	var result []EngineInfo
+	var result []engine.EngineInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -125,7 +128,7 @@ func TestHandleGetEngines_EmptyList(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var result []EngineInfo
+	var result []engine.EngineInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -138,7 +141,7 @@ func TestHandleGetEngines_EmptyList(t *testing.T) {
 func TestHandleGetOpening_MethodNotAllowed(t *testing.T) {
 	server := &Server{
 		addr:        ":8080",
-		openingBook: NewOpeningBook(),
+		openingBook: opening.NewOpeningBook(),
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/opening", nil)
@@ -154,7 +157,7 @@ func TestHandleGetOpening_MethodNotAllowed(t *testing.T) {
 func TestHandleGetOpening_InvalidRequest(t *testing.T) {
 	server := &Server{
 		addr:        ":8080",
-		openingBook: NewOpeningBook(),
+		openingBook: opening.NewOpeningBook(),
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/opening", bytes.NewBufferString("invalid json"))
@@ -188,7 +191,7 @@ func TestHandleGetOpening_NoBook(t *testing.T) {
 func TestHandleGetOpening_NotFound(t *testing.T) {
 	server := &Server{
 		addr:        ":8080",
-		openingBook: NewOpeningBook(),
+		openingBook: opening.NewOpeningBook(),
 	}
 
 	reqBody := OpeningRequest{Moves: []string{"a4", "b5", "c6"}}

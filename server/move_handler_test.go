@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"go-chess/engine"
 )
 
 func TestMoveRequest_JSON(t *testing.T) {
@@ -94,7 +96,7 @@ func TestErrorResponse_JSON(t *testing.T) {
 func TestHandleComputerMove_MethodNotAllowed(t *testing.T) {
 	server := &Server{
 		addr:    ":8080",
-		engines: []EngineInfo{},
+		engines: []engine.EngineInfo{},
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/computer-move", nil)
@@ -119,7 +121,7 @@ func TestHandleComputerMove_MethodNotAllowed(t *testing.T) {
 func TestHandleComputerMove_InvalidJSON(t *testing.T) {
 	server := &Server{
 		addr:    ":8080",
-		engines: []EngineInfo{},
+		engines: []engine.EngineInfo{},
 	}
 
 	req := httptest.NewRequest(http.MethodPost, "/api/computer-move", bytes.NewBufferString("invalid json"))
@@ -144,7 +146,7 @@ func TestHandleComputerMove_InvalidJSON(t *testing.T) {
 func TestHandleComputerMove_InvalidFEN(t *testing.T) {
 	server := &Server{
 		addr:    ":8080",
-		engines: []EngineInfo{},
+		engines: []engine.EngineInfo{},
 	}
 
 	reqBody := MoveRequest{
@@ -173,7 +175,7 @@ func TestHandleComputerMove_InvalidFEN(t *testing.T) {
 func TestHandleComputerMove_GameOver(t *testing.T) {
 	server := &Server{
 		addr:    ":8080",
-		engines: []EngineInfo{},
+		engines: []engine.EngineInfo{},
 	}
 
 	// Checkmate position

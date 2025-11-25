@@ -1,4 +1,4 @@
-package server
+package engine
 
 import (
 	"sync"
@@ -49,7 +49,7 @@ func (em *EngineMonitor) UnregisterEngine(sessionID string) {
 func (em *EngineMonitor) GetActiveEngines() []*ActiveEngine {
 	em.mu.RLock()
 	defer em.mu.RUnlock()
-	
+
 	engines := make([]*ActiveEngine, 0, len(em.engines))
 	for _, engine := range em.engines {
 		engines = append(engines, engine)
@@ -61,7 +61,7 @@ func (em *EngineMonitor) GetActiveEngines() []*ActiveEngine {
 func (em *EngineMonitor) CleanupStaleEngines(maxAge time.Duration) {
 	em.mu.Lock()
 	defer em.mu.Unlock()
-	
+
 	now := time.Now()
 	for id, engine := range em.engines {
 		if now.Sub(engine.StartTime) > maxAge {

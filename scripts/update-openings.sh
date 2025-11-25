@@ -22,7 +22,7 @@ if [[ "$1" == "-h" || "$1" == "--help" ]]; then
     echo "  $0 3379fcd843d3aa24425a0aef51dc00cfe28a8071    # Use specific commit"
     echo ""
     echo "Files downloaded: a.tsv, b.tsv, c.tsv, d.tsv, e.tsv"
-    echo "Output directory: server/assets/openings"
+    echo "Output directory: ../server/assets/openings"
     exit 0
 fi
 
@@ -30,7 +30,7 @@ fi
 REPO="lichess-org/chess-openings"
 COMMIT="${1:-3379fcd843d3aa24425a0aef51dc00cfe28a8071}"  # Default commit or use argument
 BASE_URL="https://raw.githubusercontent.com/${REPO}/${COMMIT}"
-OUTPUT_DIR="server/assets/openings"
+OUTPUT_DIR="../server/assets/openings"
 
 # TSV files to download
 FILES=("a.tsv" "b.tsv" "c.tsv" "d.tsv" "e.tsv")
@@ -89,4 +89,4 @@ echo ""
 echo "✓ Opening database updated successfully!"
 echo ""
 echo "To verify the update, run:"
-echo "  go test -v -run TestOpeningBook ./server"
+echo "  cd .. && go test -v -run TestOpeningBook ./server"

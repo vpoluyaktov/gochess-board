@@ -8,6 +8,11 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"go-chess/book"
+	"go-chess/engine"
+	"go-chess/logger"
+	"go-chess/opening"
 )
 
 //go:embed templates/*
@@ -19,9 +24,9 @@ var assetsFS embed.FS
 // Server represents the HTTP server
 type Server struct {
 	addr         string
-	engines      []EngineInfo
-	openingBook  *OpeningBook  // Opening name database
-	polyglotBook *PolyglotBook // Polyglot opening book for move suggestions
+	engines      []engine.EngineInfo
+	openingBook  *opening.OpeningBook // Opening name database
+	polyglotBook *book.PolyglotBook   // Polyglot opening book for move suggestions
 }
 
 // InitDebugLogging sets up logging to a file only (no stdout to avoid breaking TUI)
@@ -41,33 +46,33 @@ func InitDebugLogging(filename string) error {
 
 // New creates a new chess server
 func New(addr string, bookFile string) *Server {
-	engines := DiscoverEngines(bookFile)
-	Info("SERVER", "Discovered %d chess engines", len(engines))
-	for _, engine := range engines {
-		Info("SERVER", "  - %s (%s)", engine.Name, engine.Path)
+	engines := engine.DiscoverEngines(bookFile)
+	logger.Info("SERVER", "Discovered %d chess engines", len(engines))
+	for _, eng := range engines {
+		logger.Info("SERVER", "  - %s (%s)", eng.Name, eng.Path)
 	}
 
 	// Initialize opening name database from embedded filesystem
-	Info("SERVER", "Loading opening name database from embedded assets/openings")
-	openingBook := NewOpeningBook()
+	logger.Info("SERVER", "Loading opening name database from embedded assets/openings")
+	openingBook := opening.NewOpeningBook()
 	if err := openingBook.LoadFromEmbedded(assetsFS, "assets/openings"); err != nil {
-		Warn("SERVER", "Failed to load opening name database: %v", err)
+		logger.Warn("SERVER", "Failed to load opening name database: %v", err)
 	} else {
 		stats := openingBook.Stats()
-		Info("SERVER", "Opening name database loaded: %d openings, %d nodes, max depth %d",
+		logger.Info("SERVER", "Opening name database loaded: %d openings, %d nodes, max depth %d",
 			stats["total_openings"], stats["total_nodes"], stats["max_depth"])
 	}
 
 	// Initialize Polyglot opening book if specified
-	var polyglotBook *PolyglotBook
+	var polyglotBook *book.PolyglotBook
 	if bookFile != "" {
-		Info("SERVER", "Loading Polyglot opening book from %s", bookFile)
-		polyglotBook = NewPolyglotBook()
+		logger.Info("SERVER", "Loading Polyglot opening book from %s", bookFile)
+		polyglotBook = book.NewPolyglotBook()
 		if err := polyglotBook.LoadFromFile(bookFile); err != nil {
-			Warn("SERVER", "Failed to load Polyglot book: %v", err)
+			logger.Warn("SERVER", "Failed to load Polyglot book: %v", err)
 			polyglotBook = nil
 		} else {
-			Info("SERVER", "Polyglot book loaded successfully")
+			logger.Info("SERVER", "Polyglot book loaded successfully")
 		}
 	}
 
@@ -80,7 +85,7 @@ func New(addr string, bookFile string) *Server {
 }
 
 // GetEngines returns the list of discovered engines
-func (s *Server) GetEngines() []EngineInfo {
+func (s *Server) GetEngines() []engine.EngineInfo {
 	return s.engines
 }
 
@@ -89,7 +94,7 @@ func (s *Server) GetPolyglotBookInfo() (loaded bool, entryCount int) {
 	if s.polyglotBook == nil {
 		return false, 0
 	}
-	return true, len(s.polyglotBook.entries)
+	return true, len(s.polyglotBook.Entries)
 }
 
 // Start starts the HTTP server
@@ -106,7 +111,7 @@ func (s *Server) Start() error {
 	// Serve main page
 	http.HandleFunc("/", s.handleIndex)
 
-	Info("SERVER", "Server starting on %s", s.addr)
+	logger.Info("SERVER", "Server starting on %s", s.addr)
 	return http.ListenAndServe(s.addr, nil)
 }
 
@@ -115,13 +120,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFS(templatesFS, "templates/index.html")
 	if err != nil {
 		http.Error(w, "Error loading template", http.StatusInternalServerError)
-		Error("SERVER", "Template error: %v", err)
+		logger.Error("SERVER", "Template error: %v", err)
 		return
 	}
 
 	// Pass engines and cache buster to template
 	data := struct {
-		Engines     []EngineInfo
+		Engines     []engine.EngineInfo
 		CacheBuster int64
 	}{
 		Engines:     s.engines,
@@ -140,7 +145,7 @@ func (s *Server) handleGetEngines(w http.ResponseWriter, r *http.Request) {
 
 	engines := s.engines
 	if engines == nil {
-		engines = []EngineInfo{}
+		engines = []engine.EngineInfo{}
 	}
 
 	w.WriteHeader(http.StatusOK)

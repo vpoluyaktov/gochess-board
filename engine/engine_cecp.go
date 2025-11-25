@@ -1,4 +1,4 @@
-package server
+package engine
 
 import (
 	"bufio"
@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"go-chess/logger"
 )
 
 // CECPEngine represents a CECP/XBoard chess engine
@@ -58,38 +60,38 @@ func NewCECPEngine(enginePath string, engineName string) (*CECPEngine, error) {
 		name:   engineName,
 	}
 
-	Info("ENGINE", "[%s] Initializing CECP engine at path: %s", engineName, enginePath)
+	logger.Info("ENGINE", "[%s] Initializing CECP engine at path: %s", engineName, enginePath)
 
 	// Initialize CECP protocol
 	if err := engine.sendCommand("xboard"); err != nil {
-		Error("ENGINE", "[%s] Failed to send 'xboard' command: %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to send 'xboard' command: %v", engineName, err)
 		return nil, err
 	}
 
 	// Send protover 2 to enable protocol version 2 features
 	if err := engine.sendCommand("protover 2"); err != nil {
-		Error("ENGINE", "[%s] Failed to send 'protover 2' command: %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to send 'protover 2' command: %v", engineName, err)
 		return nil, err
 	}
 
 	// Wait for feature done=1
-	Info("ENGINE", "[%s] Waiting for 'feature done=1' response...", engineName)
+	logger.Info("ENGINE", "[%s] Waiting for 'feature done=1' response...", engineName)
 	if err := engine.waitForFeatureDone(10 * time.Second); err != nil {
-		Error("ENGINE", "[%s] Failed to get 'feature done=1': %v", engineName, err)
+		logger.Error("ENGINE", "[%s] Failed to get 'feature done=1': %v", engineName, err)
 		return nil, err
 	}
 
 	// Disable pondering (thinking on opponent's time)
 	if err := engine.sendCommand("hard"); err != nil {
-		Warn("ENGINE", "[%s] Failed to disable pondering: %v", engineName, err)
+		logger.Warn("ENGINE", "[%s] Failed to disable pondering: %v", engineName, err)
 	}
 
 	// Set post mode to get thinking output
 	if err := engine.sendCommand("post"); err != nil {
-		Warn("ENGINE", "[%s] Failed to enable post mode: %v", engineName, err)
+		logger.Warn("ENGINE", "[%s] Failed to enable post mode: %v", engineName, err)
 	}
 
-	Info("ENGINE", "[%s] Successfully initialized", engineName)
+	logger.Info("ENGINE", "[%s] Successfully initialized", engineName)
 
 	return engine, nil
 }
@@ -99,7 +101,7 @@ func (e *CECPEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
+	logger.Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
 	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
 	return err
 }
@@ -111,7 +113,7 @@ func (e *CECPEngine) readLine() (string, error) {
 		return "", err
 	}
 	line = strings.TrimSpace(line)
-	Debug("ENGINE", "[%s] <<< %s", e.name, line)
+	logger.Debug("ENGINE", "[%s] <<< %s", e.name, line)
 	return line, nil
 }
 
@@ -159,12 +161,12 @@ func (e *CECPEngine) GetBestMove(fen string, moveTime time.Duration) (string, er
 
 	// Wait for move response
 	deadline := time.Now().Add(moveTime + 5*time.Second)
-	Info("ENGINE", "[%s] Waiting for move response...", e.name)
+	logger.Info("ENGINE", "[%s] Waiting for move response...", e.name)
 
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
-			Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
+			logger.Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
 			return "", err
 		}
 
@@ -173,7 +175,7 @@ func (e *CECPEngine) GetBestMove(fen string, moveTime time.Duration) (string, er
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
 				move := parts[1]
-				Info("ENGINE", "[%s] Got move: %s", e.name, move)
+				logger.Info("ENGINE", "[%s] Got move: %s", e.name, move)
 				return move, nil
 			}
 		} else if strings.Contains(line, "My move is") {
@@ -181,13 +183,13 @@ func (e *CECPEngine) GetBestMove(fen string, moveTime time.Duration) (string, er
 			parts := strings.Split(line, ":")
 			if len(parts) >= 2 {
 				move := strings.TrimSpace(parts[1])
-				Info("ENGINE", "[%s] Got move: %s", e.name, move)
+				logger.Info("ENGINE", "[%s] Got move: %s", e.name, move)
 				return move, nil
 			}
 		}
 	}
 
-	Error("ENGINE", "[%s] Timeout waiting for move", e.name)
+	logger.Error("ENGINE", "[%s] Timeout waiting for move", e.name)
 	return "", fmt.Errorf("timeout waiting for move")
 }
 
@@ -223,12 +225,12 @@ func (e *CECPEngine) GetBestMoveWithClock(fen string, moveHistory []string, whit
 		maxTime = blackTime
 	}
 	deadline := time.Now().Add(maxTime + 5*time.Second)
-	Info("ENGINE", "[%s] Waiting for move response (timeout: %v)...", e.name, maxTime+5*time.Second)
+	logger.Info("ENGINE", "[%s] Waiting for move response (timeout: %v)...", e.name, maxTime+5*time.Second)
 
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
 		if err != nil {
-			Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
+			logger.Error("ENGINE", "[%s] Error reading line: %v", e.name, err)
 			return "", err
 		}
 
@@ -237,7 +239,7 @@ func (e *CECPEngine) GetBestMoveWithClock(fen string, moveHistory []string, whit
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
 				move := parts[1]
-				Info("ENGINE", "[%s] Got move: %s", e.name, move)
+				logger.Info("ENGINE", "[%s] Got move: %s", e.name, move)
 				return move, nil
 			}
 		} else if strings.Contains(line, "My move is") {
@@ -245,13 +247,13 @@ func (e *CECPEngine) GetBestMoveWithClock(fen string, moveHistory []string, whit
 			parts := strings.Split(line, ":")
 			if len(parts) >= 2 {
 				move := strings.TrimSpace(parts[1])
-				Info("ENGINE", "[%s] Got move: %s", e.name, move)
+				logger.Info("ENGINE", "[%s] Got move: %s", e.name, move)
 				return move, nil
 			}
 		}
 	}
 
-	Error("ENGINE", "[%s] Timeout waiting for move", e.name)
+	logger.Error("ENGINE", "[%s] Timeout waiting for move", e.name)
 	return "", fmt.Errorf("timeout waiting for move")
 }
 

@@ -7,6 +7,9 @@ import (
 	"time"
 
 	"github.com/notnil/chess"
+
+	"go-chess/engine"
+	"go-chess/logger"
 )
 
 const (
@@ -67,7 +70,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	game := chess.NewGame(fen)
 
 	// Log the request for debugging
-	Info("CHESS", "Computer move request: FEN=%s, Turn=%v, Moves=%d",
+	logger.Info("CHESS", "Computer move request: FEN=%s, Turn=%v, Moves=%d",
 		req.FEN, game.Position().Turn(), len(req.Moves))
 
 	// Check if game is over
@@ -81,21 +84,21 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	if s.polyglotBook != nil {
 		bookMove := s.polyglotBook.ProbeWeighted(game.Position())
 		if bookMove != "" {
-			Info("POLYGLOT_BOOK", "Book move found: %s", bookMove)
+			logger.Info("POLYGLOT_BOOK", "Book move found: %s", bookMove)
 
 			// Parse and apply the book move
 			move, err := chess.UCINotation{}.Decode(game.Position(), bookMove)
 			if err != nil {
-				Warn("POLYGLOT_BOOK", "Failed to parse book move %s: %v", bookMove, err)
+				logger.Warn("POLYGLOT_BOOK", "Failed to parse book move %s: %v", bookMove, err)
 				// Continue to engine if book move is invalid
 			} else {
 				if err := game.Move(move); err != nil {
-					Warn("POLYGLOT_BOOK", "Failed to make book move %s: %v", bookMove, err)
+					logger.Warn("POLYGLOT_BOOK", "Failed to make book move %s: %v", bookMove, err)
 					// Continue to engine if book move fails
 				} else {
 					// Book move successful - return immediately
 					newFEN := game.FEN()
-					Info("POLYGLOT_BOOK", "Book move applied: %s", bookMove)
+					logger.Info("POLYGLOT_BOOK", "Book move applied: %s", bookMove)
 
 					response := MoveResponse{
 						Move:      bookMove,
@@ -143,7 +146,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Register engine in monitor
-	activeEngine := &ActiveEngine{
+	activeEngine := &engine.ActiveEngine{
 		Name:           engineName,
 		Path:           enginePath,
 		ELO:            eloValue,
@@ -154,29 +157,29 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		StartTime:      time.Now(),
 		SessionID:      sessionID,
 	}
-	globalMonitor.RegisterEngine(sessionID, activeEngine)
-	defer globalMonitor.UnregisterEngine(sessionID)
+	engine.GlobalMonitor.RegisterEngine(sessionID, activeEngine)
+	defer engine.GlobalMonitor.UnregisterEngine(sessionID)
 
 	// Initialize chess engine based on type
-	var engine ChessEngine
+	var chessEngine engine.ChessEngine
 	if engineType == "cecp" {
-		engine, err = NewCECPEngine(enginePath, engineName)
+		chessEngine, err = engine.NewCECPEngine(enginePath, engineName)
 	} else {
-		engine, err = NewUCIEngine(enginePath, engineName)
+		chessEngine, err = engine.NewUCIEngine(enginePath, engineName)
 	}
 	if err != nil {
-		Error("CHESS", "Failed to initialize engine %s: %v", engineName, err)
+		logger.Error("CHESS", "Failed to initialize engine %s: %v", engineName, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
 		return
 	}
-	defer engine.Close()
+	defer chessEngine.Close()
 
 	// Apply engine options if provided
 	if len(req.EngineOptions) > 0 {
 		for optionName, optionValue := range req.EngineOptions {
-			if err := engine.SetOption(optionName, optionValue); err != nil {
-				Warn("CHESS", "Failed to set option %s=%s: %v", optionName, optionValue, err)
+			if err := chessEngine.SetOption(optionName, optionValue); err != nil {
+				logger.Warn("CHESS", "Failed to set option %s=%s: %v", optionName, optionValue, err)
 			}
 		}
 	}
@@ -188,22 +191,22 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	// Determine time management strategy
 	if req.MoveTime > 0 {
 		// Fixed time per move
-		bestMoveUCI, err = engine.GetBestMove(req.FEN, time.Duration(req.MoveTime)*time.Millisecond)
+		bestMoveUCI, err = chessEngine.GetBestMove(req.FEN, time.Duration(req.MoveTime)*time.Millisecond)
 	} else if req.WhiteTime > 0 || req.BlackTime > 0 {
 		// Clock-based time management
 		whiteTime := time.Duration(req.WhiteTime) * time.Millisecond
 		blackTime := time.Duration(req.BlackTime) * time.Millisecond
 		whiteInc := time.Duration(req.WhiteIncrement) * time.Millisecond
 		blackInc := time.Duration(req.BlackIncrement) * time.Millisecond
-		bestMoveUCI, err = engine.GetBestMoveWithClock(req.FEN, req.Moves, whiteTime, blackTime, whiteInc, blackInc)
+		bestMoveUCI, err = chessEngine.GetBestMoveWithClock(req.FEN, req.Moves, whiteTime, blackTime, whiteInc, blackInc)
 	} else {
 		// Default: 1 second per move
-		bestMoveUCI, err = engine.GetBestMove(req.FEN, moveTime)
+		bestMoveUCI, err = chessEngine.GetBestMove(req.FEN, moveTime)
 	}
 	thinkTime := time.Since(startTime)
 
 	if err != nil {
-		Error("CHESS", "Failed to get best move: %v", err)
+		logger.Error("CHESS", "Failed to get best move: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to calculate move"})
 		return
@@ -215,7 +218,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		// Try parsing as SAN notation (e.g., "Nf6" from CECP engines like Crafty)
 		move, err = chess.AlgebraicNotation{}.Decode(game.Position(), bestMoveUCI)
 		if err != nil {
-			Error("CHESS", "Failed to parse move %s as UCI or SAN: %v", bestMoveUCI, err)
+			logger.Error("CHESS", "Failed to parse move %s as UCI or SAN: %v", bestMoveUCI, err)
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid move from engine"})
 			return
@@ -224,7 +227,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 
 	// Make the move
 	if err := game.Move(move); err != nil {
-		Error("CHESS", "Failed to make move %s: %v", bestMoveUCI, err)
+		logger.Error("CHESS", "Failed to make move %s: %v", bestMoveUCI, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(ErrorResponse{Error: "Failed to make move"})
 		return
@@ -233,7 +236,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	// Get new FEN after move
 	newFEN := game.FEN()
 
-	Info("CHESS", "Engine move: %s, think time: %v", bestMoveUCI, thinkTime)
+	logger.Info("CHESS", "Engine move: %s, think time: %v", bestMoveUCI, thinkTime)
 
 	// Return the move, new FEN, and think time
 	response := MoveResponse{
