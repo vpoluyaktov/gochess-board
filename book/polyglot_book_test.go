@@ -46,8 +46,8 @@ func TestPolyglotBook(t *testing.T) {
 
 	// Debug: print first few book entries
 	t.Logf("First 5 book entries:")
-	for i := 0; i < 5 && i < len(book.entries); i++ {
-		t.Logf("  Entry %d: key=0x%016X", i, book.entries[i].Key)
+	for i := 0; i < 5 && i < len(book.Entries); i++ {
+		t.Logf("  Entry %d: key=0x%016X", i, book.Entries[i].Key)
 	}
 
 	moves := book.Probe(game.Position())
@@ -303,13 +303,13 @@ func TestLoadFromFile(t *testing.T) {
 	}
 
 	// Verify entries were loaded
-	if len(book.entries) != 2 {
-		t.Errorf("Expected 2 entries, got %d", len(book.entries))
+	if len(book.Entries) != 2 {
+		t.Errorf("Expected 2 entries, got %d", len(book.Entries))
 	}
 
 	// Verify entries are sorted by key
-	for i := 1; i < len(book.entries); i++ {
-		if book.entries[i-1].Key > book.entries[i].Key {
+	for i := 1; i < len(book.Entries); i++ {
+		if book.Entries[i-1].Key > book.Entries[i].Key {
 			t.Error("Entries are not sorted by key")
 		}
 	}
