@@ -87,12 +87,14 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	// Generate session ID for tracking
 	sessionID := time.Now().Format("20060102-150405.000000")
 
-	// Get engine name from discovered engines
+	// Get engine name and type from discovered engines
 	engineName := "Unknown"
+	engineType := "uci" // default to UCI
 	eloValue := 0
 	for _, e := range s.engines {
 		if e.Path == enginePath {
 			engineName = e.Name
+			engineType = e.Type
 			break
 		}
 	}
@@ -121,8 +123,13 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	globalMonitor.RegisterEngine(sessionID, activeEngine)
 	defer globalMonitor.UnregisterEngine(sessionID)
 
-	// Initialize chess engine
-	engine, err := NewUCIEngine(enginePath, engineName)
+	// Initialize chess engine based on type
+	var engine ChessEngine
+	if engineType == "cecp" {
+		engine, err = NewCECPEngine(enginePath, engineName)
+	} else {
+		engine, err = NewUCIEngine(enginePath, engineName)
+	}
 	if err != nil {
 		Error("CHESS", "Failed to initialize engine %s: %v", engineName, err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -168,13 +175,17 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Parse the UCI move (e.g., "e2e4")
+	// Parse the move - try UCI notation first, then SAN notation (for CECP engines)
 	move, err := chess.UCINotation{}.Decode(game.Position(), bestMoveUCI)
 	if err != nil {
-		Error("CHESS", "Failed to parse move %s: %v", bestMoveUCI, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid move from engine"})
-		return
+		// Try parsing as SAN notation (e.g., "Nf6" from CECP engines like Crafty)
+		move, err = chess.AlgebraicNotation{}.Decode(game.Position(), bestMoveUCI)
+		if err != nil {
+			Error("CHESS", "Failed to parse move %s as UCI or SAN: %v", bestMoveUCI, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid move from engine"})
+			return
+		}
 	}
 
 	// Make the move

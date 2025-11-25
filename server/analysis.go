@@ -25,6 +25,13 @@ type AnalysisInfo struct {
 	ScoreType string   `json:"scoreType"` // "cp" or "mate"
 }
 
+// AnalysisEngineInterface is an interface for analysis engines (UCI or CECP)
+type AnalysisEngineInterface interface {
+	StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error
+	StopAnalysis()
+	Close()
+}
+
 // AnalysisEngine manages a UCI engine for analysis
 type AnalysisEngine struct {
 	cmd    *exec.Cmd
@@ -59,21 +66,29 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 		active: true,
 	}
 
+	Info("ANALYSIS", "Initializing analysis engine: %s", enginePath)
+
 	// Initialize UCI
 	engine.sendCommand("uci")
 
 	// Wait for uciok
+	Info("ANALYSIS", "Waiting for uciok...")
 	for engine.stdout.Scan() {
 		line := engine.stdout.Text()
+		Debug("ANALYSIS", "<<< %s", line)
 		if strings.HasPrefix(line, "uciok") {
+			Info("ANALYSIS", "Got uciok")
 			break
 		}
 	}
 
 	engine.sendCommand("isready")
+	Info("ANALYSIS", "Waiting for readyok...")
 	for engine.stdout.Scan() {
 		line := engine.stdout.Text()
+		Debug("ANALYSIS", "<<< %s", line)
 		if strings.HasPrefix(line, "readyok") {
+			Info("ANALYSIS", "Got readyok, engine ready")
 			break
 		}
 	}
@@ -85,6 +100,7 @@ func (e *AnalysisEngine) sendCommand(cmd string) error {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
+	Debug("ANALYSIS", ">>> %s", cmd)
 	_, err := e.stdin.WriteString(cmd + "\n")
 	if err != nil {
 		return err
@@ -189,16 +205,17 @@ var upgrader = websocket.Upgrader{
 func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("[ANALYSIS] WebSocket upgrade error: %v", err)
+		Error("ANALYSIS", "WebSocket upgrade error: %v", err)
 		return
 	}
 	defer conn.Close()
 
-	log.Println("[ANALYSIS] WebSocket connected")
+	Info("ANALYSIS", "WebSocket connected")
 
-	var engine *AnalysisEngine
+	var engine AnalysisEngineInterface
 	var sessionID string
 	analysisChannel := make(chan AnalysisInfo, 10)
+	stopSending := make(chan bool, 1) // Channel to stop the sending goroutine
 
 	// Handle incoming messages
 	for {
@@ -210,7 +227,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("[ANALYSIS] WebSocket read error: %v", err)
+			Debug("ANALYSIS", "WebSocket closed: %v", err)
 			break
 		}
 
@@ -232,7 +249,23 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 				enginePath = "stockfish" // default
 			}
 
-			engine, err = NewAnalysisEngine(enginePath)
+			// Detect engine type
+			engineName := "Unknown"
+			engineType := "uci" // default
+			for _, e := range s.engines {
+				if e.Path == enginePath {
+					engineName = e.Name
+					engineType = e.Type
+					break
+				}
+			}
+
+			// Create appropriate analysis engine based on type
+			if engineType == "cecp" {
+				engine, err = NewCECPAnalysisEngine(enginePath)
+			} else {
+				engine, err = NewAnalysisEngine(enginePath)
+			}
 			if err != nil {
 				log.Printf("[ANALYSIS] Failed to start analysis engine: %v", err)
 				conn.WriteJSON(map[string]string{"error": err.Error()})
@@ -241,13 +274,6 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 
 			// Register analysis engine in monitor
 			sessionID = fmt.Sprintf("analysis-%s", time.Now().Format("20060102-150405.000000"))
-			engineName := "Unknown"
-			for _, e := range s.engines {
-				if e.Path == enginePath {
-					engineName = e.Name
-					break
-				}
-			}
 
 			activeEngine := &ActiveEngine{
 				Name:           engineName + " (Analysis)",
@@ -282,18 +308,30 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 					select {
 					case info := <-analysisChannel:
 						lastInfo = info
+						Debug("ANALYSIS", "Received from channel: depth=%d, move=%s", info.Depth, info.BestMove)
 					case <-ticker.C:
 						if lastInfo.BestMove != "" {
+							Debug("ANALYSIS", "Sending to WebSocket: depth=%d, move=%s", lastInfo.Depth, lastInfo.BestMove)
 							err := conn.WriteJSON(lastInfo)
 							if err != nil {
+								Error("ANALYSIS", "WebSocket write error: %v", err)
 								return
 							}
 						}
+					case <-stopSending:
+						Info("ANALYSIS", "Stopping analysis updates goroutine")
+						return
 					}
 				}
 			}()
 
 		case "stop":
+			// Signal the sending goroutine to stop
+			select {
+			case stopSending <- true:
+			default:
+			}
+
 			if engine != nil {
 				engine.StopAnalysis()
 				engine.Close()
@@ -304,6 +342,9 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 				GlobalMonitor.UnregisterEngine(sessionID)
 				sessionID = ""
 			}
+
+			// Create a new stop channel for the next analysis session
+			stopSending = make(chan bool, 1)
 
 		case "update":
 			// Update position for analysis
@@ -326,5 +367,5 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 		GlobalMonitor.UnregisterEngine(sessionID)
 	}
 
-	log.Println("Analysis WebSocket disconnected")
+	Info("ANALYSIS", "WebSocket disconnected")
 }
