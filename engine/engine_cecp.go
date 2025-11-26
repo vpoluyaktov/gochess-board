@@ -4,7 +4,9 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -31,6 +33,18 @@ func NewCECPEngine(enginePath string, engineName string) (*CECPEngine, error) {
 		cmd = exec.Command(enginePath, "--xboard")
 	} else {
 		cmd = exec.Command(enginePath)
+	}
+
+	// Set working directory to temp to avoid cluttering the repository with log files
+	// os.TempDir() returns the appropriate temp directory for the OS:
+	// - Linux/macOS: /tmp
+	// - Windows: %TEMP% (e.g., C:\Users\<user>\AppData\Local\Temp)
+	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	if err := os.MkdirAll(tempDir, 0755); err != nil {
+		logger.Warn("ENGINE", "Failed to create temp directory for engine: %v", err)
+	} else {
+		cmd.Dir = tempDir
+		logger.Debug("ENGINE", "Engine working directory set to: %s", tempDir)
 	}
 
 	stdin, err := cmd.StdinPipe()

@@ -7,18 +7,6 @@ import (
 // Note: Most engine tests require a real chess engine binary.
 // These tests focus on structure validation and error cases.
 
-func TestUCIEngine_Structure(t *testing.T) {
-	// Test that UCIEngine struct has expected fields
-	// This is a compile-time check more than a runtime test
-	var engine *UCIEngine
-
-	if engine == nil {
-		// Expected: uninitialized pointer should be nil
-	} else {
-		t.Error("Uninitialized engine should be nil")
-	}
-}
-
 func TestNewUCIEngine_InvalidPath(t *testing.T) {
 	// Test with non-existent engine path
 	engine, err := NewUCIEngine("/nonexistent/engine/path", "Test Engine")
