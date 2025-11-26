@@ -312,7 +312,7 @@ function loadPGNFile() {
             const totalGames = countPGNGames(text);
             
             if (totalGames === 0) {
-                alert('No valid games found in the PGN file!');
+                showDialog('No valid games found in the PGN file!', 'warning');
                 return;
             } else if (totalGames === 1) {
                 // Single game, load it directly
@@ -324,7 +324,7 @@ function loadPGNFile() {
                 
                 // Show warning if file was truncated
                 if (wasLimited) {
-                    alert(`This PGN file contains ${totalGames} games.\n\nFor memory protection, only the first ${MAX_GAMES} games will be loaded.`);
+                    showDialog(`This PGN file contains ${totalGames} games.\n\nFor memory protection, only the first ${MAX_GAMES} games will be loaded.`, 'warning');
                 }
                 
                 // Parse only up to the limit (memory efficient)
@@ -339,7 +339,7 @@ function loadPGNFile() {
         };
         
         reader.onerror = function() {
-            alert('Failed to read file');
+            showDialog('Failed to read file', 'error');
         };
         
         reader.readAsText(file);
@@ -460,7 +460,7 @@ function buildStandardPGN() {
 // Save PGN to file
 function savePGNFile() {
     if (gameState.moveHistory.length === 0) {
-        alert('No moves to save!');
+        showDialog('No moves to save!', 'warning');
         return;
     }
     
@@ -615,7 +615,7 @@ function parsePGNWithVariants(pgnText) {
 // Load PGN from text string
 function loadPGNFromText(text) {
     if (!text || text.trim() === '') {
-        alert('No PGN text provided!');
+        showDialog('No PGN text provided!', 'warning');
         return;
     }
     
@@ -654,7 +654,7 @@ function loadPGNFromText(text) {
         const parsed = parsePGNWithVariants(movesOnly);
         
         if (parsed.mainLine.length === 0) {
-            alert('No valid moves found in PGN!');
+            showDialog('No valid moves found in PGN!', 'warning');
             return;
         }
         
@@ -675,7 +675,7 @@ function loadPGNFromText(text) {
             try {
                 const move = game.move(san);
                 if (!move) {
-                    alert('Invalid move at position ' + (i + 1) + ': ' + san);
+                    showDialog('Invalid move at position ' + (i + 1) + ': ' + san, 'error');
                     break;
                 }
                 
@@ -688,7 +688,7 @@ function loadPGNFromText(text) {
                     highlightLastMove(move.from, move.to);
                 }
             } catch (err) {
-                alert('Error applying move ' + (i + 1) + ': ' + san + '\n' + err.message);
+                showDialog('Error applying move ' + (i + 1) + ': ' + san + '\n' + err.message, 'error');
                 break;
             }
         }
@@ -747,6 +747,6 @@ function loadPGNFromText(text) {
         
     } catch (err) {
         console.error('Failed to parse PGN:', err);
-        alert('Failed to parse PGN. Please check the format and try again.');
+        showDialog('Failed to parse PGN. Please check the format and try again.', 'error');
     }
 }
