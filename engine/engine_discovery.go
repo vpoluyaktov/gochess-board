@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -219,6 +220,12 @@ func discoverEngineList(engineNames []string, probeFunc func(string) (EngineInfo
 func getEngineInfo(path string) (EngineInfo, bool) {
 	cmd := exec.Command(path)
 
+	// Set working directory to temp to avoid cluttering the repository with log files
+	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	if err := os.MkdirAll(tempDir, 0755); err == nil {
+		cmd.Dir = tempDir
+	}
+
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
 		return EngineInfo{}, false
@@ -355,6 +362,12 @@ func formatEngineName(name string) string {
 // getCECPEngineInfo probes a CECP/XBoard engine and returns basic information
 func getCECPEngineInfo(path string) (EngineInfo, bool) {
 	cmd := exec.Command(path)
+
+	// Set working directory to temp to avoid cluttering the repository with log files
+	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	if err := os.MkdirAll(tempDir, 0755); err == nil {
+		cmd.Dir = tempDir
+	}
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
