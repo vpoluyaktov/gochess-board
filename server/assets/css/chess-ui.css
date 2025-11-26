@@ -1004,30 +1004,166 @@ button:hover {
    MOBILE RESPONSIVE STYLES
    ======================================== */
 
-/* Tablet and smaller screens */
-@media screen and (max-width: 1024px) {
+/* Tablet and smaller screens - Stack vertically for better fit */
+@media screen and (max-width: 1200px) {
     .container {
-        padding: 20px;
+        padding: 15px;
         max-width: 100%;
         width: 100%;
         box-sizing: border-box;
     }
     
+    h1 {
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
+    
+    /* Stack the layout vertically */
     .game-layout {
+        flex-direction: column;
         gap: 15px;
+        min-height: auto;
     }
     
+    /* Board area takes full width */
+    .board-area {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    /* Scale board to fit tablet screen */
     #myBoard {
-        width: 400px;
+        width: 100% !important;
+        max-width: 500px;
     }
     
-    .sidebar {
-        min-width: 220px;
-        max-width: 250px;
+    /* Player info adjustments */
+    .player-info {
+        width: 100%;
+        max-width: 500px;
+        padding: 10px 15px;
     }
     
+    .player-select {
+        font-size: 15px;
+    }
+    
+    .clock-compact {
+        padding: 8px 18px;
+        min-width: 90px;
+    }
+    
+    .clock-time {
+        font-size: 22px;
+    }
+    
+    /* Move history panel full width */
     .move-history-panel {
-        flex: 0 0 250px;
+        width: 100%;
+        flex: 0 0 auto;
+        order: 2;
+    }
+    
+    .move-history {
+        min-height: 280px;
+        max-height: 350px;
+    }
+    
+    .move-history-text {
+        min-height: 180px;
+    }
+    
+    /* Sidebar full width */
+    .sidebar {
+        width: 100%;
+        min-width: auto;
+        max-width: 100%;
+        order: 3;
+    }
+}
+
+/* iPad Mini and similar tablets in portrait - Additional refinements */
+@media screen and (max-width: 900px) {
+    body {
+        padding: 10px;
+        min-height: auto;
+    }
+    
+    .container {
+        padding: 15px;
+        border-radius: 8px;
+    }
+    
+    h1 {
+        font-size: 22px;
+        margin-bottom: 15px;
+    }
+    
+    /* Stack the layout vertically */
+    .game-layout {
+        flex-direction: column;
+        gap: 15px;
+        min-height: auto;
+    }
+    
+    /* Board area takes full width */
+    .board-area {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    /* Scale board to fit tablet screen */
+    #myBoard {
+        width: 100% !important;
+        max-width: 500px;
+    }
+    
+    /* Player info adjustments */
+    .player-info {
+        width: 100%;
+        max-width: 500px;
+        padding: 10px 15px;
+    }
+    
+    .player-select {
+        font-size: 15px;
+    }
+    
+    .clock-compact {
+        padding: 8px 18px;
+        min-width: 90px;
+    }
+    
+    .clock-time {
+        font-size: 22px;
+    }
+    
+    /* Move history panel full width */
+    .move-history-panel {
+        width: 100%;
+        flex: 0 0 auto;
+        order: 2;
+    }
+    
+    .move-history {
+        min-height: 280px;
+        max-height: 350px;
+    }
+    
+    .move-history-text {
+        min-height: 180px;
+    }
+    
+    /* Sidebar full width */
+    .sidebar {
+        width: 100%;
+        min-width: auto;
+        max-width: 100%;
+        order: 3;
     }
 }
 
