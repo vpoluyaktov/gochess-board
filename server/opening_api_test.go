@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go-chess/engine"
+	"go-chess/engines"
 	"go-chess/opening"
 )
 
@@ -15,7 +15,7 @@ func TestOpeningAPIEndpoint(t *testing.T) {
 	// Create a server with opening book
 	srv := &Server{
 		addr:        ":8080",
-		engines:     []engine.EngineInfo{},
+		engines:     []engines.EngineInfo{},
 		openingBook: opening.NewOpeningBook(),
 	}
 
@@ -120,7 +120,7 @@ func TestOpeningAPIEndpoint(t *testing.T) {
 func TestOpeningAPIInvalidRequest(t *testing.T) {
 	srv := &Server{
 		addr:        ":8080",
-		engines:     []engine.EngineInfo{},
+		engines:     []engines.EngineInfo{},
 		openingBook: opening.NewOpeningBook(),
 	}
 
@@ -139,7 +139,7 @@ func TestOpeningAPIInvalidRequest(t *testing.T) {
 func TestOpeningAPIMethodNotAllowed(t *testing.T) {
 	srv := &Server{
 		addr:        ":8080",
-		engines:     []engine.EngineInfo{},
+		engines:     []engines.EngineInfo{},
 		openingBook: opening.NewOpeningBook(),
 	}
 
@@ -157,7 +157,7 @@ func TestOpeningAPIMethodNotAllowed(t *testing.T) {
 func TestOpeningAPINoBook(t *testing.T) {
 	srv := &Server{
 		addr:        ":8080",
-		engines:     []engine.EngineInfo{},
+		engines:     []engines.EngineInfo{},
 		openingBook: nil, // No opening book
 	}
 

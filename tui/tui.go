@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"go-chess/engine"
+	"go-chess/engines"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -40,8 +40,8 @@ type model struct {
 	spinner      spinner.Model
 	serverURL    string
 	startTime    time.Time
-	engines      []engine.EngineInfo
-	monitor      *engine.EngineMonitor
+	engines      []engines.EngineInfo
+	monitor      *engines.EngineMonitor
 	enginesTable table.Model
 	activeTable  table.Model
 	width        int
@@ -51,7 +51,7 @@ type model struct {
 	bookEntries  int
 }
 
-func InitialModel(serverURL string, engines []engine.EngineInfo, monitor *engine.EngineMonitor, openingStats map[string]int, bookLoaded bool, bookEntries int) model {
+func InitialModel(serverURL string, engines []engines.EngineInfo, monitor *engines.EngineMonitor, openingStats map[string]int, bookLoaded bool, bookEntries int) model {
 	s := spinner.New()
 	s.Spinner = spinner.Dot
 	s.Style = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
@@ -281,8 +281,8 @@ func (m *model) refreshActiveEnginesTable() {
 	activeEngines := m.monitor.GetActiveEngines()
 
 	// Separate analysis and move engines
-	var analysisEngines []*engine.ActiveEngine
-	var moveEngines []*engine.ActiveEngine
+	var analysisEngines []*engines.ActiveEngine
+	var moveEngines []*engines.ActiveEngine
 
 	for _, ae := range activeEngines {
 		if strings.Contains(ae.Name, "(Analysis)") {
@@ -345,7 +345,7 @@ func defaultTableStyles() table.Styles {
 	return s
 }
 
-func buildEngineRows(engines []engine.EngineInfo) []table.Row {
+func buildEngineRows(engines []engines.EngineInfo) []table.Row {
 	rows := make([]table.Row, 0, len(engines))
 	for i, e := range engines {
 		strength := "Full strength only"
@@ -411,7 +411,7 @@ func (m *model) updateLayout() {
 	m.activeTable.SetHeight(bottomTableHeight)
 }
 
-func RunTUI(url string, engines []engine.EngineInfo, monitor *engine.EngineMonitor, openingStats map[string]int, bookLoaded bool, bookEntries int) error {
+func RunTUI(url string, engines []engines.EngineInfo, monitor *engines.EngineMonitor, openingStats map[string]int, bookLoaded bool, bookEntries int) error {
 	p := tea.NewProgram(InitialModel(url, engines, monitor, openingStats, bookLoaded, bookEntries), tea.WithAltScreen())
 	_, err := p.Run()
 	return err

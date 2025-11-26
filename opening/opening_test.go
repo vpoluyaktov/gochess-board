@@ -10,7 +10,7 @@ func TestOpeningBook(t *testing.T) {
 	book := NewOpeningBook()
 
 	// Load the opening database
-	err := book.LoadFromDirectory("assets/openings")
+	err := book.LoadFromDirectory("../server/assets/openings")
 	if err != nil {
 		t.Fatalf("Failed to load opening book: %v", err)
 	}
@@ -77,7 +77,7 @@ func TestOpeningBookByGame(t *testing.T) {
 	book := NewOpeningBook()
 
 	// Load the opening database
-	err := book.LoadFromDirectory("assets/openings")
+	err := book.LoadFromDirectory("../server/assets/openings")
 	if err != nil {
 		t.Fatalf("Failed to load opening book: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestOpeningBookNoMatch(t *testing.T) {
 	book := NewOpeningBook()
 
 	// Load the opening database
-	err := book.LoadFromDirectory("assets/openings")
+	err := book.LoadFromDirectory("../server/assets/openings")
 	if err != nil {
 		t.Fatalf("Failed to load opening book: %v", err)
 	}

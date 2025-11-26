@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"go-chess/engine"
+	"go-chess/engines"
 	"go-chess/logger"
 	"go-chess/server"
 	"go-chess/tui"
@@ -131,7 +131,7 @@ func main() {
 		bookLoaded, bookEntries := srv.GetPolyglotBookInfo()
 
 		// Run TUI (blocks until quit)
-		if err := tui.RunTUI(url, srv.GetEngines(), engine.GlobalMonitor, srv.GetOpeningStats(), bookLoaded, bookEntries); err != nil {
+		if err := tui.RunTUI(url, srv.GetEngines(), engines.GlobalMonitor, srv.GetOpeningStats(), bookLoaded, bookEntries); err != nil {
 			log.Fatalf("TUI error: %v", err)
 		}
 	} else {

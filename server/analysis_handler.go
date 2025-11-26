@@ -8,7 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"go-chess/analysis"
-	"go-chess/engine"
+	"go-chess/engines"
 	"go-chess/logger"
 )
 
@@ -57,7 +57,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 				analysisEngine.Close()
 				// Unregister old engine
 				if sessionID != "" {
-					engine.GlobalMonitor.UnregisterEngine(sessionID)
+					engines.GlobalMonitor.UnregisterEngine(sessionID)
 				}
 			}
 
@@ -93,7 +93,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 			// Register analysis engine in monitor
 			sessionID = fmt.Sprintf("analysis-%s", time.Now().Format("20060102-150405.000000"))
 
-			activeEngine := &engine.ActiveEngine{
+			activeEngine := &engines.ActiveEngine{
 				Name:           engineName + " (Analysis)",
 				Path:           enginePath,
 				ELO:            0, // Analysis engines run at full strength
@@ -104,14 +104,14 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 				StartTime:      time.Now(),
 				SessionID:      sessionID,
 			}
-			engine.GlobalMonitor.RegisterEngine(sessionID, activeEngine)
+			engines.GlobalMonitor.RegisterEngine(sessionID, activeEngine)
 
 			// Start analysis
 			err = analysisEngine.StartAnalysis(msg.FEN, analysisChannel)
 			if err != nil {
 				logger.Error("ANALYSIS", "Failed to start analysis: %v", err)
 				conn.WriteJSON(map[string]string{"error": err.Error()})
-				engine.GlobalMonitor.UnregisterEngine(sessionID)
+				engines.GlobalMonitor.UnregisterEngine(sessionID)
 				continue
 			}
 
@@ -157,7 +157,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 			}
 			// Unregister analysis engine
 			if sessionID != "" {
-				engine.GlobalMonitor.UnregisterEngine(sessionID)
+				engines.GlobalMonitor.UnregisterEngine(sessionID)
 				sessionID = ""
 			}
 
@@ -182,7 +182,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 
 	// Unregister analysis engine
 	if sessionID != "" {
-		engine.GlobalMonitor.UnregisterEngine(sessionID)
+		engines.GlobalMonitor.UnregisterEngine(sessionID)
 	}
 
 	logger.Info("ANALYSIS", "WebSocket disconnected")

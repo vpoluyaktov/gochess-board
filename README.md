@@ -1,9 +1,10 @@
 # Go Chess Board Application
 
-A Go web server that lets you play chess against multiple chess engines including **Stockfish**, **Fruit**, **Toga**, **Crafty**, and **GNU Chess**. The application supports both UCI and CECP/XBoard protocol engines natively, with optional Polyglot opening book support (pure Go implementation, no external dependencies). The chess game logic runs on the backend, while the frontend provides an interactive chess board. The application automatically opens your default browser when started.
+A Go web server that lets you play chess with a **built-in chess engine** or against multiple external engines including **Stockfish**, **Fruit**, **Toga**, **Crafty**, and **GNU Chess**. The application includes a native Go chess engine (~1000-1200 ELO) that works out-of-the-box with no external dependencies. It also supports UCI and CECP/XBoard protocol engines natively, with optional Polyglot opening book support. The chess game logic runs on the backend, while the frontend provides an interactive chess board. The application automatically opens your default browser when started.
 
 ## Features
 
+- **Built-in Chess Engine**: Native Go engine (~1000-1200 ELO) - works immediately with no setup!
 - **Multiple Chess Engines**: Play against various engines (Stockfish, Fruit, Toga, Crafty, GNU Chess, and more)
 - **UCI & CECP Support**: Native support for both UCI and CECP/XBoard protocols
 - **Opening Book Support**: Native Polyglot .bin book reader (pure Go, no external tools needed)
@@ -13,6 +14,7 @@ A Go web server that lets you play chess against multiple chess engines includin
 - **Move Validation**: Only legal moves are allowed
 - **Auto-Browser Opening**: Automatically opens the chess board in your default browser
 - **Fully Self-Contained**: All assets embedded in the binary - works completely offline!
+  - Built-in chess engine (no external dependencies!)
   - Chess piece images
   - ChessboardJS library (ready for your modifications!)
   - Chess.js library (frontend game state)
@@ -27,11 +29,20 @@ A Go web server that lets you play chess against multiple chess engines includin
 ## Prerequisites
 
 - Go 1.21 or higher
-- **At least one chess engine** installed (see [Installing Chess Engines](#installing-chess-engines) below)
+- **Optional**: External chess engines for stronger play (see [Installing Chess Engines](#installing-chess-engines) below)
+- The built-in engine works immediately without any external dependencies!
 
 ## Supported Chess Engines
 
 The application automatically discovers and supports engines using:
+
+### Built-in Engine (No Installation Required!)
+- **GoChess Basic** - Native Go implementation (~1000-1200 ELO)
+  - Works immediately out-of-the-box
+  - No external dependencies
+  - Good for beginners and learning
+  - Fast response time (~50-500ms per move)
+  - Pure Go implementation using minimax with alpha-beta pruning
 
 ### UCI Protocol Engines (Native Support)
 These engines work directly without any wrapper:

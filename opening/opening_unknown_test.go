@@ -8,7 +8,7 @@ func TestOpeningBookUnknownPosition(t *testing.T) {
 	book := NewOpeningBook()
 
 	// Load the opening database
-	err := book.LoadFromDirectory("assets/openings")
+	err := book.LoadFromDirectory("../server/assets/openings")
 	if err != nil {
 		t.Fatalf("Failed to load opening book: %v", err)
 	}

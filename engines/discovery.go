@@ -1,4 +1,4 @@
-package engine
+package engines
 
 import (
 	"bufio"
@@ -136,6 +136,20 @@ var cecpEngineBaseNames = []string{
 func DiscoverEngines(bookFile string) []EngineInfo {
 	engines := make([]EngineInfo, 0)
 	seen := make(map[string]bool)
+
+	// Always add the built-in internal engine first
+	internalEngine := EngineInfo{
+		Name:                  "GoChess Basic (Built-in)",
+		Path:                  "internal",
+		Version:               "1.0",
+		ID:                    "gochess-basic",
+		Type:                  "internal",
+		SupportsLimitStrength: false,
+		Options:               make(map[string]string),
+	}
+	engines = append(engines, internalEngine)
+	seen["internal"] = true
+	logger.Warn("ENGINE_DISCOVERY", "Added built-in engine: %s (ELO ~1000-1200)", internalEngine.Name)
 
 	// Log book file status
 	if bookFile != "" {
