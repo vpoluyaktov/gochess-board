@@ -165,6 +165,22 @@
         </div>
     </div>
 
+    <!-- Custom Dialog -->
+    <div id="customDialog" class="custom-dialog" style="display: none;">
+        <div class="dialog-content">
+            <div class="dialog-header">
+                <span id="dialogIcon" class="dialog-icon">💬</span>
+            </div>
+            <div class="dialog-body">
+                <p id="dialogMessage" class="dialog-message"></p>
+            </div>
+            <div class="dialog-footer">
+                <button id="dialogOkBtn" class="dialog-btn dialog-btn-ok">OK</button>
+                <button id="dialogCancelBtn" class="dialog-btn dialog-btn-cancel" style="display: none;">Cancel</button>
+            </div>
+        </div>
+    </div>
+
     <!-- PGN Game Selection Modal -->
     <div id="pgnGameSelectorModal" class="modal" style="display: none;">
         <div class="modal-content">
@@ -219,6 +235,7 @@
     <script src="/assets/js/codemirror-chess-mode.js?v={{.CacheBuster}}"></script>
 
     <!-- Chess UI Logic - Modular -->
+    <script src="/assets/js/gochess-dialog.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-state.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-players.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-board.js?v={{.CacheBuster}}"></script>

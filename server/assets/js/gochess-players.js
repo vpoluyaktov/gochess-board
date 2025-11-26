@@ -121,25 +121,25 @@ function savePlayerSelections() {
 // -------------------------------------------------------------------------
 
 function resignWhite() {
-    if (confirm('White resigns. Black wins!')) {
+    showConfirm('White resigns. Black wins!', function() {
         stopClock();
-        alert('Game Over: Black wins by resignation');
+        showGameOver('Game Over: Black wins by resignation');
         // Optionally start a new game or disable moves
-    }
+    });
 }
 
 function resignBlack() {
-    if (confirm('Black resigns. White wins!')) {
+    showConfirm('Black resigns. White wins!', function() {
         stopClock();
-        alert('Game Over: White wins by resignation');
+        showGameOver('Game Over: White wins by resignation');
         // Optionally start a new game or disable moves
-    }
+    });
 }
 
 function offerDraw() {
-    if (confirm('Offer a draw?')) {
+    showConfirm('Offer a draw?', function() {
         stopClock();
-        alert('Game Over: Draw by agreement');
+        showGameOver('Game Over: Draw by agreement');
         // Optionally start a new game
-    }
+    });
 }

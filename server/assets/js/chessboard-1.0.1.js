@@ -1634,7 +1634,7 @@
       svg.style.top = boardOffset.top + 'px'
       svg.style.left = boardOffset.left + 'px'
       svg.style.pointerEvents = 'none'
-      svg.style.zIndex = '9999'  // Very high z-index
+      svg.style.zIndex = '10'  // Above pieces but below modals
       svg.style.overflow = 'visible'
       
       // Create defs element for markers (will be populated dynamically)

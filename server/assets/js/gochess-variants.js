@@ -299,7 +299,7 @@ function handleMainWindowMessage(event) {
         console.log('Current main line length:', gameState.moveHistory.length);
         
         if (variantMoves.length === 0) {
-            alert('No variant moves to merge!');
+            showDialog('No variant moves to merge!', 'warning');
             return;
         }
         
@@ -318,11 +318,11 @@ function handleMainWindowMessage(event) {
         if (variantIdx >= 0 && variantIdx < gameState.variants[variantStartPos].length) {
             console.log('Replacing existing variant at index', variantIdx);
             gameState.variants[variantStartPos][variantIdx] = variantMoves;
-            alert('Variant updated successfully!');
+            showDialog('Variant updated successfully!', 'success');
         } else {
             console.log('Adding new variant');
             gameState.variants[variantStartPos].push(variantMoves);
-            alert('Variant added successfully!');
+            showDialog('Variant added successfully!', 'success');
         }
         
         // Merge any sub-variants from the variant window
@@ -361,7 +361,7 @@ function handleMainWindowMessage(event) {
 
 function mergeVariant() {
     if (!isVariantMode || !mainWindow) {
-        alert('This is not a variant window!');
+        showDialog('This is not a variant window!', 'warning');
         return;
     }
     
@@ -390,7 +390,7 @@ function mergeVariant() {
 
 function closeVariant() {
     if (!isVariantMode) {
-        alert('This is not a variant window!');
+        showDialog('This is not a variant window!', 'warning');
         return;
     }
     
