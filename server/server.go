@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"go-chess/book"
-	"go-chess/engine"
+	"go-chess/engines"
 	"go-chess/logger"
 	"go-chess/opening"
 )
@@ -24,7 +24,7 @@ var assetsFS embed.FS
 // Server represents the HTTP server
 type Server struct {
 	addr         string
-	engines      []engine.EngineInfo
+	engines      []engines.EngineInfo
 	openingBook  *opening.OpeningBook // Opening name database
 	polyglotBook *book.PolyglotBook   // Polyglot opening book for move suggestions
 }
@@ -46,7 +46,7 @@ func InitDebugLogging(filename string) error {
 
 // New creates a new chess server
 func New(addr string, bookFile string) *Server {
-	engines := engine.DiscoverEngines(bookFile)
+	engines := engines.DiscoverEngines(bookFile)
 	logger.Info("SERVER", "Discovered %d chess engines", len(engines))
 	for _, eng := range engines {
 		logger.Info("SERVER", "  - %s (%s)", eng.Name, eng.Path)
@@ -85,7 +85,7 @@ func New(addr string, bookFile string) *Server {
 }
 
 // GetEngines returns the list of discovered engines
-func (s *Server) GetEngines() []engine.EngineInfo {
+func (s *Server) GetEngines() []engines.EngineInfo {
 	return s.engines
 }
 
@@ -126,7 +126,7 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	// Pass engines and cache buster to template
 	data := struct {
-		Engines     []engine.EngineInfo
+		Engines     []engines.EngineInfo
 		CacheBuster int64
 	}{
 		Engines:     s.engines,
@@ -143,13 +143,13 @@ func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleGetEngines(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	engines := s.engines
-	if engines == nil {
-		engines = []engine.EngineInfo{}
+	engineList := s.engines
+	if engineList == nil {
+		engineList = []engines.EngineInfo{}
 	}
 
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(engines)
+	json.NewEncoder(w).Encode(engineList)
 }
 
 // GetAddr returns the server address

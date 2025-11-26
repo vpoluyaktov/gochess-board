@@ -40,3 +40,10 @@ game.*
 log.*
 chess-debug.log
 MacKenzie.pgn
+server.log
+
+# Playwright test files
+tests/ui/playwright/node_modules/
+tests/ui/playwright/playwright-report/
+tests/ui/playwright/test-results/
+tests/ui/playwright/package-lock.json

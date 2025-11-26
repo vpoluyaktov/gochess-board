@@ -8,7 +8,8 @@ import (
 
 	"github.com/notnil/chess"
 
-	"go-chess/engine"
+	"go-chess/engines"
+	"go-chess/engines/builtin"
 	"go-chess/logger"
 )
 
@@ -146,7 +147,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Register engine in monitor
-	activeEngine := &engine.ActiveEngine{
+	activeEngine := &engines.ActiveEngine{
 		Name:           engineName,
 		Path:           enginePath,
 		ELO:            eloValue,
@@ -157,21 +158,31 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		StartTime:      time.Now(),
 		SessionID:      sessionID,
 	}
-	engine.GlobalMonitor.RegisterEngine(sessionID, activeEngine)
-	defer engine.GlobalMonitor.UnregisterEngine(sessionID)
+	engines.GlobalMonitor.RegisterEngine(sessionID, activeEngine)
+	defer engines.GlobalMonitor.UnregisterEngine(sessionID)
 
 	// Initialize chess engine based on type
-	var chessEngine engine.ChessEngine
-	if engineType == "cecp" {
-		chessEngine, err = engine.NewCECPEngine(enginePath, engineName)
+	var chessEngine engines.ChessEngine
+	if engineType == "internal" || enginePath == "internal" {
+		// Use built-in internal engine
+		chessEngine = builtin.NewInternalEngine()
+		logger.Info("CHESS", "Using built-in internal engine")
+	} else if engineType == "cecp" {
+		chessEngine, err = engines.NewCECPEngine(enginePath, engineName)
+		if err != nil {
+			logger.Error("CHESS", "Failed to initialize CECP engine %s: %v", engineName, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
+			return
+		}
 	} else {
-		chessEngine, err = engine.NewUCIEngine(enginePath, engineName)
-	}
-	if err != nil {
-		logger.Error("CHESS", "Failed to initialize engine %s: %v", engineName, err)
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
-		return
+		chessEngine, err = engines.NewUCIEngine(enginePath, engineName)
+		if err != nil {
+			logger.Error("CHESS", "Failed to initialize UCI engine %s: %v", engineName, err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
+			return
+		}
 	}
 	defer chessEngine.Close()
 

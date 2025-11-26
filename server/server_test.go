@@ -7,19 +7,19 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go-chess/engine"
+	"go-chess/engines"
 	"go-chess/opening"
 )
 
 func TestServer_GetEngines(t *testing.T) {
-	engines := []engine.EngineInfo{
+	engineList := []engines.EngineInfo{
 		{Name: "Stockfish", Path: "/usr/bin/stockfish", Type: "uci"},
 		{Name: "Fruit", Path: "/usr/bin/fruit", Type: "uci"},
 	}
 
 	server := &Server{
 		addr:    ":8080",
-		engines: engines,
+		engines: engineList,
 	}
 
 	result := server.GetEngines()
@@ -77,13 +77,13 @@ func TestServer_GetOpeningStats(t *testing.T) {
 }
 
 func TestHandleGetEngines(t *testing.T) {
-	engines := []engine.EngineInfo{
+	engineList := []engines.EngineInfo{
 		{Name: "Stockfish", Path: "/usr/bin/stockfish", Type: "uci"},
 	}
 
 	server := &Server{
 		addr:    ":8080",
-		engines: engines,
+		engines: engineList,
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/api/engines", nil)
@@ -100,7 +100,7 @@ func TestHandleGetEngines(t *testing.T) {
 		t.Errorf("Expected Content-Type 'application/json', got %q", contentType)
 	}
 
-	var result []engine.EngineInfo
+	var result []engines.EngineInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
@@ -128,7 +128,7 @@ func TestHandleGetEngines_EmptyList(t *testing.T) {
 		t.Errorf("Expected status 200, got %d", w.Code)
 	}
 
-	var result []engine.EngineInfo
+	var result []engines.EngineInfo
 	if err := json.NewDecoder(w.Body).Decode(&result); err != nil {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
