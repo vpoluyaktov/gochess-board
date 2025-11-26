@@ -1,27 +1,12 @@
 # Go-Chess Scripts
 
-This directory contains utility scripts for managing the go-chess application.
+This directory contains utility scripts for testing and managing the go-chess application.
 
-> **Note:** Test scripts have been moved to the `tests/` directory:
-> - API tests: `tests/api/test_api.sh`
-> - UI tests: `tests/ui/test_ui.sh`
-> 
-> See [tests/README.md](../tests/README.md) for details.
-
-## test_api.sh (formerly test_server.sh)
-
-**This script has been moved to `tests/api/test_api.sh`**
+## test_api.sh (Backend & API Tests)
 
 Comprehensive test script for the go-chess server API.
 
 ### Features
-
-**Code Quality Checks:**
-- ✅ Code formatting (`go fmt`)
-- ✅ Static analysis (`go vet`)
-- ✅ Race condition detection (`go test -race`)
-- ✅ Module verification (`go mod verify`)
-- ✅ Unit tests (`go test ./...`)
 
 **API Endpoint Tests:**
 - ✅ Health check
@@ -38,22 +23,22 @@ Comprehensive test script for the go-chess server API.
 
 **Basic usage:**
 ```bash
-./scripts/test_server.sh
+./test_api.sh
 ```
 
 **With custom port:**
 ```bash
-PORT=8080 ./scripts/test_server.sh
+PORT=8080 ./test_api.sh
 ```
 
 **With opening book:**
 ```bash
-BOOK_FILE=/path/to/book.bin ./scripts/test_server.sh
+BOOK_FILE=/path/to/book.bin ./test_api.sh
 ```
 
 **With debug logging:**
 ```bash
-LOG_LEVEL=DEBUG ./scripts/test_server.sh
+LOG_LEVEL=DEBUG ./test_api.sh
 ```
 
 **All options:**
@@ -61,7 +46,7 @@ LOG_LEVEL=DEBUG ./scripts/test_server.sh
 PORT=8080 \
 LOG_LEVEL=DEBUG \
 BOOK_FILE=/usr/share/games/gnuchess/book.bin \
-./scripts/test_server.sh
+./test_api.sh
 ```
 
 ### Requirements
@@ -226,9 +211,7 @@ All tests passed! ✓
 
 ---
 
-## test_ui.sh
-
-**This script has been moved to `tests/ui/test_ui.sh`**
+## test_ui.sh (Frontend & UI Tests)
 
 End-to-end UI tests using Playwright to test the web interface.
 
