@@ -223,6 +223,9 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(ErrorResponse{Error: "Invalid move from engine"})
 			return
 		}
+		// Convert SAN move to UCI notation for consistency
+		bestMoveUCI = chess.UCINotation{}.Encode(game.Position(), move)
+		logger.Debug("CHESS", "Converted SAN to UCI: %s", bestMoveUCI)
 	}
 
 	// Make the move
@@ -238,7 +241,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 
 	logger.Info("CHESS", "Engine move: %s, think time: %v", bestMoveUCI, thinkTime)
 
-	// Return the move, new FEN, and think time
+	// Return the move in UCI notation, new FEN, and think time
 	response := MoveResponse{
 		Move:      bestMoveUCI,
 		FEN:       newFEN,

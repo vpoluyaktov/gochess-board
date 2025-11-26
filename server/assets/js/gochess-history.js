@@ -27,7 +27,10 @@ function updateMoveHistoryDisplay() {
     if (gameState.currentPosition === gameState.moveHistory.length) {
         // At the end, scroll to bottom
         const lastLine = moveHistoryEditor.lineCount();
-        moveHistoryEditor.scrollIntoView({line: lastLine, ch: 0});
+        // Ensure line number is valid (0-indexed, so lastLine-1 is the last valid line)
+        if (lastLine > 0) {
+            moveHistoryEditor.scrollIntoView({line: lastLine - 1, ch: 0});
+        }
     }
     
     // Update position indicator
