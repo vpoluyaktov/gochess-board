@@ -479,7 +479,7 @@ function savePGNFile() {
     console.log('Variants object:', gameState.variants);
     
     let pgnWithHeaders = '[Event "Casual Game"]\n';
-    pgnWithHeaders += '[Site "go-chess"]\n';
+    pgnWithHeaders += '[Site "gochess-board"]\n';
     pgnWithHeaders += '[Date "' + dateStr + '"]\n';
     pgnWithHeaders += '[White "' + whiteName + '"]\n';
     pgnWithHeaders += '[Black "' + blackName + '"]\n';

@@ -10,7 +10,7 @@ All assets, templates, and opening database files are now embedded in the binary
 - `index.html` - Main web interface
 
 ### 2. Static Assets (`server/assets/*`)
-- **CSS**: `chess-ui.css`, `chessboard-1.0.1.css`
+- **CSS**: `gochess-ui.css`, `chessboard-1.0.1.css`
 - **JavaScript**: `chess.js`, `chess-ui.js`, `chessboard-1.0.1.js`, `jquery-3.5.1.min.js`
 - **Images**: All chess piece images in `assets/images/pieces/`
 
@@ -86,22 +86,22 @@ openingBook.LoadFromDirectory("server/assets/openings")
 
 ### Test 1: Run from build directory
 ```bash
-cd /home/ubuntu/git/go-chess
-./go-chess --no-browser --no-tui
+cd /home/ubuntu/git/gochess-board
+./gochess-board --no-browser --no-tui
 ```
 **Result**: ✅ Works
 
 ### Test 2: Run from different directory
 ```bash
-cp go-chess /tmp/test-portable/
+cp gochess-board /tmp/test-portable/
 cd /tmp/test-portable
-./go-chess --no-browser --no-tui
+./gochess-board --no-browser --no-tui
 ```
 **Result**: ✅ Works
 
 ### Test 3: Verify opening database
 ```bash
-tail chess-debug.log
+tail gochess.log
 ```
 **Output**:
 ```
@@ -138,7 +138,7 @@ INFO  [SERVER] Opening database loaded: 3594 openings, 8147 nodes, max depth 36
 ```bash
 # Old way (required directory structure)
 app/
-├── go-chess
+├── gochess-board
 └── server/
     └── assets/
         └── openings/
@@ -147,7 +147,7 @@ app/
             └── ...
 
 # New way (single file)
-go-chess  # That's it!
+gochess-board  # That's it!
 ```
 
 ### 4. **Version Control**
@@ -192,8 +192,8 @@ if devMode {
 ### Production Mode
 Always uses embedded assets:
 ```bash
-go build -o go-chess .
-./go-chess  # Fully portable
+go build -o gochess-board .
+./gochess-board  # Fully portable
 ```
 
 ## Updating Opening Database
@@ -206,15 +206,15 @@ go build -o go-chess .
 
 2. Rebuild binary:
    ```bash
-   go build -o go-chess .
+   go build -o gochess-board .
    ```
 
 3. New binary includes updated openings
 
 ### Verification
 ```bash
-./go-chess --no-browser --no-tui
-tail chess-debug.log | grep "Opening database loaded"
+./gochess-board --no-browser --no-tui
+tail gochess.log | grep "Opening database loaded"
 ```
 
 ## Testing
@@ -240,7 +240,7 @@ book.LoadFromEmbedded(assetsFS, "assets/openings")
 ```
 assets/
 ├── css/
-│   ├── chess-ui.css
+│   ├── gochess-ui.css
 │   └── chessboard-1.0.1.css
 ├── js/
 │   ├── chess.js
@@ -294,19 +294,19 @@ openingBook.LoadFromEmbedded(assetsFS, "assets/openings")
 
 ## Conclusion
 
-**Yes, you are correct!** All assets, templates, and the opening database are now embedded in the binary. The compiled `go-chess` binary is fully portable and will work from any directory. You can move it anywhere and it will run without requiring external files.
+**Yes, you are correct!** All assets, templates, and the opening database are now embedded in the binary. The compiled `gochess-board` binary is fully portable and will work from any directory. You can move it anywhere and it will run without requiring external files.
 
 ### Distribution
 ```bash
 # Build once
-go build -o go-chess .
+go build -o gochess-board .
 
 # Distribute single file
-scp go-chess user@server:/usr/local/bin/
+scp gochess-board user@server:/usr/local/bin/
 # or
-cp go-chess /anywhere/you/want/
+cp gochess-board /anywhere/you/want/
 cd /anywhere/you/want/
-./go-chess  # Just works!
+./gochess-board  # Just works!
 ```
 
 The binary is completely self-contained with all 3,594 chess openings, all web assets, and all templates built-in.

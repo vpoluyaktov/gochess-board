@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"go-chess/engines"
-	"go-chess/logger"
-	"go-chess/server"
-	"go-chess/tui"
-	"go-chess/utils"
+	"gochess-board/engines"
+	"gochess-board/logger"
+	"gochess-board/server"
+	"gochess-board/tui"
+	"gochess-board/utils"
 )
 
 const (
@@ -22,7 +22,7 @@ const (
 func main() {
 	// Customize usage to show double dashes (GNU-style)
 	flag.Usage = func() {
-		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", "go-chess")
+		fmt.Fprintf(flag.CommandLine.Output(), "Usage of %s:\n", "gochess-board")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --port string\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Port to run the web server on (default %q)\n", defaultPort)
 		fmt.Fprintf(flag.CommandLine.Output(), "  --no-browser\n")
@@ -30,7 +30,7 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "  --no-tui\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Don't show TUI interface\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --restart\n")
-		fmt.Fprintf(flag.CommandLine.Output(), "        Kill any existing go-chess process before starting\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Kill any existing gochess-board process before starting\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --book-file string\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Path to opening book file for polyglot (optional)\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --log-level string\n")
@@ -41,13 +41,13 @@ func main() {
 	port := flag.String("port", defaultPort, "Port to run the web server on")
 	noBrowser := flag.Bool("no-browser", false, "Don't automatically open browser")
 	noTUI := flag.Bool("no-tui", false, "Don't show TUI interface")
-	restart := flag.Bool("restart", false, "Kill any existing go-chess process before starting")
+	restart := flag.Bool("restart", false, "Kill any existing gochess-board process before starting")
 	bookFile := flag.String("book-file", "", "Path to opening book file for polyglot (optional)")
 	logLevel := flag.String("log-level", "INFO", "Log level: DEBUG, INFO, WARN, ERROR")
 	flag.Parse()
 
 	// Initialize debug logging to file
-	if err := server.InitDebugLogging("chess-debug.log"); err != nil {
+	if err := server.InitDebugLogging("gochess.log"); err != nil {
 		fmt.Printf("Warning: Failed to initialize debug logging: %v\n", err)
 	}
 

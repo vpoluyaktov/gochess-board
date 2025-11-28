@@ -1,6 +1,6 @@
 # Go-Chess Scripts
 
-This directory contains utility scripts for managing the go-chess application.
+This directory contains utility scripts for managing the gochess-board application.
 
 > **Note:** Test scripts have been moved to the `tests/` directory:
 > - API tests: `tests/api/test_api.sh`
@@ -12,7 +12,7 @@ This directory contains utility scripts for managing the go-chess application.
 
 **This script has been moved to `tests/api/test_api.sh`**
 
-Comprehensive test script for the go-chess server API.
+Comprehensive test script for the gochess-board server API.
 
 ### Features
 
@@ -164,8 +164,8 @@ TEST: Health check - GET /
 
 TEST: Get engines list - GET /api/engines
 ✓ PASS: Retrieved 6 engines
-✓ PASS: Built-in engine found: GoChess Basic (Built-in)
-  - GoChess Basic (Built-in) (internal)
+✓ PASS: Built-in engine found: GoChess (Built-in)
+  - GoChess (Built-in) (internal)
   - Fruit 2.1 (uci)
   - Toga II 3.0 (uci)
   - Stockfish 16 (uci)

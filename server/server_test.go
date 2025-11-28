@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go-chess/engines"
-	"go-chess/opening"
+	"gochess-board/engines"
+	"gochess-board/opening"
 )
 
 func TestServer_GetEngines(t *testing.T) {

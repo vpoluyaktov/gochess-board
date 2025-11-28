@@ -38,7 +38,7 @@ Redesigned the opening name display to be a single-line element positioned under
 </div>
 ```
 
-### 2. CSS Styling (`server/assets/css/chess-ui.css`)
+### 2. CSS Styling (`server/assets/css/gochess-ui.css`)
 
 #### New Single-Line Styles
 ```css
@@ -239,7 +239,7 @@ Possible improvements:
 ## Files Modified
 
 - `server/templates/index.html` - Moved and simplified HTML
-- `server/assets/css/chess-ui.css` - New single-line styles
+- `server/assets/css/gochess-ui.css` - New single-line styles
 - `server/assets/js/chess-ui.js` - Updated display logic
 
 ## Summary

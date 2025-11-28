@@ -2,7 +2,7 @@
 
 ## Summary
 
-Created a comprehensive test script for the go-chess server API that tests all major features and endpoints.
+Created a comprehensive test script for the gochess-board server API that tests all major features and endpoints.
 
 ## Files Created
 
@@ -100,8 +100,8 @@ TEST: Health check - GET /
 
 TEST: Get engines list - GET /api/engines
 ✓ PASS: Retrieved 6 engines
-✓ PASS: Built-in engine found: GoChess Basic (Built-in)
-  - GoChess Basic (Built-in) (internal)
+✓ PASS: Built-in engine found: GoChess (Built-in)
+  - GoChess (Built-in) (internal)
   - Fruit 2.1 (uci)
   - Toga II 3.0 (uci)
   - Stockfish 16 (uci)

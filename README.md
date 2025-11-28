@@ -1,4 +1,4 @@
-# Go Chess Board Application
+# GoChess Board Application
 
 A Go web server that lets you play chess with a **built-in chess engine** or against multiple external engines including **Stockfish**, **Fruit**, **Toga**, **Crafty**, and **GNU Chess**. The application includes a native Go chess engine (~1000-1200 ELO) that works out-of-the-box with no external dependencies. It also supports UCI and CECP/XBoard protocol engines natively, with optional Polyglot opening book support. The chess game logic runs on the backend, while the frontend provides an interactive chess board. The application automatically opens your default browser when started.
 
@@ -37,7 +37,7 @@ A Go web server that lets you play chess with a **built-in chess engine** or aga
 The application automatically discovers and supports engines using:
 
 ### Built-in Engine (No Installation Required!)
-- **GoChess Basic** - Native Go implementation (~1000-1200 ELO)
+- **GoChess** - Native Go implementation (~1000-1200 ELO)
   - Works immediately out-of-the-box
   - No external dependencies
   - Good for beginners and learning
@@ -145,8 +145,8 @@ Arena includes many engines and Polyglot:
 
 Check which engines are detected:
 ```bash
-./go-chess --no-browser
-# Check the terminal output or chess-debug.log for discovered engines
+./gochess-board --no-browser
+# Check the terminal output or gochess.log for discovered engines
 ```
 
 Or check manually:
@@ -189,10 +189,10 @@ Or use online PGN to Polyglot converters.
 
 ```bash
 # Run with opening book (all engines can use it)
-./go-chess --book-file /usr/share/games/gnuchess/book.bin
+./gochess-board --book-file /usr/share/games/gnuchess/book.bin
 
 # Without book (engines work normally)
-./go-chess
+./gochess-board
 ```
 
 ## Installation
@@ -200,7 +200,7 @@ Or use online PGN to Polyglot converters.
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd go-chess
+   cd gochess-board
    ```
 
 2. Download dependencies:
@@ -210,7 +210,7 @@ Or use online PGN to Polyglot converters.
 
 3. Build the application:
    ```bash
-   go build -o go-chess
+   go build -o gochess-board
    ```
 
 ## Usage
@@ -220,7 +220,7 @@ Or use online PGN to Polyglot converters.
 Simply run the application:
 
 ```bash
-./go-chess
+./gochess-board
 ```
 
 This will:
@@ -235,23 +235,23 @@ All flags support both single dash (`-flag`) and double dash (`--flag`) formats:
 
 - `--port`: Port for the web server (default: `35256`)
   ```bash
-  ./go-chess --port 3000
+  ./gochess-board --port 3000
   ```
 
 - `--no-browser`: Don't automatically open the browser
   ```bash
-  ./go-chess --no-browser
+  ./gochess-board --no-browser
   ```
   Then manually open `http://localhost:35256` in your browser
 
 - `--no-tui`: Disable the TUI interface (run in simple mode)
   ```bash
-  ./go-chess --no-tui
+  ./gochess-board --no-tui
   ```
 
 - `--book-file`: Path to opening book file (Polyglot .bin format)
   ```bash
-  ./go-chess --book-file /usr/share/games/gnuchess/book.bin
+  ./gochess-board --book-file /usr/share/games/gnuchess/book.bin
   ```
   When specified:
   - UCI engines get "+ Book" variants
@@ -262,13 +262,13 @@ All flags support both single dash (`-flag`) and double dash (`--flag`) formats:
 
 ```bash
 # Run with opening book and custom port
-./go-chess --book-file /usr/share/games/gnuchess/book.bin --port 8080
+./gochess-board --book-file /usr/share/games/gnuchess/book.bin --port 8080
 
 # Run without browser, with book
-./go-chess --no-browser --book-file /path/to/book.bin
+./gochess-board --no-browser --book-file /path/to/book.bin
 
 # Simple mode (no TUI)
-./go-chess --no-tui --book-file /usr/share/games/gnuchess/book.bin
+./gochess-board --no-tui --book-file /usr/share/games/gnuchess/book.bin
 ```
 
 ### TUI Interface
@@ -292,7 +292,7 @@ Press `q` or `Ctrl+C` in the TUI to quit.
 ### Project Structure
 
 ```
-go-chess/
+gochess-board/
 ├── main.go              # Main application entry point
 ├── go.mod               # Go module definition
 ├── server/
@@ -328,13 +328,13 @@ go run main.go -port=3000
 
 ```bash
 # Linux
-GOOS=linux GOARCH=amd64 go build -o go-chess-linux
+GOOS=linux GOARCH=amd64 go build -o gochess-board-linux
 
 # Windows
-GOOS=windows GOARCH=amd64 go build -o go-chess.exe
+GOOS=windows GOARCH=amd64 go build -o gochess-board.exe
 
 # macOS
-GOOS=darwin GOARCH=amd64 go build -o go-chess-macos
+GOOS=darwin GOARCH=amd64 go build -o gochess-board-macos
 ```
 
 ## How It Works
@@ -419,7 +419,7 @@ Request a computer move for the current position.
 ### Engine Discovery
 - Engines are discovered automatically from system PATH
 - Both UCI and CECP engines work with native support (no external tools needed)
-- Check `chess-debug.log` for detailed discovery information
+- Check `gochess.log` for detailed discovery information
 
 ### Opening Books
 - Books must be in Polyglot binary format (.bin)

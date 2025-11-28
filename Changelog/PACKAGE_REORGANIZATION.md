@@ -31,7 +31,7 @@ The `engine/engine.go` file now serves as a compatibility layer that re-exports 
 package engine
 
 import (
-	"go-chess/engine_interface"
+	"gochess-board/engine_interface"
 )
 
 // Re-export types
@@ -51,7 +51,7 @@ var NewCECPEngine = engine_interface.NewCECPEngine
 var GlobalMonitor = engine_interface.GlobalMonitor
 ```
 
-This means **all existing code continues to work** without any changes. Code can still import `go-chess/engine` and use all the types and functions as before.
+This means **all existing code continues to work** without any changes. Code can still import `gochess-board/engine` and use all the types and functions as before.
 
 ### 4. Package Structure
 
@@ -100,11 +100,11 @@ All tests pass successfully:
 ```bash
 $ go test ./engine_interface/... -v
 PASS
-ok      go-chess/engine_interface       0.122s
+ok      gochess-board/engine_interface       0.122s
 
 $ go test ./internal_engine/... -v
 PASS
-ok      go-chess/internal_engine        4.558s
+ok      gochess-board/internal_engine        4.558s
 
 $ go build
 # Success - no errors
@@ -112,7 +112,7 @@ $ go build
 
 ## No Breaking Changes
 
-- ✅ All existing imports of `go-chess/engine` continue to work
+- ✅ All existing imports of `gochess-board/engine` continue to work
 - ✅ All existing code using `engine.ChessEngine`, `engine.EngineInfo`, etc. continues to work
 - ✅ All tests pass
 - ✅ Application runs successfully
@@ -130,10 +130,10 @@ While not required, code can optionally be updated to import from `engine_interf
 
 ```go
 // Old (still works)
-import "go-chess/engine"
+import "gochess-board/engine"
 
 // New (optional)
-import "go-chess/engine_interface"
+import "gochess-board/engine_interface"
 ```
 
 Both approaches work identically due to the re-export compatibility layer.

@@ -163,7 +163,7 @@ The script will:
 
 After updating, rebuild the application:
 ```bash
-go build -o go-chess .
+go build -o gochess-board .
 ```
 
 ## Benefits

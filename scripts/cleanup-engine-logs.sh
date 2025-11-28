@@ -17,7 +17,7 @@ else
 fi
 
 # Show temp directory location
-temp_dir="/tmp/go-chess-engines"
+temp_dir="/tmp/gochess-board-engines"
 if [ -d "$temp_dir" ]; then
     log_count=$(ls -1 "$temp_dir"/game.* "$temp_dir"/log.* 2>/dev/null | wc -l)
     echo "Engine logs are now being written to: $temp_dir"

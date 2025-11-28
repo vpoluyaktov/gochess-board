@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"go-chess/engines"
+	"gochess-board/engines"
 )
 
 func TestMoveRequest_JSON(t *testing.T) {

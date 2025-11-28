@@ -84,7 +84,7 @@ Format: `Initial Minutes + Increment Seconds`
    - Added time control selector dropdown
    - Added chess clock display elements
 
-2. `server/assets/css/chess-ui.css`
+2. `server/assets/css/gochess-ui.css`
    - Styled time control selector
    - Styled chess clocks with active/warning states
    - Added pulse animation for critical time

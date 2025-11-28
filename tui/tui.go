@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"go-chess/engines"
+	"gochess-board/engines"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
@@ -169,7 +169,7 @@ func (m model) View() string {
 	}
 
 	// Title
-	title := titleStyle.Render("♟️  GO CHESS SERVER  ♟️")
+	title := titleStyle.Render("♖  GOCHESS BOARD SERVER  ♖")
 
 	// Server status line
 	serverStatus := labelStyle.Render("Server: ") + valueStyle.Render(m.serverURL) +

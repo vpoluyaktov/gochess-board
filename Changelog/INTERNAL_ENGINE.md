@@ -41,7 +41,7 @@ Implemented a basic built-in chess engine with ~800-1200 ELO strength that requi
 **Engine Discovery:**
 - Modified `engine/engine_discovery.go` to always include the internal engine
 - Internal engine appears first in the engine list
-- Labeled as "GoChess Basic (Built-in)" with type "internal"
+- Labeled as "GoChess (Built-in)" with type "internal"
 
 **Move Handler:**
 - Updated `server/move_handler.go` to recognize engine type "internal"
@@ -63,7 +63,7 @@ The `/api/engines` endpoint now returns the internal engine:
 
 ```json
 {
-  "name": "GoChess Basic (Built-in)",
+  "name": "GoChess (Built-in)",
   "path": "internal",
   "version": "1.0",
   "id": "gochess-basic",

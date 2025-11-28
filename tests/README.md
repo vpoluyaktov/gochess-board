@@ -1,6 +1,6 @@
 # Go-Chess Tests
 
-This directory contains all tests for the go-chess application.
+This directory contains all tests for the gochess-board application.
 
 ## Directory Structure
 

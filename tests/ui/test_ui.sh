@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# UI Test script for go-chess using Playwright
+# UI Test script for gochess-board using Playwright
 # Tests the web interface and user interactions
 
 set -e
@@ -114,13 +114,13 @@ start_server() {
     fi
     
     # Build if needed
-    if [ ! -f "$PROJECT_ROOT/go-chess" ]; then
+    if [ ! -f "$PROJECT_ROOT/gochess-board" ]; then
         print_info "Building application..."
         (cd "$PROJECT_ROOT" && go build)
     fi
     
     print_info "Starting server on port $PORT..."
-    (cd "$PROJECT_ROOT" && ./go-chess --restart --no-browser --no-tui > /tmp/ui-test-server.log 2>&1) &
+    (cd "$PROJECT_ROOT" && ./gochess-board --restart --no-browser --no-tui > /tmp/ui-test-server.log 2>&1) &
     SERVER_PID=$!
     
     print_info "Server PID: $SERVER_PID"

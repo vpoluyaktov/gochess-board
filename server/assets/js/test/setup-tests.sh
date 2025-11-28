@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Setup script for Go Chess tests
+# Setup script for GoChess Board tests
 
-echo "🧪 Setting up Go Chess Tests..."
+echo "🧪 Setting up GoChess Board Tests..."
 
 # Check if npm is installed
 if ! command -v npm &> /dev/null; then

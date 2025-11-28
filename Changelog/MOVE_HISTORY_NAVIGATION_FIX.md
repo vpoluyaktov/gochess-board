@@ -28,7 +28,7 @@ Modified the move history display to always show all moves from start to finish,
 - Uses regex pattern matching to find all moves and their positions
 - Calculates move indices to determine if each move is past, current, or future
 
-### 2. CSS Updates (`/server/assets/css/chess-ui.css`)
+### 2. CSS Updates (`/server/assets/css/gochess-ui.css`)
 
 Added new style class:
 ```css

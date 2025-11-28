@@ -7,9 +7,9 @@ import (
 
 	"github.com/gorilla/websocket"
 
-	"go-chess/analysis"
-	"go-chess/engines"
-	"go-chess/logger"
+	"gochess-board/analysis"
+	"gochess-board/engines"
+	"gochess-board/logger"
 )
 
 // WebSocket upgrader

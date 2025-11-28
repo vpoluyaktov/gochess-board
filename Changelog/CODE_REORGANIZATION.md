@@ -88,10 +88,10 @@ Several types were exported to enable cross-package usage:
 All files updated to import from new package locations:
 ```go
 import (
-    "go-chess/engine"
-    "go-chess/logger"
-    "go-chess/opening"
-    "go-chess/analysis"
+    "gochess-board/engine"
+    "gochess-board/logger"
+    "gochess-board/opening"
+    "gochess-board/analysis"
 )
 ```
 

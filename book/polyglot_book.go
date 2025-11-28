@@ -11,7 +11,7 @@ import (
 
 	"github.com/notnil/chess"
 
-	"go-chess/logger"
+	"gochess-board/logger"
 )
 
 // PolyglotBook represents a Polyglot opening book (.bin file)

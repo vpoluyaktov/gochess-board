@@ -11,7 +11,7 @@ Completely removed the `engine/` package and updated all code to use `engine_int
 - ✅ Deleted `engine/engine.go` (the re-export compatibility layer)
 
 ### 2. Updated Imports
-Updated all imports from `go-chess/engine` → `go-chess/engine_interface` in:
+Updated all imports from `gochess-board/engine` → `gochess-board/engine_interface` in:
 - ✅ `main.go`
 - ✅ `tui/tui.go`
 - ✅ `server/server.go`
@@ -111,13 +111,13 @@ $ curl -X POST http://localhost:35256/api/computer-move \
 
 ## Migration Notes
 
-If anyone has external code importing `go-chess/engine`, they should update to:
+If anyone has external code importing `gochess-board/engine`, they should update to:
 ```go
 // Old (no longer exists)
-import "go-chess/engine"
+import "gochess-board/engine"
 
 // New
-import "go-chess/engine_interface"
+import "gochess-board/engine_interface"
 ```
 
 All type and function names remain the same, just the package name changed.

@@ -8,9 +8,9 @@ import (
 
 	"github.com/notnil/chess"
 
-	"go-chess/engines"
-	"go-chess/engines/builtin"
-	"go-chess/logger"
+	"gochess-board/engines"
+	"gochess-board/engines/builtin"
+	"gochess-board/logger"
 )
 
 const (

@@ -171,7 +171,7 @@ If the opening database fails to load:
 
 To verify the display:
 ```bash
-./go-chess
+./gochess-board
 ```
 
 The TUI will show:

@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Test script for go-chess server API
+# Test script for gochess-board server API
 # Tests major server features and endpoints
 
 set -e  # Exit on error
@@ -148,9 +148,9 @@ start_server() {
     
     print_info "Starting server on port $PORT with log level $LOG_LEVEL"
     if [ ! -z "$BOOK_ARG" ]; then
-        ./go-chess --restart --no-browser --no-tui --log-level=$LOG_LEVEL $BOOK_ARG > server.log 2>&1 &
+        ./gochess-board --restart --no-browser --no-tui --log-level=$LOG_LEVEL $BOOK_ARG > server.log 2>&1 &
     else
-        ./go-chess --restart --no-browser --no-tui --log-level=$LOG_LEVEL > server.log 2>&1 &
+        ./gochess-board --restart --no-browser --no-tui --log-level=$LOG_LEVEL > server.log 2>&1 &
     fi
     SERVER_PID=$!
     

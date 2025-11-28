@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"go-chess/logger"
-	"go-chess/utils"
+	"gochess-board/logger"
+	"gochess-board/utils"
 )
 
 // getExecutableName returns the platform-specific executable name
@@ -139,7 +139,7 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 
 	// Always add the built-in internal engine first
 	internalEngine := EngineInfo{
-		Name:                  "GoChess Basic (Built-in)",
+		Name:                  "GoChess (Built-in)",
 		Path:                  "internal",
 		Version:               "1.0",
 		ID:                    "gochess-basic",
@@ -235,7 +235,7 @@ func getEngineInfo(path string) (EngineInfo, bool) {
 	cmd := exec.Command(path)
 
 	// Set working directory to temp to avoid cluttering the repository with log files
-	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	tempDir := filepath.Join(os.TempDir(), "gochess-board-engines")
 	if err := os.MkdirAll(tempDir, 0755); err == nil {
 		cmd.Dir = tempDir
 	}
@@ -378,7 +378,7 @@ func getCECPEngineInfo(path string) (EngineInfo, bool) {
 	cmd := exec.Command(path)
 
 	// Set working directory to temp to avoid cluttering the repository with log files
-	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	tempDir := filepath.Join(os.TempDir(), "gochess-board-engines")
 	if err := os.MkdirAll(tempDir, 0755); err == nil {
 		cmd.Dir = tempDir
 	}
