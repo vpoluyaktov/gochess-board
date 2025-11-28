@@ -79,7 +79,9 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 			}
 
 			// Create appropriate analysis engine based on type
-			if engineType == "cecp" {
+			if engineType == "internal" {
+				analysisEngine, err = analysis.NewBuiltinAnalysisEngine()
+			} else if engineType == "cecp" {
 				analysisEngine, err = analysis.NewCECPAnalysisEngine(enginePath)
 			} else {
 				analysisEngine, err = analysis.NewAnalysisEngine(enginePath)
