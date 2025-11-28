@@ -108,3 +108,56 @@ func TestInternalEngineAnalyzeInvalidFEN(t *testing.T) {
 		t.Error("Expected error for invalid FEN, got nil")
 	}
 }
+
+func TestInternalEngineAnalyzePV(t *testing.T) {
+	engine := NewEngine()
+
+	stopCh := make(chan bool)
+	resultCh := make(chan AnalysisInfo, 10)
+
+	// Start analysis
+	go func() {
+		startFEN := "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+		err := engine.Analyze(startFEN, 4, stopCh, resultCh)
+		if err != nil {
+			t.Errorf("Analyze failed: %v", err)
+		}
+		close(resultCh)
+	}()
+
+	// Collect results and verify PV
+	var lastInfo AnalysisInfo
+	for info := range resultCh {
+		lastInfo = info
+
+		// PV should not be empty
+		if len(info.PV) == 0 {
+			t.Errorf("Depth %d: PV is empty", info.Depth)
+		}
+
+		// PV should start with the best move
+		if len(info.PV) > 0 && info.PV[0] != info.BestMove {
+			t.Errorf("Depth %d: PV[0]=%s doesn't match BestMove=%s",
+				info.Depth, info.PV[0], info.BestMove)
+		}
+
+		// PV length should be reasonable (at most depth moves)
+		if len(info.PV) > info.Depth {
+			t.Errorf("Depth %d: PV has %d moves, expected at most %d",
+				info.Depth, len(info.PV), info.Depth)
+		}
+
+		t.Logf("Depth %d: PV = %v (length: %d)", info.Depth, info.PV, len(info.PV))
+	}
+
+	// Verify we got at least depth 4
+	if lastInfo.Depth < 4 {
+		t.Errorf("Expected to reach depth 4, got %d", lastInfo.Depth)
+	}
+
+	// At depth 4, we should have a PV with multiple moves
+	if len(lastInfo.PV) < 2 {
+		t.Errorf("Depth %d: Expected PV with at least 2 moves, got %d",
+			lastInfo.Depth, len(lastInfo.PV))
+	}
+}

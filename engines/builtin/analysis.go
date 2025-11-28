@@ -12,6 +12,7 @@ type AnalysisInfo struct {
 	Depth     int
 	Score     int
 	BestMove  string
+	PV        []string // Principal Variation (sequence of best moves)
 	Nodes     int
 	NPS       int64
 	Time      int
@@ -41,7 +42,7 @@ func (e *InternalEngine) Analyze(fen string, maxDepth int, stopCh <-chan bool, r
 		}
 
 		startTime := time.Now()
-		score, bestMove, nodes := e.searchWithStats(pos, depth, stopCh)
+		score, bestMove, pv, nodes := e.searchWithStats(pos, depth, stopCh)
 		elapsed := time.Since(startTime)
 
 		// Check if search was interrupted
@@ -75,10 +76,17 @@ func (e *InternalEngine) Analyze(fen string, maxDepth int, stopCh <-chan bool, r
 			bestMoveStr = bestMove.String()
 		}
 
+		// Convert PV moves to strings
+		pvStrings := make([]string, len(pv))
+		for i, move := range pv {
+			pvStrings[i] = move.String()
+		}
+
 		info := AnalysisInfo{
 			Depth:     depth,
 			Score:     displayScore,
 			BestMove:  bestMoveStr,
+			PV:        pvStrings,
 			Nodes:     nodes,
 			NPS:       nps,
 			Time:      elapsedMs,
@@ -96,18 +104,19 @@ func (e *InternalEngine) Analyze(fen string, maxDepth int, stopCh <-chan bool, r
 	return nil
 }
 
-// searchWithStats performs a search and returns score, best move, and node count
-func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh <-chan bool) (int, *chess.Move, int) {
+// searchWithStats performs a search and returns score, best move, PV, and node count
+func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh <-chan bool) (int, *chess.Move, []*chess.Move, int) {
 	nodeCount := 0
 	alpha := -10000
 	beta := 10000
 
 	moves := pos.ValidMoves()
 	if len(moves) == 0 {
-		return 0, nil, 0
+		return 0, nil, nil, 0
 	}
 
 	var bestMove *chess.Move
+	var bestPV []*chess.Move
 	bestScore := -10000
 
 	// Order moves for better pruning
@@ -117,16 +126,24 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 		// Check if we should stop
 		select {
 		case <-stopCh:
-			return bestScore, bestMove, nodeCount
+			return bestScore, bestMove, bestPV, nodeCount
 		default:
 		}
 
 		newPos := pos.Update(move)
-		score := -e.alphaBetaWithStop(newPos, depth-1, -beta, -alpha, &nodeCount, stopCh)
+
+		// Create PV table for this branch
+		var childPV []*chess.Move
+		score := -e.alphaBetaWithPV(newPos, depth-1, -beta, -alpha, &nodeCount, &childPV, stopCh)
 
 		if score > bestScore {
 			bestScore = score
 			bestMove = move
+
+			// Build PV: current move + child PV
+			bestPV = make([]*chess.Move, 0, depth)
+			bestPV = append(bestPV, move)
+			bestPV = append(bestPV, childPV...)
 		}
 
 		if score > alpha {
@@ -138,7 +155,73 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 		}
 	}
 
-	return bestScore, bestMove, nodeCount
+	return bestScore, bestMove, bestPV, nodeCount
+}
+
+// alphaBetaWithPV performs alpha-beta search with PV tracking
+func (e *InternalEngine) alphaBetaWithPV(pos *chess.Position, depth int, alpha, beta int, nodeCount *int, pv *[]*chess.Move, stopCh <-chan bool) int {
+	*nodeCount++
+
+	// Check if we should stop
+	select {
+	case <-stopCh:
+		return 0
+	default:
+	}
+
+	// Base case
+	if depth == 0 {
+		return e.quiescenceWithStop(pos, alpha, beta, 4, nodeCount, stopCh)
+	}
+
+	// Check for terminal positions
+	if pos.Status() == chess.Checkmate {
+		return -10000 + (6 - depth)
+	}
+	if pos.Status() == chess.Stalemate || pos.Status() == chess.ThreefoldRepetition {
+		return 0
+	}
+
+	moves := pos.ValidMoves()
+	if len(moves) == 0 {
+		return e.evaluate(pos)
+	}
+
+	// Order moves for better pruning
+	e.orderMoves(moves)
+
+	var localPV []*chess.Move
+
+	for _, move := range moves {
+		// Check if we should stop
+		select {
+		case <-stopCh:
+			return alpha
+		default:
+		}
+
+		newPos := pos.Update(move)
+
+		var childPV []*chess.Move
+		score := -e.alphaBetaWithPV(newPos, depth-1, -beta, -alpha, nodeCount, &childPV, stopCh)
+
+		if score >= beta {
+			return beta
+		}
+
+		if score > alpha {
+			alpha = score
+
+			// Update PV: current move + child PV
+			localPV = make([]*chess.Move, 0, depth)
+			localPV = append(localPV, move)
+			localPV = append(localPV, childPV...)
+		}
+	}
+
+	// Copy local PV to output
+	*pv = localPV
+	return alpha
 }
 
 // alphaBetaWithStop performs alpha-beta search with stop channel support
