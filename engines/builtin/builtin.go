@@ -16,7 +16,7 @@ type InternalEngine struct {
 // NewEngine creates a new built-in chess engine
 func NewEngine() *InternalEngine {
 	return &InternalEngine{
-		name: "GoChess Basic",
+		name: "GoChess",
 	}
 }
 

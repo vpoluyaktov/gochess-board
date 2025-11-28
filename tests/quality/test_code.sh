@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Code quality test script for go-chess
+# Code quality test script for gochess-board
 # Tests code formatting, static analysis, race conditions, and unit tests
 
 set -e  # Exit on error

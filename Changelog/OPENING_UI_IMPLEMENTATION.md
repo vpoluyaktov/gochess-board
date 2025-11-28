@@ -20,7 +20,7 @@ Added a new opening info section in the sidebar:
 
 **Location**: Between the game info and move history sections in the sidebar.
 
-### 2. CSS Styling (`server/assets/css/chess-ui.css`)
+### 2. CSS Styling (`server/assets/css/gochess-ui.css`)
 
 Added beautiful gradient styling for the opening display:
 
@@ -181,7 +181,7 @@ Possible improvements for the future:
 
 ### New Content
 - `server/templates/index.html` - Added opening info HTML
-- `server/assets/css/chess-ui.css` - Added opening info styles
+- `server/assets/css/gochess-ui.css` - Added opening info styles
 - `server/assets/js/chess-ui.js` - Added opening display logic
 
 ### Lines Added

@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"go-chess/logger"
+	"gochess-board/logger"
 )
 
 // AnalysisEngine manages a UCI engine for analysis
@@ -30,7 +30,7 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 	// os.TempDir() returns the appropriate temp directory for the OS:
 	// - Linux/macOS: /tmp
 	// - Windows: %TEMP% (e.g., C:\Users\<user>\AppData\Local\Temp)
-	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	tempDir := filepath.Join(os.TempDir(), "gochess-board-engines")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		logger.Warn("ANALYSIS", "Failed to create temp directory for engine: %v", err)
 	} else {

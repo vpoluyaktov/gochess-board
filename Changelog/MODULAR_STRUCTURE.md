@@ -152,4 +152,4 @@ The modules must be loaded in this specific order due to dependencies:
 ## Backup
 
 The original monolithic file has been backed up as:
-- `/home/ubuntu/git/go-chess/server/assets/js/chess-ui.js.backup`
+- `/home/ubuntu/git/gochess-board/server/assets/js/chess-ui.js.backup`

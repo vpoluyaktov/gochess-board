@@ -91,7 +91,7 @@ go test -v -run TestOpeningBook ./server
 ### 2. Rebuild the Application
 
 ```bash
-go build -o go-chess .
+go build -o gochess-board .
 ```
 
 The opening database is embedded in the binary using Go's `embed` package, so you need to rebuild after updating.
@@ -99,7 +99,7 @@ The opening database is embedded in the binary using Go's `embed` package, so yo
 ### 3. Run the Application
 
 ```bash
-./go-chess
+./gochess-board
 ```
 
 The new opening database will be loaded at startup.
@@ -130,7 +130,7 @@ To find the latest commit hash from the lichess-org/chess-openings repository:
 ### Application Doesn't Load New Data
 
 - **Rebuild required**: The data is embedded, so you must rebuild
-- **Check logs**: Look at `chess-debug.log` for loading errors
+- **Check logs**: Look at `gochess.log` for loading errors
 - **Verify files**: Run `ls -lh server/assets/openings/` to check files exist
 
 ## Technical Details

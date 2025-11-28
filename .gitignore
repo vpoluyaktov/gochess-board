@@ -22,6 +22,8 @@ go.work
 # Build output
 go-chess
 go-chess-*
+gochess-board
+gochess-board-*
 
 # IDE specific files
 .vscode/
@@ -39,6 +41,7 @@ Thumbs.db
 game.*
 log.*
 chess-debug.log
+gochess.log
 MacKenzie.pgn
 server.log
 

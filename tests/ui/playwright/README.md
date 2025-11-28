@@ -1,6 +1,6 @@
 # Go-Chess UI Tests
 
-Playwright-based end-to-end tests for the go-chess web interface.
+Playwright-based end-to-end tests for the gochess-board web interface.
 
 ## Setup
 

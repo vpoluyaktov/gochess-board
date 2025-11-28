@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"go-chess/logger"
+	"gochess-board/logger"
 )
 
 // CECPEngine represents a CECP/XBoard chess engine
@@ -39,7 +39,7 @@ func NewCECPEngine(enginePath string, engineName string) (*CECPEngine, error) {
 	// os.TempDir() returns the appropriate temp directory for the OS:
 	// - Linux/macOS: /tmp
 	// - Windows: %TEMP% (e.g., C:\Users\<user>\AppData\Local\Temp)
-	tempDir := filepath.Join(os.TempDir(), "go-chess-engines")
+	tempDir := filepath.Join(os.TempDir(), "gochess-board-engines")
 	if err := os.MkdirAll(tempDir, 0755); err != nil {
 		logger.Warn("ENGINE", "Failed to create temp directory for engine: %v", err)
 	} else {

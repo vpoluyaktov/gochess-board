@@ -24,7 +24,7 @@ Redesigned the move history display to use PGN (Portable Game Notation) format i
 <textarea id="moveHistoryText" class="move-history-text" readonly placeholder="No moves yet"></textarea>
 ```
 
-### 2. CSS Styling (`server/assets/css/chess-ui.css`)
+### 2. CSS Styling (`server/assets/css/gochess-ui.css`)
 
 **New Styles**:
 - `.move-history-text` - Textarea with monospace font
@@ -234,7 +234,7 @@ Possible improvements:
 1. **Full PGN Headers**
    ```
    [Event "Casual Game"]
-   [Site "go-chess"]
+   [Site "gochess-board"]
    [Date "2025.11.14"]
    [White "Human"]
    [Black "Stockfish 16"]
@@ -284,7 +284,7 @@ Tested with:
 ## Files Modified
 
 - `server/templates/index.html` - Textarea structure
-- `server/assets/css/chess-ui.css` - Textarea and button styles
+- `server/assets/css/gochess-ui.css` - Textarea and button styles
 - `server/assets/js/chess-ui.js` - PGN generation and copy function
 
 ## Summary

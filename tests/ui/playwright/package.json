@@ -1,7 +1,7 @@
 {
-  "name": "go-chess-ui-tests",
+  "name": "gochess-board-ui-tests",
   "version": "1.0.0",
-  "description": "UI tests for go-chess using Playwright",
+  "description": "UI tests for GoChess Board using Playwright",
   "scripts": {
     "test": "playwright test",
     "test:headed": "playwright test --headed",

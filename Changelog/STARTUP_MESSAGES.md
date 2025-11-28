@@ -59,7 +59,7 @@ INFO  [SERVER] Opening database loaded: 3594 openings, 8147 nodes, max depth 36
 4. "Server initialized successfully!" - After loading completes
 5. "Chess board server running at..." - Server ready
 
-### Debug Log (chess-debug.log)
+### Debug Log (gochess.log)
 1. Engine discovery details
 2. "Loading opening database from server/assets/openings"
 3. "Loading opening book from 5 files"
@@ -113,7 +113,7 @@ Possible enhancements:
 
 Verified with:
 ```bash
-./go-chess --no-browser --no-tui
+./gochess-board --no-browser --no-tui
 ```
 
 Output:

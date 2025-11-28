@@ -44,7 +44,7 @@ Replaced the plain text move history textarea with CodeMirror to provide syntax 
   - Set CodeMirror to read-only mode to prevent manual editing
 
 ### 5. Added Custom CSS Styling
-- **File**: `/server/assets/css/chess-ui.css`
+- **File**: `/server/assets/css/gochess-ui.css`
 - **Styling includes**:
   - `.cm-chess-move-number` - Gray, bold move numbers
   - `.cm-chess-move` - Regular black moves

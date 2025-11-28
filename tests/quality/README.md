@@ -1,6 +1,6 @@
 # Go-Chess Code Quality Tests
 
-This directory contains code quality and static analysis tests for the go-chess project.
+This directory contains code quality and static analysis tests for the gochess-board project.
 
 ## test_code.sh
 

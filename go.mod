@@ -1,4 +1,4 @@
-module go-chess
+module gochess-board
 
 go 1.24.0
 
