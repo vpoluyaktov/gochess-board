@@ -162,6 +162,165 @@ func (e *InternalEngine) evaluate(pos *chess.Position) int {
 		}
 	}
 
+	// Add king safety evaluation
+	score += evaluateKingSafety(pos, chess.White)
+	score -= evaluateKingSafety(pos, chess.Black)
+
+	// Add pawn structure evaluation
+	score += evaluatePawnStructure(pos, chess.White)
+	score -= evaluatePawnStructure(pos, chess.Black)
+
+	// Add mobility bonus
+	score += evaluateMobility(pos, chess.White)
+	score -= evaluateMobility(pos, chess.Black)
+
 	// Return score from white's perspective
 	return score
+}
+
+// evaluateKingSafety evaluates king safety for a given color
+func evaluateKingSafety(pos *chess.Position, color chess.Color) int {
+	score := 0
+	board := pos.Board()
+
+	// Find king position
+	var kingSquare chess.Square
+	for sq := 0; sq < 64; sq++ {
+		piece := board.Piece(chess.Square(sq))
+		if piece.Type() == chess.King && piece.Color() == color {
+			kingSquare = chess.Square(sq)
+			break
+		}
+	}
+
+	// Pawn shield bonus (pawns in front of king)
+	rank := int(kingSquare) / 8
+	file := int(kingSquare) % 8
+
+	if color == chess.White && rank < 2 {
+		// Check for pawns in front of king
+		for f := max(0, file-1); f <= min(7, file+1); f++ {
+			sq := chess.Square(rank*8 + f + 8)
+			if sq < 64 {
+				piece := board.Piece(sq)
+				if piece.Type() == chess.Pawn && piece.Color() == color {
+					score += 10 // Bonus for pawn shield
+				}
+			}
+		}
+	} else if color == chess.Black && rank > 5 {
+		// Check for pawns in front of black king
+		for f := max(0, file-1); f <= min(7, file+1); f++ {
+			sq := chess.Square(rank*8 + f - 8)
+			if sq >= 0 {
+				piece := board.Piece(sq)
+				if piece.Type() == chess.Pawn && piece.Color() == color {
+					score += 10 // Bonus for pawn shield
+				}
+			}
+		}
+	}
+
+	return score
+}
+
+// evaluatePawnStructure evaluates pawn structure for a given color
+func evaluatePawnStructure(pos *chess.Position, color chess.Color) int {
+	score := 0
+	board := pos.Board()
+
+	// Track pawns by file
+	var pawnFiles [8]int
+
+	for sq := 0; sq < 64; sq++ {
+		piece := board.Piece(chess.Square(sq))
+		if piece.Type() == chess.Pawn && piece.Color() == color {
+			file := int(sq) % 8
+			pawnFiles[file]++
+		}
+	}
+
+	// Penalize doubled pawns
+	for file := 0; file < 8; file++ {
+		if pawnFiles[file] > 1 {
+			score -= 10 * (pawnFiles[file] - 1)
+		}
+	}
+
+	// Bonus for passed pawns (simplified - just check if no enemy pawns on file)
+	for sq := 0; sq < 64; sq++ {
+		piece := board.Piece(chess.Square(sq))
+		if piece.Type() == chess.Pawn && piece.Color() == color {
+			file := int(sq) % 8
+			rank := int(sq) / 8
+
+			// Check if passed pawn (no enemy pawns ahead)
+			isPassed := true
+			enemyColor := chess.Black
+			if color == chess.Black {
+				enemyColor = chess.White
+			}
+
+			// Check file and adjacent files
+			for checkFile := max(0, file-1); checkFile <= min(7, file+1); checkFile++ {
+				for checkRank := 0; checkRank < 8; checkRank++ {
+					if color == chess.White && checkRank <= rank {
+						continue
+					}
+					if color == chess.Black && checkRank >= rank {
+						continue
+					}
+
+					checkSq := chess.Square(checkRank*8 + checkFile)
+					checkPiece := board.Piece(checkSq)
+					if checkPiece.Type() == chess.Pawn && checkPiece.Color() == enemyColor {
+						isPassed = false
+						break
+					}
+				}
+				if !isPassed {
+					break
+				}
+			}
+
+			if isPassed {
+				// Bonus increases as pawn advances
+				advancement := rank
+				if color == chess.Black {
+					advancement = 7 - rank
+				}
+				score += 10 + advancement*5
+			}
+		}
+	}
+
+	return score
+}
+
+// evaluateMobility evaluates piece mobility for a given color
+func evaluateMobility(pos *chess.Position, color chess.Color) int {
+	// Simple mobility: count legal moves when it's this color's turn
+	// Only do this if it's actually their turn to avoid expensive calculation
+	if pos.Turn() != color {
+		return 0
+	}
+
+	moves := pos.ValidMoves()
+	// Small bonus for having more moves (mobility)
+	return len(moves) / 2
+}
+
+// Helper functions
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

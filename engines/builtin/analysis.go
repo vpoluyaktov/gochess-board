@@ -32,6 +32,11 @@ func (e *InternalEngine) Analyze(fen string, maxDepth int, stopCh <-chan bool, r
 	game := chess.NewGame(fenFunc)
 	pos := game.Position()
 
+	// Increment TT age for new analysis session
+	if e.tt != nil {
+		e.tt.incrementAge()
+	}
+
 	// Perform iterative deepening
 	for depth := 1; depth <= maxDepth; depth++ {
 		// Check if we should stop
@@ -109,6 +114,18 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 	nodeCount := 0
 	alpha := -10000
 	beta := 10000
+	alphaOrig := alpha
+
+	// Get zobrist key for transposition table
+	zobristKey := getZobristKey(pos)
+
+	// Probe transposition table
+	if found, score, ttMove := e.tt.probe(zobristKey, depth, alpha, beta); found {
+		// For analysis, we still want the PV, so only use TT for move ordering
+		// Don't return early to ensure we get complete PV
+		_ = score // Use score for move ordering hint
+		_ = ttMove
+	}
 
 	moves := pos.ValidMoves()
 	if len(moves) == 0 {
@@ -119,8 +136,14 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 	var bestPV []*chess.Move
 	bestScore := -10000
 
-	// Order moves for better pruning
-	e.orderMoves(moves)
+	// Get TT move for ordering
+	var ttMove *chess.Move
+	if _, _, move := e.tt.probe(zobristKey, 0, alpha, beta); move != nil {
+		ttMove = move
+	}
+
+	// Order moves for better pruning (with TT move and killer moves)
+	e.orderMoves(moves, ttMove, 0)
 
 	for _, move := range moves {
 		// Check if we should stop
@@ -151,8 +174,23 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 		}
 
 		if alpha >= beta {
+			// Store killer move
+			if e.killerMoves != nil && !move.HasTag(chess.Capture) {
+				e.killerMoves.add(move, depth)
+			}
 			break
 		}
+	}
+
+	// Store in transposition table
+	if bestMove != nil {
+		entryType := TTExact
+		if alpha <= alphaOrig {
+			entryType = TTAlpha
+		} else if alpha >= beta {
+			entryType = TTBeta
+		}
+		e.tt.store(zobristKey, depth, bestScore, entryType, bestMove)
 	}
 
 	return bestScore, bestMove, bestPV, nodeCount
@@ -161,12 +199,25 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 // alphaBetaWithPV performs alpha-beta search with PV tracking
 func (e *InternalEngine) alphaBetaWithPV(pos *chess.Position, depth int, alpha, beta int, nodeCount *int, pv *[]*chess.Move, stopCh <-chan bool) int {
 	*nodeCount++
+	alphaOrig := alpha
 
 	// Check if we should stop
 	select {
 	case <-stopCh:
 		return 0
 	default:
+	}
+
+	// Get zobrist key for transposition table
+	zobristKey := getZobristKey(pos)
+
+	// Probe transposition table
+	if found, score, _ := e.tt.probe(zobristKey, depth, alpha, beta); found {
+		// For PV nodes, we need to search to get the full PV
+		// So we only use TT cutoffs for non-PV nodes
+		if depth > 1 {
+			return score
+		}
 	}
 
 	// Base case
@@ -187,10 +238,21 @@ func (e *InternalEngine) alphaBetaWithPV(pos *chess.Position, depth int, alpha, 
 		return e.evaluate(pos)
 	}
 
-	// Order moves for better pruning
-	e.orderMoves(moves)
+	// Get TT move for ordering
+	var ttMove *chess.Move
+	if _, _, move := e.tt.probe(zobristKey, 0, alpha, beta); move != nil {
+		ttMove = move
+	}
+
+	// Order moves for better pruning (with TT move and killer moves)
+	ply := 6 - depth // Approximate ply from depth
+	if ply < 0 {
+		ply = 0
+	}
+	e.orderMoves(moves, ttMove, ply)
 
 	var localPV []*chess.Move
+	var bestMove *chess.Move
 
 	for _, move := range moves {
 		// Check if we should stop
@@ -206,17 +268,33 @@ func (e *InternalEngine) alphaBetaWithPV(pos *chess.Position, depth int, alpha, 
 		score := -e.alphaBetaWithPV(newPos, depth-1, -beta, -alpha, nodeCount, &childPV, stopCh)
 
 		if score >= beta {
+			// Beta cutoff - store killer move
+			if e.killerMoves != nil && !move.HasTag(chess.Capture) {
+				e.killerMoves.add(move, ply)
+			}
+			// Store in TT
+			e.tt.store(zobristKey, depth, beta, TTBeta, move)
 			return beta
 		}
 
 		if score > alpha {
 			alpha = score
+			bestMove = move
 
 			// Update PV: current move + child PV
 			localPV = make([]*chess.Move, 0, depth)
 			localPV = append(localPV, move)
 			localPV = append(localPV, childPV...)
 		}
+	}
+
+	// Store in transposition table
+	entryType := TTExact
+	if alpha <= alphaOrig {
+		entryType = TTAlpha
+	}
+	if bestMove != nil {
+		e.tt.store(zobristKey, depth, alpha, entryType, bestMove)
 	}
 
 	// Copy local PV to output
@@ -227,12 +305,21 @@ func (e *InternalEngine) alphaBetaWithPV(pos *chess.Position, depth int, alpha, 
 // alphaBetaWithStop performs alpha-beta search with stop channel support
 func (e *InternalEngine) alphaBetaWithStop(pos *chess.Position, depth int, alpha, beta int, nodeCount *int, stopCh <-chan bool) int {
 	*nodeCount++
+	alphaOrig := alpha
 
 	// Check if we should stop
 	select {
 	case <-stopCh:
 		return 0
 	default:
+	}
+
+	// Get zobrist key for transposition table
+	zobristKey := getZobristKey(pos)
+
+	// Probe transposition table
+	if found, score, _ := e.tt.probe(zobristKey, depth, alpha, beta); found {
+		return score
 	}
 
 	// Base case
@@ -253,8 +340,20 @@ func (e *InternalEngine) alphaBetaWithStop(pos *chess.Position, depth int, alpha
 		return e.evaluate(pos)
 	}
 
-	// Order moves for better pruning
-	e.orderMoves(moves)
+	// Get TT move for ordering
+	var ttMove *chess.Move
+	if _, _, move := e.tt.probe(zobristKey, 0, alpha, beta); move != nil {
+		ttMove = move
+	}
+
+	// Order moves for better pruning (with TT move and killer moves)
+	ply := 6 - depth // Approximate ply from depth
+	if ply < 0 {
+		ply = 0
+	}
+	e.orderMoves(moves, ttMove, ply)
+
+	var bestMove *chess.Move
 
 	for _, move := range moves {
 		// Check if we should stop
@@ -268,11 +367,27 @@ func (e *InternalEngine) alphaBetaWithStop(pos *chess.Position, depth int, alpha
 		score := -e.alphaBetaWithStop(newPos, depth-1, -beta, -alpha, nodeCount, stopCh)
 
 		if score >= beta {
+			// Beta cutoff - store killer move
+			if e.killerMoves != nil && !move.HasTag(chess.Capture) {
+				e.killerMoves.add(move, ply)
+			}
+			// Store in TT
+			e.tt.store(zobristKey, depth, beta, TTBeta, move)
 			return beta
 		}
 		if score > alpha {
 			alpha = score
+			bestMove = move
 		}
+	}
+
+	// Store in transposition table
+	entryType := TTExact
+	if alpha <= alphaOrig {
+		entryType = TTAlpha
+	}
+	if bestMove != nil {
+		e.tt.store(zobristKey, depth, alpha, entryType, bestMove)
 	}
 
 	return alpha

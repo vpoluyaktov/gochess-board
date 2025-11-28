@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"gochess-board/engines"
+	"gochess-board/engines/builtin"
 	"gochess-board/logger"
 	"gochess-board/server"
 	"gochess-board/tui"
@@ -35,6 +36,8 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "        Path to opening book file for polyglot (optional)\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --log-level string\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Log level: DEBUG, INFO, WARN, ERROR (default \"INFO\")\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --engine-only\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Run built-in engine in UCI protocol mode\n")
 	}
 
 	// Command line flags
@@ -44,6 +47,7 @@ func main() {
 	restart := flag.Bool("restart", false, "Kill any existing gochess-board process before starting")
 	bookFile := flag.String("book-file", "", "Path to opening book file for polyglot (optional)")
 	logLevel := flag.String("log-level", "INFO", "Log level: DEBUG, INFO, WARN, ERROR")
+	engineOnly := flag.Bool("engine-only", false, "Run built-in engine in UCI protocol mode")
 	flag.Parse()
 
 	// Initialize debug logging to file
@@ -53,6 +57,12 @@ func main() {
 
 	// Set log level from command line
 	logger.SetLogLevel(*logLevel)
+
+	// Handle engine-only mode (UCI protocol)
+	if *engineOnly {
+		builtin.RunUCI()
+		return
+	}
 
 	// Handle restart flag - kill process using our port
 	if *restart {

@@ -1,7 +1,12 @@
 #!/bin/bash
 
-# Test script for built-in engine analysis
-# This script uses websocat to test the WebSocket analysis endpoint
+# Integration Test: Built-in Engine Analysis (Background Process)
+# 
+# This test requires:
+# 1. The gochess-board server to be running (from project root: ./gochess-board)
+# 2. websocat installed (https://github.com/vi/websocat)
+#
+# Run from project root: ./tests/integration/test_builtin_analysis.sh
 
 PORT=35256
 WS_URL="ws://localhost:$PORT/ws/analysis"

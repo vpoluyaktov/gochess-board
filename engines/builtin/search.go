@@ -4,6 +4,15 @@ import "github.com/notnil/chess"
 
 // search performs minimax search with alpha-beta pruning
 func (e *InternalEngine) search(pos *chess.Position, depth int, alpha, beta int) (int, *chess.Move) {
+	// Get zobrist key for this position
+	zobristKey := getZobristKey(pos)
+	alphaOrig := alpha
+
+	// Probe transposition table
+	if found, score, ttMove := e.tt.probe(zobristKey, depth, alpha, beta); found {
+		return score, ttMove
+	}
+
 	// Base case: depth reached
 	if depth == 0 {
 		score := e.quiescence(pos, alpha, beta, 4)
@@ -17,7 +26,14 @@ func (e *InternalEngine) search(pos *chess.Position, depth int, alpha, beta int)
 	}
 
 	// Order moves: captures first, then others
-	e.orderMoves(moves)
+	// If we have a TT move, search it first
+	var ttMove *chess.Move
+	if _, _, move := e.tt.probe(zobristKey, 0, alpha, beta); move != nil {
+		ttMove = move
+	}
+	// Calculate ply from depth (for killer moves)
+	ply := 0 // We don't track ply in basic search, use 0
+	e.orderMoves(moves, ttMove, ply)
 
 	var bestMove *chess.Move
 
@@ -28,7 +44,8 @@ func (e *InternalEngine) search(pos *chess.Position, depth int, alpha, beta int)
 		score = -score
 
 		if score >= beta {
-			// Beta cutoff
+			// Beta cutoff - store lower bound
+			e.tt.store(zobristKey, depth, beta, TTBeta, move)
 			return beta, move
 		}
 
@@ -36,6 +53,15 @@ func (e *InternalEngine) search(pos *chess.Position, depth int, alpha, beta int)
 			alpha = score
 			bestMove = move
 		}
+	}
+
+	// Store result in transposition table
+	if alpha > alphaOrig {
+		// Exact score
+		e.tt.store(zobristKey, depth, alpha, TTExact, bestMove)
+	} else {
+		// Upper bound (failed low)
+		e.tt.store(zobristKey, depth, alpha, TTAlpha, bestMove)
 	}
 
 	return alpha, bestMove

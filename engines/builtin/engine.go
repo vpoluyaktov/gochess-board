@@ -10,14 +10,18 @@ import (
 
 // InternalEngine is a simple built-in chess engine
 type InternalEngine struct {
-	name    string
-	stopped bool // Flag to stop analysis
+	name        string
+	stopped     bool                // Flag to stop analysis
+	tt          *TranspositionTable // Transposition table for position caching
+	killerMoves *KillerMoves        // Killer moves heuristic
 }
 
 // NewEngine creates a new built-in chess engine
 func NewEngine() *InternalEngine {
 	return &InternalEngine{
-		name: "GoChess",
+		name:        "GoChess",
+		tt:          NewTranspositionTable(64), // 64MB transposition table
+		killerMoves: NewKillerMoves(),
 	}
 }
 
