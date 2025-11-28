@@ -90,6 +90,11 @@ function onDrop(source, target) {
     // Update analysis with new position
     updateAnalysisForCurrentPosition();
 
+    // Check if game is over
+    if (checkGameOver()) {
+        return; // Don't trigger computer move if game is over
+    }
+
     window.setTimeout(checkForComputerMove, 250);
 }
 
@@ -107,6 +112,53 @@ function onMoveEnd() {
 // -------------------------------------------------------------------------
 // Board Utility Functions
 // -------------------------------------------------------------------------
+
+function checkGameOver() {
+    // Check for threefold repetition first (even if game_over() doesn't catch it)
+    if (game.in_threefold_repetition()) {
+        console.log('Threefold repetition detected!');
+        stopClock();
+        if (analysisActive) {
+            stopAnalysis();
+        }
+        showGameOver('Draw by threefold repetition.');
+        return true;
+    }
+    
+    if (game.game_over()) {
+        // Stop the clock
+        stopClock();
+        
+        // Stop analysis if running
+        if (analysisActive) {
+            stopAnalysis();
+        }
+        
+        // Determine the game result
+        let message = '';
+        if (game.in_checkmate()) {
+            const winner = game.turn() === 'w' ? 'Black' : 'White';
+            message = `Checkmate! ${winner} wins!`;
+        } else if (game.in_stalemate()) {
+            message = 'Stalemate! Game is a draw.';
+        } else if (game.in_draw()) {
+            if (game.in_threefold_repetition()) {
+                message = 'Draw by threefold repetition.';
+            } else if (game.insufficient_material()) {
+                message = 'Draw by insufficient material.';
+            } else {
+                message = 'Draw by fifty-move rule.';
+            }
+        } else {
+            message = 'Game Over!';
+        }
+        
+        // Show game over dialog
+        showGameOver(message);
+        return true;
+    }
+    return false;
+}
 
 function flipBoard() {
     board.flip();

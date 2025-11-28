@@ -104,6 +104,24 @@ function updatePlayerControls() {
     if (blackControls) {
         blackControls.style.display = isHuman(blackPlayer) ? 'block' : 'none';
     }
+    
+    // Highlight draw buttons if threefold repetition is available
+    updateDrawButtonState();
+}
+
+function updateDrawButtonState() {
+    const drawButtons = document.querySelectorAll('.draw-btn');
+    const canClaimDraw = game.in_threefold_repetition();
+    
+    drawButtons.forEach(btn => {
+        if (canClaimDraw) {
+            btn.classList.add('draw-available');
+            btn.title = 'Threefold repetition - Claim draw!';
+        } else {
+            btn.classList.remove('draw-available');
+            btn.title = 'Offer draw';
+        }
+    });
 }
 
 function restorePlayerSelections() {
@@ -137,9 +155,22 @@ function resignBlack() {
 }
 
 function offerDraw() {
-    showConfirm('Offer a draw?', function() {
-        stopClock();
-        showGameOver('Game Over: Draw by agreement');
-        // Optionally start a new game
-    });
+    // Check if draw can be claimed by threefold repetition
+    if (game.in_threefold_repetition()) {
+        showConfirm('Threefold repetition detected! Claim draw?', function() {
+            stopClock();
+            if (analysisActive) {
+                stopAnalysis();
+            }
+            showGameOver('Game Over: Draw by threefold repetition');
+        });
+    } else {
+        showConfirm('Offer a draw?', function() {
+            stopClock();
+            if (analysisActive) {
+                stopAnalysis();
+            }
+            showGameOver('Game Over: Draw by agreement');
+        });
+    }
 }

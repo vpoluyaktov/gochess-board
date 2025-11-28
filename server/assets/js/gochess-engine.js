@@ -107,6 +107,12 @@ async function makeComputerMove() {
         saveGameState();
         
         isComputerThinking = false;
+        
+        // Check if game is over
+        if (checkGameOver()) {
+            return; // Don't trigger another computer move if game is over
+        }
+        
         window.setTimeout(checkForComputerMove, 250);
         
     } catch (error) {
