@@ -1698,7 +1698,7 @@
       marker.setAttribute('id', markerId)
       marker.setAttribute('markerWidth', '4')
       marker.setAttribute('markerHeight', '4')
-      marker.setAttribute('refX', '0')
+      marker.setAttribute('refX', '2')  // Position middle of arrowhead at line end for centered appearance
       marker.setAttribute('refY', '1.5')
       marker.setAttribute('orient', 'auto')
       marker.setAttribute('markerUnits', 'strokeWidth')
@@ -1747,10 +1747,14 @@
       var startX = from.x
       var startY = from.y
       
-      // End slightly before center of destination square to make room for arrowhead
-      var shortenEnd = squareSize * 0.12
-      var endX = to.x - unitX * shortenEnd
-      var endY = to.y - unitY * shortenEnd
+      // Calculate stroke width for arrowhead sizing
+      var strokeWidth = squareSize * 0.12
+      
+      // Shorten arrow so arrowhead tip lands at center
+      // With refX=2, the arrowhead extends 2 strokeWidths forward from line end
+      var shortenBy = strokeWidth * 2
+      var endX = to.x - unitX * shortenBy
+      var endY = to.y - unitY * shortenBy
 
       // Clear previous arrows if requested (default true for backward compatibility)
       if (clearPrevious === undefined || clearPrevious === true) {
@@ -1768,7 +1772,6 @@
       var markerId = getOrCreateMarker(color, opacity)
 
       // Draw new arrow using proper SVG namespace
-      var strokeWidth = squareSize * 0.12  // Slightly thinner
       var svgNS = 'http://www.w3.org/2000/svg'
       var line = document.createElementNS(svgNS, 'line')
       line.setAttribute('x1', startX)

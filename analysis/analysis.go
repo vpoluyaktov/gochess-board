@@ -1,15 +1,23 @@
 package analysis
 
+// PVLine represents a single principal variation line with its score
+type PVLine struct {
+	Score     int      `json:"score"`     // centipawns
+	ScoreType string   `json:"scoreType"` // "cp" or "mate"
+	Moves     []string `json:"moves"`     // moves in this variation
+}
+
 // AnalysisInfo represents engine analysis data
 type AnalysisInfo struct {
 	Depth     int      `json:"depth"`
-	Score     int      `json:"score"`    // centipawns
-	BestMove  string   `json:"bestMove"` // e.g., "e2e4"
-	PV        []string `json:"pv"`       // principal variation
+	Score     int      `json:"score"`    // centipawns (for backward compatibility)
+	BestMove  string   `json:"bestMove"` // e.g., "e2e4" (for backward compatibility)
+	PV        []string `json:"pv"`       // principal variation (for backward compatibility)
 	Nodes     int64    `json:"nodes"`
 	NPS       int64    `json:"nps"`       // nodes per second
 	Time      int      `json:"time"`      // milliseconds
-	ScoreType string   `json:"scoreType"` // "cp" or "mate"
+	ScoreType string   `json:"scoreType"` // "cp" or "mate" (for backward compatibility)
+	MultiPV   []PVLine `json:"multiPV"`   // multiple PV lines (for 3 best moves feature)
 }
 
 // AnalysisEngineInterface is an interface for analysis engines (UCI or CECP)
