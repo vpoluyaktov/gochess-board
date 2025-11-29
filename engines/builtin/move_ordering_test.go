@@ -34,8 +34,8 @@ func TestMoveOrderScore(t *testing.T) {
 
 	// Test that captures are scored higher than quiet moves
 	if captureMove != nil && quietMove != nil {
-		captureScore := engine.moveOrderScore(captureMove)
-		quietScore := engine.moveOrderScore(quietMove)
+		captureScore := engine.moveOrderScore(captureMove, nil, 0)
+		quietScore := engine.moveOrderScore(quietMove, nil, 0)
 
 		if captureScore <= quietScore {
 			t.Errorf("Capture move should score higher than quiet move: capture=%d, quiet=%d",
@@ -47,8 +47,8 @@ func TestMoveOrderScore(t *testing.T) {
 
 	// Test that checks are scored higher than quiet moves
 	if checkMove != nil && quietMove != nil {
-		checkScore := engine.moveOrderScore(checkMove)
-		quietScore := engine.moveOrderScore(quietMove)
+		checkScore := engine.moveOrderScore(checkMove, nil, 0)
+		quietScore := engine.moveOrderScore(quietMove, nil, 0)
 
 		if checkScore <= quietScore {
 			t.Errorf("Check move should score higher than quiet move: check=%d, quiet=%d",
@@ -73,7 +73,7 @@ func TestOrderMoves(t *testing.T) {
 	copy(originalMoves, moves)
 
 	// Order the moves
-	engine.orderMoves(moves)
+	engine.orderMoves(moves, nil, 0)
 
 	// Verify moves are reordered (at least some change should occur if there are captures)
 	hasCapture := false
@@ -116,7 +116,7 @@ func TestOrderMovesWithCaptures(t *testing.T) {
 	pos := game.Position()
 
 	moves := pos.ValidMoves()
-	engine.orderMoves(moves)
+	engine.orderMoves(moves, nil, 0)
 
 	// Count captures and their positions
 	firstCaptureIndex := -1
@@ -148,7 +148,7 @@ func TestOrderMovesEmptyList(t *testing.T) {
 
 	// Test with empty move list (shouldn't crash)
 	var moves []*chess.Move
-	engine.orderMoves(moves)
+	engine.orderMoves(moves, nil, 0)
 
 	if len(moves) != 0 {
 		t.Errorf("Empty move list should remain empty")
@@ -173,7 +173,7 @@ func TestOrderMovesSingleMove(t *testing.T) {
 	moves := []*chess.Move{allMoves[0]}
 	originalMove := moves[0]
 
-	engine.orderMoves(moves)
+	engine.orderMoves(moves, nil, 0)
 
 	// Single move should remain unchanged
 	if len(moves) != 1 {
@@ -197,8 +197,8 @@ func TestMoveOrderingConsistency(t *testing.T) {
 	moves1 := pos.ValidMoves()
 	moves2 := pos.ValidMoves()
 
-	engine.orderMoves(moves1)
-	engine.orderMoves(moves2)
+	engine.orderMoves(moves1, nil, 0)
+	engine.orderMoves(moves2, nil, 0)
 
 	// Results should be identical
 	if len(moves1) != len(moves2) {
@@ -223,7 +223,7 @@ func BenchmarkOrderMoves(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		moves := pos.ValidMoves()
-		engine.orderMoves(moves)
+		engine.orderMoves(moves, nil, 0)
 	}
 }
 
@@ -238,7 +238,7 @@ func BenchmarkMoveOrderScore(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		for _, move := range moves {
-			engine.moveOrderScore(move)
+			engine.moveOrderScore(move, nil, 0)
 		}
 	}
 }

@@ -1,6 +1,13 @@
 #!/bin/bash
 
-# Simple test for built-in engine analysis
+# Integration Test: Built-in Engine Analysis (Simple)
+# 
+# This test requires:
+# 1. The gochess-board server to be running (from project root: ./gochess-board)
+# 2. websocat installed (https://github.com/vi/websocat)
+#
+# Run from project root: ./tests/integration/test_builtin_analysis_simple.sh
+
 PORT=35256
 WS_URL="ws://localhost:$PORT/ws/analysis"
 

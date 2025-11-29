@@ -12,6 +12,12 @@ tests/
 ├── api/              # Backend API tests
 │   ├── test_api.sh
 │   └── README.md
+├── engine/           # Engine tests ⭐ NEW
+│   ├── test_uci.sh
+│   └── test_elo.sh
+├── integration/      # Integration tests ⭐ NEW
+│   ├── test_builtin_analysis.sh
+│   └── test_builtin_analysis_simple.sh
 └── ui/               # Frontend UI tests
     ├── test_ui.sh
     └── playwright/   # Playwright test files
@@ -68,6 +74,62 @@ cd tests/api
 - External engine integration
 
 See [tests/api/README.md](api/README.md) for details.
+
+## Engine Tests ⭐ NEW
+
+Built-in chess engine testing including UCI protocol and tactical positions.
+
+**Location:** `tests/engine/`
+
+**Run:**
+```bash
+# UCI protocol test
+./tests/engine/test_uci.sh
+
+# ELO/Tactical test
+./tests/engine/test_elo.sh
+```
+
+**Features:**
+- **test_uci.sh** - UCI protocol compliance
+  - Handshake (uci/uciok)
+  - Ready check (isready/readyok)
+  - Position setup
+  - Search commands
+  - Multiple positions
+  
+- **test_elo.sh** - Tactical strength
+  - Win At Chess (WAC) positions
+  - Mate detection
+  - Tactical combinations
+  - ELO estimation
+
+## Integration Tests ⭐ NEW
+
+WebSocket and server integration testing for the built-in engine analysis.
+
+**Location:** `tests/integration/`
+
+**Requirements:**
+- Server must be running (`./gochess-board`)
+- websocat installed (`brew install websocat` or https://github.com/vi/websocat)
+
+**Run:**
+```bash
+# Start server first
+./gochess-board
+
+# In another terminal:
+./tests/integration/test_builtin_analysis_simple.sh
+# or
+./tests/integration/test_builtin_analysis.sh
+```
+
+**Features:**
+- WebSocket connection testing
+- Built-in engine analysis
+- Real-time analysis updates
+- Start/stop analysis commands
 
 ## UI Tests
 
