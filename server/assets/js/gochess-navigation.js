@@ -2,6 +2,11 @@
 // Handles navigation through move history (forward, backward, start, end)
 
 function updateAnalysisForCurrentPosition() {
+    // Cancel any ongoing PV animation
+    if (typeof cancelPVAnimation === 'function') {
+        cancelPVAnimation();
+    }
+    
     // Clear any existing arrows first
     board.clearArrow();
     

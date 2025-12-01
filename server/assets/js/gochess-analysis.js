@@ -3,6 +3,28 @@
 
 var analysisWs = null;
 var analysisActive = false;
+var pvAnimationTimeouts = []; // Track animation timeouts for cancellation
+var currentPVSequence = null; // Track current PV sequence for comparison
+
+// Initialize event listeners for analysis display mode changes
+function initAnalysisDisplayListeners() {
+    var radioButtons = document.querySelectorAll('input[name="analysisDisplay"]');
+    radioButtons.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            // Cancel any ongoing PV animation when switching modes
+            cancelPVAnimation();
+            // Clear arrows when switching modes
+            board.clearArrow();
+        });
+    });
+}
+
+// Call initialization when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initAnalysisDisplayListeners);
+} else {
+    initAnalysisDisplayListeners();
+}
 
 function toggleAnalysis() {
     if (analysisActive) {
@@ -81,31 +103,100 @@ function stopAnalysis() {
         analysisWs = null;
     }
     
+    // Cancel any ongoing PV animation
+    cancelPVAnimation();
+    
     analysisActive = false;
     document.getElementById('analysisToggle').textContent = '🔍 Start Analysis';
     document.getElementById('analysisDepth').textContent = 'Depth: -';
     board.clearArrow();
 }
 
+// Cancel ongoing PV animation
+function cancelPVAnimation() {
+    // Clear all pending timeouts
+    for (var i = 0; i < pvAnimationTimeouts.length; i++) {
+        clearTimeout(pvAnimationTimeouts[i]);
+    }
+    pvAnimationTimeouts = [];
+    currentPVSequence = null;
+}
+
 // Draw principal variation (sequence of moves)
 function drawPrincipalVariation(data, showPV, showBestMove) {
-    // Create a temporary game instance to track positions
-    var tempGame = new Chess(game.fen());
+    // Check if this is a new PV sequence
+    var newPVSequence = data.pv.join(',');
+    if (newPVSequence === currentPVSequence) {
+        // Same PV, don't restart animation
+        return;
+    }
     
-    // Get the starting full move number from FEN (6th field)
-    var fenParts = tempGame.fen().split(' ');
-    var startingMoveNumber = parseInt(fenParts[5]) || 1;
+    // Cancel any ongoing animation for the previous PV
+    cancelPVAnimation();
+    currentPVSequence = newPVSequence;
     
     // Determine max moves based on mode:
     // - showBestMove (default): show only 1 move
     // - showPV: show up to 6 moves (3 full moves) in the principal variation
     var maxMoves = showPV ? Math.min(6, data.pv.length) : 1;
     
-    for (var i = 0; i < maxMoves; i++) {
+    // If showing only best move, draw immediately without animation
+    if (!showPV) {
+        drawPVArrowAtIndex(data, 0, true);
+        return;
+    }
+    
+    // For PV mode, animate arrows sequentially with looping
+    var firstMoveDelay = 1500; // 1.5 seconds for first move (with score)
+    var subsequentMoveDelay = 1000; // 1 second for subsequent moves
+    
+    function scheduleAnimation(loopIteration) {
+        var cumulativeDelay = 0;
+        
+        for (var i = 0; i < maxMoves; i++) {
+            (function(index) {
+                var timeout = setTimeout(function() {
+                    // Check if this animation is still valid
+                    if (currentPVSequence === newPVSequence) {
+                        // Always clear previous arrows to show only one at a time
+                        var clearPrevious = true;
+                        drawPVArrowAtIndex(data, index, clearPrevious);
+                        
+                        // If this is the last arrow, schedule the next loop
+                        if (index === maxMoves - 1) {
+                            var finalDelay = index === 0 ? firstMoveDelay : subsequentMoveDelay;
+                            var loopTimeout = setTimeout(function() {
+                                if (currentPVSequence === newPVSequence) {
+                                    scheduleAnimation(loopIteration + 1);
+                                }
+                            }, finalDelay);
+                            pvAnimationTimeouts.push(loopTimeout);
+                        }
+                    }
+                }, cumulativeDelay);
+                pvAnimationTimeouts.push(timeout);
+                
+                // Calculate delay for next arrow
+                cumulativeDelay += (index === 0) ? firstMoveDelay : subsequentMoveDelay;
+            })(i);
+        }
+    }
+    
+    // Start the first animation loop
+    scheduleAnimation(0);
+}
+
+// Draw a single PV arrow at the specified index
+function drawPVArrowAtIndex(data, index, clearPrevious) {
+    // Create a temporary game instance to track positions
+    var tempGame = new Chess(game.fen());
+    
+    // Apply all moves up to the target index
+    for (var i = 0; i <= index; i++) {
         var move = data.pv[i];
         
         // Parse UCI move format (e.g., "e2e4" or "e7e8q" for promotion)
-        if (move.length < 4) continue;
+        if (move.length < 4) return;
         
         var from = move.substring(0, 2);
         var to = move.substring(2, 4);
@@ -113,40 +204,39 @@ function drawPrincipalVariation(data, showPV, showBestMove) {
         
         // Verify the piece exists at the from square
         var piece = tempGame.get(from);
-        if (!piece) continue;
+        if (!piece) return;
         
-        // Use different colors based on whose turn it is in the temp game
-        var arrowColor = tempGame.turn() === 'w' ? '#f4f5f7ff' : '#605e5eff';
-        
-        // Calculate opacity: first arrow bright, subsequent ones dimmer
-        var opacity = 1.0 - (i * 0.2);
-        
-        // Calculate actual chess move number from current FEN
-        var currentFenParts = tempGame.fen().split(' ');
-        var currentMoveNumber = parseInt(currentFenParts[5]) || 1;
-        var isBlackMove = tempGame.turn() === 'b';
-        
-        // Only show score label on the first arrow
-        var scoreLabel = '';
-        if (i === 0) {
-            if (data.scoreType === 'cp' && data.score !== undefined) {
-                var score = (data.score / 100).toFixed(2);
-                scoreLabel = (data.score >= 0 ? '+' : '') + score;
-            } else if (data.scoreType === 'mate' && data.score !== undefined) {
-                scoreLabel = 'M' + Math.abs(data.score);
+        // If this is the arrow we want to draw
+        if (i === index) {
+            // Use different colors based on whose turn it is in the temp game
+            var arrowColor = tempGame.turn() === 'w' ? '#f4f5f7ff' : '#605e5eff';
+            
+            // Use full opacity for all arrows
+            var opacity = 1.0;
+            
+            // Calculate actual chess move number from current FEN
+            var currentFenParts = tempGame.fen().split(' ');
+            var currentMoveNumber = parseInt(currentFenParts[5]) || 1;
+            var isBlackMove = tempGame.turn() === 'b';
+            
+            // Only show score label on the first arrow
+            var scoreLabel = '';
+            if (index === 0) {
+                if (data.scoreType === 'cp' && data.score !== undefined) {
+                    var score = (data.score / 100).toFixed(2);
+                    scoreLabel = (data.score >= 0 ? '+' : '') + score;
+                } else if (data.scoreType === 'mate' && data.score !== undefined) {
+                    // Show sign for mate: positive = White mates, negative = Black mates
+                    scoreLabel = (data.score >= 0 ? '+' : '') + 'M' + Math.abs(data.score);
+                }
             }
+            
+            // Add move number to all arrows
+            var moveNumberLabel = isBlackMove ? currentMoveNumber + '...' : currentMoveNumber.toString();
+            
+            // Draw arrow
+            board.drawArrow(from, to, arrowColor, scoreLabel, opacity, clearPrevious, moveNumberLabel);
         }
-        
-        // Add move number to all arrows when PV is enabled
-        var moveNumberLabel = null;
-        if (showPV) {
-            // Format: "18" for white, "18..." for black
-            moveNumberLabel = isBlackMove ? currentMoveNumber + '...' : currentMoveNumber.toString();
-        }
-        
-        // Draw arrow (clear previous only on first arrow)
-        var clearPrevious = (i === 0);
-        board.drawArrow(from, to, arrowColor, scoreLabel, opacity, clearPrevious, moveNumberLabel);
         
         // Apply move to temp game for next iteration
         try {
@@ -156,8 +246,8 @@ function drawPrincipalVariation(data, showPV, showBestMove) {
                 promotion: promotion || 'q'
             });
         } catch (e) {
-            // Invalid move, stop drawing further arrows
-            break;
+            // Invalid move, stop
+            return;
         }
     }
 }
@@ -195,7 +285,8 @@ function drawMultipleBestMoves(multiPV) {
             var score = (pvLine.score / 100).toFixed(2);
             scoreLabel = (pvLine.score >= 0 ? '+' : '') + score;
         } else if (pvLine.scoreType === 'mate' && pvLine.score !== undefined) {
-            scoreLabel = 'M' + Math.abs(pvLine.score);
+            // Show sign for mate: positive = White mates, negative = Black mates
+            scoreLabel = (pvLine.score >= 0 ? '+' : '') + 'M' + Math.abs(pvLine.score);
         }
         
         // Draw arrow (clear previous only on first arrow)
