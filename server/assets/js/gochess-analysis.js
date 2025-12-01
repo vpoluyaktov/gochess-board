@@ -48,6 +48,7 @@ function startAnalysis() {
         }
         
         // Draw arrows based on display mode
+        var showBestMove = document.getElementById('showBestMove').checked;
         var showPV = document.getElementById('showPVArrows').checked;
         var showBestMoves = document.getElementById('showBestMoves').checked;
         
@@ -55,8 +56,8 @@ function startAnalysis() {
             // Show 3 best moves mode
             drawMultipleBestMoves(data.multiPV);
         } else if (data.pv && data.pv.length > 0) {
-            // Show principal variation mode (default)
-            drawPrincipalVariation(data, showPV);
+            // Show principal variation or single best move mode
+            drawPrincipalVariation(data, showPV, showBestMove);
         }
     };
     
@@ -87,7 +88,7 @@ function stopAnalysis() {
 }
 
 // Draw principal variation (sequence of moves)
-function drawPrincipalVariation(data, showPV) {
+function drawPrincipalVariation(data, showPV, showBestMove) {
     // Create a temporary game instance to track positions
     var tempGame = new Chess(game.fen());
     
@@ -95,8 +96,10 @@ function drawPrincipalVariation(data, showPV) {
     var fenParts = tempGame.fen().split(' ');
     var startingMoveNumber = parseInt(fenParts[5]) || 1;
     
-    // Limit to 3 moves if PV is enabled, otherwise just 1 (best move only)
-    var maxMoves = showPV ? Math.min(3, data.pv.length) : 1;
+    // Determine max moves based on mode:
+    // - showBestMove (default): show only 1 move
+    // - showPV: show up to 6 moves (3 full moves) in the principal variation
+    var maxMoves = showPV ? Math.min(6, data.pv.length) : 1;
     
     for (var i = 0; i < maxMoves; i++) {
         var move = data.pv[i];

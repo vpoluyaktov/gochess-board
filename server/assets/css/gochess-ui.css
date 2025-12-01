@@ -432,10 +432,10 @@ button:hover {
     background: #667eea;
     border: none;
     color: white;
-    padding: 8px 10px;
-    border-radius: 4px;
+    padding: 10px 20px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     transition: all 0.2s;
     white-space: nowrap;
 }
@@ -559,10 +559,10 @@ button:hover {
     background: #667eea;
     border: none;
     color: white;
-    padding: 8px 10px;
-    border-radius: 4px;
+    padding: 10px 20px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 14px;
     transition: all 0.2s;
     white-space: nowrap;
 }
@@ -1385,8 +1385,8 @@ button:hover {
     
     .history-footer-btn,
     .variant-bottom-btn {
-        padding: 6px 8px;
-        font-size: 11px;
+        padding: 7px 12px;
+        font-size: 12px;
     }
     
     /* Compact move history */
