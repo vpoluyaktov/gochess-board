@@ -10,12 +10,14 @@ Uses **Mocha** (test runner) + **Chai** (assertions)
 
 - **variant-tests.js** - Variant creation, merging, parsing, and saving (22 tests)
 - **history-tests.js** - PGN tree visualization and move history display (11 tests)
-- **chessboard-tests.js** - Chessboard library utilities and API (9 tests)
+- **chessboard-tests.js** - Chessboard library utilities, ghost pieces, and PV animation (69 tests)
 - **navigation-tests.js** - Position navigation and click handling (25 tests, 2 pending)
 - **codemirror-integration-tests.js** - CodeMirror 5 API integration (23 tests)
 - **variant-window-tests.js** - Window messaging for variant windows (9 tests)
 
-**Total: 99 tests (97 passing, 2 pending)**
+**Total: 159 tests**
+- **Browser**: 157 passing, 2 pending
+- **Node.js**: 98 passing, 61 pending (59 ghost piece tests + 2 navigation tests require browser)
 
 ## Running Tests
 
@@ -111,23 +113,85 @@ npm run test:watch
 
 ### Chessboard Tests (chessboard-tests.js)
 
-#### 1. Library Loading
+#### 1. Library Loading (3 tests)
 - ✓ Chessboard constructor available
 - ✓ ChessBoard alias available
 - ✓ Utility functions available (fenToObj, objToFen)
 
-#### 2. FEN Utility Functions
+#### 2. FEN Utility Functions (4 tests)
 - ✓ Convert FEN to position object
 - ✓ Convert position object to FEN
 - ✓ Handle empty position
 - ✓ Round-trip FEN conversion
 
-#### 3. Custom Modifications
+#### 3. Custom Modifications (3 tests)
 - ✓ Arrow drawing feature documented
 - ✓ console.error instead of alert
+- ✓ Ghost pieces and PV animation features documented
 
 **Note:** Full DOM-dependent chessboard tests (board creation, piece movement, arrow drawing) 
 require a real browser environment and should be tested with `test-runner.html`.
+
+#### 4. Ghost Pieces and PV Animation (59 tests)
+
+##### 4.1 Ghost Piece Management (10 tests)
+- ✓ Have addGhostPiece method
+- ✓ Have clearGhostPieces method
+- ✓ Add ghost piece to destination square
+- ✓ Hide original piece on source square
+- ✓ Hide original piece on destination square for captures
+- ✓ Remove existing ghost pieces before adding new one
+- ✓ Clear all ghost pieces
+- ✓ Restore original pieces when clearing
+- ✓ Apply ghost-piece CSS class
+- ✓ Apply ghost-fade-in animation class
+
+##### 4.2 PV Animation Control (6 tests)
+- ✓ Have cancelPVAnimation method
+- ✓ Have setPositionChanged method
+- ✓ Have drawPrincipalVariation method
+- ✓ Have drawPVArrowAtIndex method
+- ✓ Cancel PV animation and clear ghost pieces
+- ✓ Set position changed flag
+
+##### 4.3 PV Arrow Drawing (13 tests)
+- ✓ Draw single PV arrow without ghost pieces
+- ✓ Draw PV arrow with ghost piece
+- ✓ Include score label on first arrow
+- ✓ Format mate scores correctly
+- ✓ Show move numbers on arrows
+- ✓ Use white color for white moves
+- ✓ Use black color for black moves
+- ✓ Apply moves to temporary game without affecting original
+- ✓ Handle promotion moves
+- ✓ Handle invalid moves gracefully
+
+##### 4.4 PV Animation (7 tests)
+- ✓ Require game instance parameter
+- ✓ Draw single move in best move mode
+- ✓ Not show ghost pieces in best move mode
+- ✓ Not restart animation for same PV sequence
+- ✓ Handle empty PV array
+- ✓ Limit PV to 6 moves maximum
+
+##### 4.5 Integration with Arrow Drawing (2 tests)
+- ✓ Clear previous arrows when drawing PV
+- ✓ Use 0.8 opacity for PV arrows
+
+##### 4.6 Edge Cases (5 tests)
+- ✓ Handle very short PV (1 move)
+- ✓ Handle PV with invalid format
+- ✓ Handle negative centipawn scores
+- ✓ Handle negative mate scores
+
+**Purpose:** These tests verify the ghost piece visualization and principal variation 
+animation features that were added to the chessboard library. They ensure that ghost 
+pieces are properly created, positioned, and cleaned up, and that PV animations work 
+correctly with proper timing, queuing, and cancellation behavior.
+
+**Note:** Ghost piece tests require a real browser environment with full DOM support. 
+They are automatically skipped when running in Node.js (command line) and will show 
+as "pending". Run `test-runner.html` in a browser to execute these tests.
 
 ### Navigation Tests (navigation-tests.js)
 

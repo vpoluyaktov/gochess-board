@@ -3,14 +3,10 @@
 
 function updateAnalysisForCurrentPosition() {
     // Cancel any ongoing PV animation
-    if (typeof cancelPVAnimation === 'function') {
-        cancelPVAnimation();
-    }
+    board.cancelPVAnimation();
     
     // Set flag to force-start next PV animation (position changed)
-    if (typeof positionChanged !== 'undefined') {
-        positionChanged = true;
-    }
+    board.setPositionChanged();
     
     // Clear any existing arrows first
     board.clearArrow();

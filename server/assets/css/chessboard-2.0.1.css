@@ -1,5 +1,5 @@
-/*! chessboard.js v1.0.1 | (c) 2019 Chris Oakman | MIT License chessboardjs.com/license */
-/* Modified version - used with chessboard-1.0.1.js (click-to-move support) */
+/*! chessboard.js v2.0.1 | (c) 2019 Chris Oakman | MIT License chessboardjs.com/license */
+/* Modified version - used with chessboard-2.0.1.js (click-to-move, arrows, ghost pieces, PV animation) */
 
 .clearfix-7da63 {
   clear: both;

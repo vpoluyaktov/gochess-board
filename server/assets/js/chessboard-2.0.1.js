@@ -6,13 +6,32 @@
 // https://github.com/oakmac/chessboardjs/blob/master/LICENSE.md
 //
 // -------------------------------------------------------------
-// v1.0.1 (modified by https://github.com/vpoluyaktov)
+// v2.0.1 (modified by https://github.com/vpoluyaktov)
 // Modifications:
 // - Added click-to-select and click-to-move functionality
 // - Added SVG arrow drawing for engine analysis visualization
-//   - board.drawArrow(from, to, color, label, opacity, clearPrevious) - Draw arrow with optional label and opacity
+//   - board.drawArrow(from, to, color, label, opacity, clearPrevious, moveNumber) - Draw arrow with optional label and opacity
 //   - board.clearArrow() - Remove all arrows and labels
 //   - board.getArrow() - Get current arrow info
+// - Added ghost pieces and PV animation for principal variation visualization
+//   - board.addGhostPiece(fromSquare, toSquare, piece) - Add semi-transparent ghost piece
+//   - board.clearGhostPieces() - Remove all ghost pieces and restore original pieces
+//   
+//   Three clear visualization modes:
+//   - board.drawBestMove(pvData) - Draw single best move arrow with score (no animation)
+//   - board.drawMultipleBestMoves(multiPVLines, options) - Draw multiple best move arrows (3 alternatives)
+//   - board.drawPVAnimation(pvData, options) - Animate principal variation with ghost pieces (looping)
+//   
+//   Helper methods:
+//   - board.drawPVArrowAtIndex(pvData, index, clearPrevious, showGhostPieces, clearGhosts) - Draw single PV arrow
+//   - board.cancelPVAnimation() - Cancel ongoing PV animation
+//   - board.setPositionChanged() - Mark position as changed to force-start next PV animation
+//   - board.formatScoreLabel(scoreType, score) - Format evaluation score as label string
+//   
+//   Deprecated (backward compatibility):
+//   - board.drawPrincipalVariation(pvData, showPV, showBestMove) - Use drawBestMove() or drawPVAnimation() instead
+//   
+// - Pure visualization library - NO Chess.js dependency (application provides pre-computed move data)
 
 // start anonymous scope
 ;(function () {
@@ -1859,6 +1878,323 @@
 
     widget.getArrow = function () {
       return currentArrow
+    }
+
+    // -------------------------------------------------------------------------
+    // Ghost Pieces and PV Animation
+    // -------------------------------------------------------------------------
+
+    var pvAnimationTimeouts = [] // Track animation timeouts for cancellation
+    var currentPVSequence = null // Track current PV sequence for comparison
+    var ghostPieces = [] // Track ghost pieces for cleanup
+    var pendingPVData = null // Store pending PV to apply after current loop finishes
+    var isAnimating = false // Track if animation is currently running
+    var positionChanged = false // Track if position changed (move made) to force-start next PV
+
+    // Cancel ongoing PV animation
+    widget.cancelPVAnimation = function () {
+      // Clear all pending timeouts
+      for (var i = 0; i < pvAnimationTimeouts.length; i++) {
+        clearTimeout(pvAnimationTimeouts[i])
+      }
+      pvAnimationTimeouts = []
+      currentPVSequence = null
+      pendingPVData = null
+      isAnimating = false
+      positionChanged = false
+      // Also clear ghost pieces
+      widget.clearGhostPieces()
+    }
+
+    // Set position changed flag (called when move is made)
+    widget.setPositionChanged = function () {
+      positionChanged = true
+    }
+
+    // Add a ghost piece to the board
+    widget.addGhostPiece = function (fromSquare, toSquare, piece) {
+      // Remove any existing ghost pieces from source and destination squares
+      var $fromSquare = $container.find('.square-' + fromSquare)
+      if ($fromSquare.length > 0) {
+        $fromSquare.find('.ghost-piece').remove()
+      }
+
+      var $toSquare = $container.find('.square-' + toSquare)
+      if ($toSquare.length === 0) return
+      $toSquare.find('.ghost-piece').remove()
+
+      // Hide the piece on the source square
+      var $sourcePiece = null
+      if ($fromSquare.length > 0) {
+        $sourcePiece = $fromSquare.find('img.' + CSS['piece'])
+        if ($sourcePiece.length > 0) {
+          $sourcePiece.css('visibility', 'hidden')
+        }
+      }
+
+      // Hide any piece on the destination square (for captures)
+      var $destPiece = $toSquare.find('img.' + CSS['piece'])
+      if ($destPiece.length > 0) {
+        $destPiece.css('visibility', 'hidden')
+      }
+
+      // Create ghost piece image
+      var pieceImage = config.pieceTheme.replace('{piece}', piece)
+      var $ghostPiece = $('<img>')
+        .attr('src', pieceImage)
+        .addClass('ghost-piece')
+        .addClass('ghost-fade-in')
+        .css({
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0
+        })
+
+      // Add to destination square
+      $toSquare.append($ghostPiece)
+
+      // Track for cleanup (including both source and destination pieces for restoration)
+      ghostPieces.push({
+        fromSquare: fromSquare,
+        toSquare: toSquare,
+        element: $ghostPiece,
+        sourcePiece: $sourcePiece,
+        destPiece: $destPiece
+      })
+    }
+
+    // Clear all ghost pieces
+    widget.clearGhostPieces = function () {
+      for (var i = 0; i < ghostPieces.length; i++) {
+        ghostPieces[i].element.remove()
+        // Restore source piece visibility if it was hidden
+        if (ghostPieces[i].sourcePiece && ghostPieces[i].sourcePiece.length > 0) {
+          ghostPieces[i].sourcePiece.css('visibility', 'visible')
+        }
+        // Restore destination piece visibility if it was hidden (for captures)
+        if (ghostPieces[i].destPiece && ghostPieces[i].destPiece.length > 0) {
+          ghostPieces[i].destPiece.css('visibility', 'visible')
+        }
+      }
+      ghostPieces = []
+    }
+
+    // -------------------------------------------------------------------------
+    // Case 1: Draw single best move arrow (no animation, no ghost pieces)
+    // -------------------------------------------------------------------------
+    
+    widget.drawBestMove = function (pvData) {
+      if (!pvData || !pvData.moves || pvData.moves.length === 0) {
+        console.error('drawBestMove requires pre-computed pvData with at least one move')
+        return
+      }
+
+      // Cancel any ongoing animation
+      widget.cancelPVAnimation()
+      
+      // Draw just the first move without ghost pieces
+      widget.drawPVArrowAtIndex(pvData, 0, true, false)
+    }
+
+    // -------------------------------------------------------------------------
+    // Case 2: Draw PV animation (looping animation with ghost pieces)
+    // -------------------------------------------------------------------------
+    
+    widget.drawPVAnimation = function (pvData, options) {
+      if (!pvData || !pvData.moves || pvData.moves.length === 0) {
+        console.error('drawPVAnimation requires pre-computed pvData with moves')
+        return
+      }
+
+      // Default options
+      options = options || {}
+      var maxMoves = options.maxMoves !== undefined ? options.maxMoves : Math.min(6, pvData.moves.length)
+      var firstMoveDelay = options.firstMoveDelay || 2000  // 2 seconds for first move
+      var subsequentMoveDelay = options.subsequentMoveDelay || 1500  // 1.5 seconds for subsequent
+      var pauseAfterLoop = options.pauseAfterLoop || 2000  // 2 seconds pause after last move
+
+      // Check if this is a new PV sequence
+      var newPVSequence = pvData.moves.length + ':' + pvData.moves[0].from + pvData.moves[0].to
+      if (newPVSequence === currentPVSequence) {
+        // Same PV, don't restart animation
+        return
+      }
+
+      // If position changed (move made), cancel everything and start immediately
+      if (positionChanged) {
+        widget.cancelPVAnimation()
+        currentPVSequence = newPVSequence
+        isAnimating = true
+        positionChanged = false
+      } else {
+        // Engine sent new PV during animation - queue it
+        if (isAnimating) {
+          pendingPVData = { pvData: pvData, options: options }
+          return
+        }
+        // No animation running, start new one
+        currentPVSequence = newPVSequence
+        isAnimating = true
+      }
+
+      function scheduleAnimation (loopIteration) {
+        var cumulativeDelay = 0
+
+        for (var i = 0; i < maxMoves; i++) {
+          (function (index) {
+            var timeout = setTimeout(function () {
+              // Check if this animation is still valid
+              if (currentPVSequence === newPVSequence) {
+                // Clear previous arrows but keep ghost pieces
+                var clearPrevious = true
+                // Only clear ghost pieces at the start of a new loop (first move)
+                var clearGhosts = (index === 0)
+                widget.drawPVArrowAtIndex(pvData, index, clearPrevious, true, clearGhosts)
+
+                // If this is the last arrow, check for pending PV or schedule next loop
+                if (index === maxMoves - 1) {
+                  var finalDelay = index === 0 ? firstMoveDelay : subsequentMoveDelay
+                  var loopTimeout = setTimeout(function () {
+                    if (currentPVSequence === newPVSequence) {
+                      // Check if there's a pending PV to start
+                      if (pendingPVData) {
+                        var pending = pendingPVData
+                        pendingPVData = null
+                        isAnimating = false
+                        // Start the pending PV animation
+                        widget.drawPVAnimation(pending.pvData, pending.options)
+                      } else {
+                        // Continue looping with current PV
+                        scheduleAnimation(loopIteration + 1)
+                      }
+                    }
+                  }, finalDelay + pauseAfterLoop)
+                  pvAnimationTimeouts.push(loopTimeout)
+                }
+              }
+            }, cumulativeDelay)
+            pvAnimationTimeouts.push(timeout)
+
+            // Calculate delay for next arrow
+            cumulativeDelay += (index === 0) ? firstMoveDelay : subsequentMoveDelay
+          })(i)
+        }
+      }
+
+      // Start the first animation loop
+      scheduleAnimation(0)
+    }
+
+    // -------------------------------------------------------------------------
+    // Backward compatibility: Keep old method name as wrapper
+    // -------------------------------------------------------------------------
+    
+    widget.drawPrincipalVariation = function (pvData, showPV, showBestMove) {
+      // Deprecated: Use drawBestMove() or drawPVAnimation() instead
+      if (!showPV) {
+        widget.drawBestMove(pvData)
+      } else {
+        widget.drawPVAnimation(pvData)
+      }
+    }
+
+    // Draw a single PV arrow at the specified index
+    // Accepts pre-computed move data (no Chess.js dependency)
+    widget.drawPVArrowAtIndex = function (pvData, index, clearPrevious, showGhostPieces, clearGhosts) {
+      // Default parameters
+      if (showGhostPieces === undefined) showGhostPieces = false
+      if (clearGhosts === undefined) clearGhosts = true
+      
+      if (!pvData || !pvData.moves || index >= pvData.moves.length) {
+        console.error('drawPVArrowAtIndex: invalid pvData or index')
+        return
+      }
+
+      var move = pvData.moves[index]
+
+      // Clear ghost pieces only if requested (at start of new loop)
+      if (clearGhosts) {
+        widget.clearGhostPieces()
+      }
+
+      // Add ghost piece at destination square (only in PV mode)
+      if (showGhostPieces && move.piece) {
+        var pieceCode = move.piece.color + move.piece.type.toUpperCase()
+        widget.addGhostPiece(move.from, move.to, pieceCode)
+      }
+
+      // Use different colors based on whose turn it is
+      // White to move = white arrow, Black to move = black arrow
+      var arrowColor = move.isBlackMove ? '#000000' : '#FFFFFF'
+
+      // Use 0.8 opacity for arrows
+      var opacity = 0.8
+
+      // Only show score label on the first arrow
+      var scoreLabel = ''
+      if (index === 0) {
+        scoreLabel = formatScoreLabel(pvData.scoreType, pvData.score)
+      }
+
+      // Add move number to all arrows
+      var moveNumberLabel = move.isBlackMove ? move.moveNumber + '...' : move.moveNumber.toString()
+
+      // Draw arrow
+      widget.drawArrow(move.from, move.to, arrowColor, scoreLabel, opacity, clearPrevious, moveNumberLabel)
+    }
+
+    // -------------------------------------------------------------------------
+    // Score Formatting Helper
+    // -------------------------------------------------------------------------
+
+    function formatScoreLabel (scoreType, score) {
+      if (scoreType === 'cp' && score !== undefined) {
+        var scoreValue = (score / 100).toFixed(2)
+        return (score >= 0 ? '+' : '') + scoreValue
+      } else if (scoreType === 'mate' && score !== undefined) {
+        // Show sign for mate: positive = White mates, negative = Black mates
+        return (score >= 0 ? '+' : '-') + 'M' + Math.abs(score)
+      }
+      return ''
+    }
+
+    // Make it available externally if needed
+    widget.formatScoreLabel = formatScoreLabel
+
+    // -------------------------------------------------------------------------
+    // Multiple Best Moves Visualization
+    // -------------------------------------------------------------------------
+
+    // Draw multiple best moves (alternative first moves from multi-PV analysis)
+    // Accepts pre-computed move data (no Chess.js dependency)
+    widget.drawMultipleBestMoves = function (multiPVLines, options) {
+      if (!multiPVLines || !Array.isArray(multiPVLines)) {
+        console.error('drawMultipleBestMoves requires pre-computed multiPVLines array')
+        return
+      }
+
+      // Default options
+      options = options || {}
+      var colors = options.colors || ['#15781Bff', '#FFD700ff', '#DC3545ff'] // Green, Yellow, Red
+      var maxLines = options.maxLines || 3
+      var opacity = options.opacity !== undefined ? options.opacity : 1.0
+
+      for (var i = 0; i < Math.min(maxLines, multiPVLines.length); i++) {
+        var line = multiPVLines[i]
+
+        if (!line || !line.from || !line.to) continue
+
+        var arrowColor = colors[i % colors.length] // Support more than 3 lines if colors provided
+
+        // Format score label
+        var scoreLabel = formatScoreLabel(line.scoreType, line.score)
+
+        // Draw arrow (clear previous only on first arrow)
+        var clearPrevious = (i === 0)
+        widget.drawArrow(line.from, line.to, arrowColor, scoreLabel, opacity, clearPrevious, null)
+      }
     }
 
     // -------------------------------------------------------------------------
