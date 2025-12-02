@@ -67,7 +67,7 @@ func NewUCIEngine(enginePath string, engineName string) (*UCIEngine, error) {
 		name:   engineName,
 	}
 
-	logger.Info("ENGINE", "[%s] Initializing UCI engine at path: %s", engineName, enginePath)
+	logger.Debug("ENGINE", "[%s] Initializing UCI engine at path: %s", engineName, enginePath)
 
 	// Initialize UCI
 	if err := engine.sendCommand("uci"); err != nil {
@@ -76,7 +76,7 @@ func NewUCIEngine(enginePath string, engineName string) (*UCIEngine, error) {
 	}
 
 	// Wait for uciok
-	logger.Info("ENGINE", "[%s] Waiting for 'uciok' response...", engineName)
+	logger.Debug("ENGINE", "[%s] Waiting for 'uciok' response...", engineName)
 	if err := engine.waitForResponse("uciok", 5*time.Second); err != nil {
 		logger.Error("ENGINE", "[%s] Failed to get 'uciok': %v", engineName, err)
 		return nil, err
@@ -88,13 +88,13 @@ func NewUCIEngine(enginePath string, engineName string) (*UCIEngine, error) {
 		return nil, err
 	}
 
-	logger.Info("ENGINE", "[%s] Waiting for 'readyok' response...", engineName)
+	logger.Debug("ENGINE", "[%s] Waiting for 'readyok' response...", engineName)
 	if err := engine.waitForResponse("readyok", 5*time.Second); err != nil {
 		logger.Error("ENGINE", "[%s] Failed to get 'readyok': %v", engineName, err)
 		return nil, err
 	}
 
-	logger.Info("ENGINE", "[%s] Successfully initialized", engineName)
+	logger.Debug("ENGINE", "[%s] Successfully initialized", engineName)
 
 	return engine, nil
 }
@@ -105,6 +105,16 @@ func (e *UCIEngine) sendCommand(cmd string) error {
 	defer e.mu.Unlock()
 
 	logger.Debug("ENGINE", "[%s] >>> %s", e.name, cmd)
+	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
+	return err
+}
+
+// sendCommandInfo sends a command to the engine and logs it at INFO level
+func (e *UCIEngine) sendCommandInfo(cmd string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	logger.Info("ENGINE", "[%s] >>> %s", e.name, cmd)
 	_, err := fmt.Fprintf(e.stdin, "%s\n", cmd)
 	return err
 }
@@ -156,12 +166,12 @@ func (e *UCIEngine) SetOption(name, value string) error {
 // GetBestMove gets the best move for the current position using fixed time
 func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, error) {
 	// Set position
-	if err := e.sendCommand(fmt.Sprintf("position fen %s", fen)); err != nil {
+	if err := e.sendCommandInfo(fmt.Sprintf("position fen %s", fen)); err != nil {
 		return "", err
 	}
 
 	// Start search
-	if err := e.sendCommand(fmt.Sprintf("go movetime %d", moveTime.Milliseconds())); err != nil {
+	if err := e.sendCommandInfo(fmt.Sprintf("go movetime %d", moveTime.Milliseconds())); err != nil {
 		return "", err
 	}
 
@@ -173,7 +183,6 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 
 	// Wait for bestmove response
 	deadline := time.Now().Add(2 * time.Second)
-	logger.Info("ENGINE", "[%s] Waiting for bestmove response...", e.name)
 
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
@@ -185,7 +194,7 @@ func (e *UCIEngine) GetBestMove(fen string, moveTime time.Duration) (string, err
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				logger.Info("ENGINE", "[%s] Got bestmove: %s", e.name, parts[1])
+				logger.Info("ENGINE", "[%s] <<< bestmove %s", e.name, parts[1])
 				return parts[1], nil
 			}
 		}
@@ -201,7 +210,7 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 	// Set position using FEN (most reliable way to ensure correct position)
 	posCmd := fmt.Sprintf("position fen %s", fen)
 
-	if err := e.sendCommand(posCmd); err != nil {
+	if err := e.sendCommandInfo(posCmd); err != nil {
 		return "", err
 	}
 
@@ -213,7 +222,7 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		whiteInc.Milliseconds(),
 		blackInc.Milliseconds())
 
-	if err := e.sendCommand(goCmd); err != nil {
+	if err := e.sendCommandInfo(goCmd); err != nil {
 		return "", err
 	}
 
@@ -224,7 +233,6 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		maxTime = blackTime
 	}
 	deadline := time.Now().Add(maxTime + 5*time.Second)
-	logger.Info("ENGINE", "[%s] Waiting for bestmove response (timeout: %v)...", e.name, maxTime+5*time.Second)
 
 	for time.Now().Before(deadline) {
 		line, err := e.readLine()
@@ -236,7 +244,7 @@ func (e *UCIEngine) GetBestMoveWithClock(fen string, moveHistory []string, white
 		if strings.HasPrefix(line, "bestmove") {
 			parts := strings.Fields(line)
 			if len(parts) >= 2 {
-				logger.Info("ENGINE", "[%s] Got bestmove: %s", e.name, parts[1])
+				logger.Info("ENGINE", "[%s] <<< bestmove %s", e.name, parts[1])
 				return parts[1], nil
 			}
 		}

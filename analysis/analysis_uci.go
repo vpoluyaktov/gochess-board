@@ -54,10 +54,17 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 		return nil, err
 	}
 
+	// Create scanner with larger buffer to handle long PV lines
+	scanner := bufio.NewScanner(stdout)
+	// Increase buffer size to 1MB to handle very long PV lines from deep analysis
+	const maxScanTokenSize = 1024 * 1024 // 1MB
+	buf := make([]byte, maxScanTokenSize)
+	scanner.Buffer(buf, maxScanTokenSize)
+	
 	engine := &AnalysisEngine{
 		cmd:      cmd,
 		stdin:    bufio.NewWriter(stdin),
-		stdout:   bufio.NewScanner(stdout),
+		stdout:   scanner,
 		active:   true,
 		multiPVs: make(map[int]AnalysisInfo),
 	}

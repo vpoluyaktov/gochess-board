@@ -55,6 +55,14 @@ $(document).ready(function() {
         setTimeControl(initialMinutes, incrementSeconds);
         stopClock();
         
+        // Show/hide move time selector for unlimited mode
+        var moveTimeSelection = document.getElementById('moveTimeSelection');
+        if (value === '0+0') {
+            moveTimeSelection.style.display = 'flex';
+        } else {
+            moveTimeSelection.style.display = 'none';
+        }
+        
         // DISABLED: Time control persistence disabled
         // localStorage.setItem('timeControl', value);
     });
@@ -63,6 +71,9 @@ $(document).ready(function() {
     var select = document.getElementById('timeControl');
     select.value = '0+0';
     setTimeControl(0, 0);
+    
+    // Show move time selector for unlimited mode
+    document.getElementById('moveTimeSelection').style.display = 'flex';
     
     /* DISABLED CODE: Restore time control preference
     var savedTimeControl = localStorage.getItem('timeControl');

@@ -250,6 +250,43 @@ button:hover {
     box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
 }
 
+.move-time-selection {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 15px;
+}
+
+.move-time-selection label {
+    font-weight: bold;
+    color: #667eea;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.move-time-selection select {
+    padding: 8px 12px;
+    font-size: 14px;
+    border: 2px solid #667eea;
+    border-radius: 5px;
+    background: white;
+    color: #333;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.move-time-selection select:hover {
+    border-color: #5568d3;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+}
+
+.move-time-selection select:focus {
+    outline: none;
+    border-color: #5568d3;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
 .analysis-engine-selection {
     display: flex;
     flex-direction: column;
@@ -1023,7 +1060,7 @@ button:hover {
    ======================================== */
 
 /* Tablet and smaller screens - Stack vertically for better fit */
-@media screen and (max-width: 1200px) {
+@media screen and (max-width: 1099px) {
     .container {
         padding: 15px;
         max-width: 100%;

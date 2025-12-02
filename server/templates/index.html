@@ -15,6 +15,11 @@
     <link rel="stylesheet" href="/assets/css/gochess-ui.css?v={{.CacheBuster}}">
 </head>
 <body>
+    <!-- Debug Viewport Info (commented out) -->
+    <!-- <div id="viewportDebug" style="position: fixed; top: 10px; right: 10px; background: rgba(0,0,0,0.8); color: #0f0; padding: 8px 12px; font-family: monospace; font-size: 12px; border-radius: 4px; z-index: 9999; pointer-events: none;">
+        Viewport: <span id="viewportSize">-</span>
+    </div> -->
+    
     <div class="container">
         <h1>♟️ GoChess Board ♟️</h1>
         
@@ -105,6 +110,20 @@
                         <option value="60+0">Classical 60+0</option>
                         <option value="90+30">Classical 90+30</option>
                         <option value="0+0">Unlimited</option>
+                    </select>
+                </div>
+                
+                <!-- Move Time for Unlimited Mode -->
+                <div class="move-time-selection" id="moveTimeSelection" style="display: none;">
+                    <label for="moveTime">⏱️ Move Time (seconds):</label>
+                    <select id="moveTime">
+                        <option value="1">1 second</option>
+                        <option value="3">3 seconds</option>
+                        <option value="5" selected>5 seconds</option>
+                        <option value="10">10 seconds</option>
+                        <option value="15">15 seconds</option>
+                        <option value="30">30 seconds</option>
+                        <option value="60">1 minute</option>
                     </select>
                 </div>
                 
@@ -254,5 +273,30 @@
     <script src="/assets/js/gochess-pgn.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-variants.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-main.js?v={{.CacheBuster}}"></script>
+    
+    <!-- Debug Viewport Script (commented out) -->
+    <!--
+    <script>
+        function updateViewportDebug() {
+            const width = window.innerWidth || document.documentElement.clientWidth;
+            const height = window.innerHeight || document.documentElement.clientHeight;
+            const viewportSize = document.getElementById('viewportSize');
+            if (viewportSize) {
+                viewportSize.textContent = width + 'x' + height + 'px';
+            }
+        }
+        
+        // Update on load
+        updateViewportDebug();
+        
+        // Update on resize
+        window.addEventListener('resize', updateViewportDebug);
+        
+        // Update on orientation change (mobile)
+        window.addEventListener('orientationchange', function() {
+            setTimeout(updateViewportDebug, 100);
+        });
+    </script>
+    -->
 </body>
 </html>

@@ -2357,18 +2357,49 @@
       // do nothing if we're not draggable
       if (!config.draggable) return
 
-      // do nothing if there is no piece on this square
       var square = $(this).attr('data-square')
       if (!validSquare(square)) return
-      if (!currentPosition.hasOwnProperty(square)) return
 
+      // Prevent default to avoid scrolling while interacting with board
+      e.preventDefault()
+      
       e = e.originalEvent
-      beginDraggingPiece(
-        square,
-        currentPosition[square],
-        e.changedTouches[0].pageX,
-        e.changedTouches[0].pageY
-      )
+      var startX = e.changedTouches[0].pageX
+      var startY = e.changedTouches[0].pageY
+      var hasPiece = currentPosition.hasOwnProperty(square)
+      var dragStarted = false
+      var touchMoved = false
+      
+      // Touch move handler - start drag if moved enough
+      var touchmoveHandler = function(moveEvt) {
+        var originalEvt = moveEvt.originalEvent || moveEvt
+        var dx = Math.abs(originalEvt.changedTouches[0].pageX - startX)
+        var dy = Math.abs(originalEvt.changedTouches[0].pageY - startY)
+        
+        touchMoved = true
+        
+        // Start dragging if moved more than 5 pixels and has a piece
+        if ((dx > 5 || dy > 5) && hasPiece && !dragStarted) {
+          dragStarted = true
+          $(document).off('touchmove', touchmoveHandler)
+          $(document).off('touchend', touchendHandler)
+          beginDraggingPiece(square, currentPosition[square], originalEvt.changedTouches[0].pageX, originalEvt.changedTouches[0].pageY)
+        }
+      }
+      
+      // Touch end handler - treat as tap if didn't drag
+      var touchendHandler = function(endEvt) {
+        $(document).off('touchmove', touchmoveHandler)
+        $(document).off('touchend', touchendHandler)
+        
+        if (!dragStarted && !touchMoved) {
+          handleSquareClick(square)
+        }
+      }
+      
+      // Register temporary handlers
+      $(document).on('touchmove', touchmoveHandler)
+      $(document).one('touchend', touchendHandler)
     }
 
     function mousedownSparePiece (evt) {
