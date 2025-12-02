@@ -7,6 +7,13 @@ import (
 	"github.com/notnil/chess"
 )
 
+// PVLine represents a single principal variation line with its score
+type PVLine struct {
+	Score     int
+	ScoreType string
+	Moves     []string
+}
+
 // AnalysisInfo represents analysis data from the engine
 type AnalysisInfo struct {
 	Depth     int
@@ -16,7 +23,8 @@ type AnalysisInfo struct {
 	Nodes     int
 	NPS       int64
 	Time      int
-	ScoreType string // "cp" or "mate"
+	ScoreType string   // "cp" or "mate"
+	MultiPV   []PVLine // Multiple PV lines for 3 best moves feature
 }
 
 // Analyze performs iterative deepening analysis on a position
@@ -47,7 +55,7 @@ func (e *InternalEngine) Analyze(fen string, maxDepth int, stopCh <-chan bool, r
 		}
 
 		startTime := time.Now()
-		score, bestMove, pv, nodes := e.searchWithStats(pos, depth, stopCh)
+		score, bestMove, pv, nodes, multiPV := e.searchWithStatsMultiPV(pos, depth, stopCh)
 		elapsed := time.Since(startTime)
 
 		// Check if search was interrupted
@@ -96,6 +104,7 @@ func (e *InternalEngine) Analyze(fen string, maxDepth int, stopCh <-chan bool, r
 			NPS:       nps,
 			Time:      elapsedMs,
 			ScoreType: scoreType,
+			MultiPV:   multiPV,
 		}
 
 		// Send analysis info
@@ -194,6 +203,108 @@ func (e *InternalEngine) searchWithStats(pos *chess.Position, depth int, stopCh 
 	}
 
 	return bestScore, bestMove, bestPV, nodeCount
+}
+
+// searchWithStatsMultiPV performs a search and returns score, best move, PV, node count, and multiple PV lines
+func (e *InternalEngine) searchWithStatsMultiPV(pos *chess.Position, depth int, stopCh <-chan bool) (int, *chess.Move, []*chess.Move, int, []PVLine) {
+	nodeCount := 0
+	moves := pos.ValidMoves()
+	if len(moves) == 0 {
+		return 0, nil, nil, 0, nil
+	}
+
+	// Get zobrist key for transposition table
+	zobristKey := getZobristKey(pos)
+
+	// Get TT move for ordering
+	var ttMove *chess.Move
+	if _, _, move := e.tt.probe(zobristKey, 0, -10000, 10000); move != nil {
+		ttMove = move
+	}
+
+	// Order moves for better pruning (with TT move and killer moves)
+	e.orderMoves(moves, ttMove, 0)
+
+	// Store results for each move
+	type moveResult struct {
+		move  *chess.Move
+		score int
+		pv    []*chess.Move
+	}
+	results := make([]moveResult, 0, len(moves))
+
+	// Search each move
+	for _, move := range moves {
+		// Check if we should stop
+		select {
+		case <-stopCh:
+			break
+		default:
+		}
+
+		newPos := pos.Update(move)
+
+		// Create PV table for this branch
+		var childPV []*chess.Move
+		alpha := -10000
+		beta := 10000
+		score := -e.alphaBetaWithPV(newPos, depth-1, -beta, -alpha, &nodeCount, &childPV, stopCh)
+
+		// Build PV: current move + child PV
+		pv := make([]*chess.Move, 0, depth)
+		pv = append(pv, move)
+		pv = append(pv, childPV...)
+
+		results = append(results, moveResult{
+			move:  move,
+			score: score,
+			pv:    pv,
+		})
+	}
+
+	// Sort results by score (descending)
+	for i := 0; i < len(results)-1; i++ {
+		for j := i + 1; j < len(results); j++ {
+			if results[j].score > results[i].score {
+				results[i], results[j] = results[j], results[i]
+			}
+		}
+	}
+
+	// Build MultiPV array with top 3 moves
+	multiPV := make([]PVLine, 0, 3)
+	for i := 0; i < len(results) && i < 3; i++ {
+		// Convert score to display format
+		scoreType := "cp"
+		displayScore := results[i].score
+
+		if results[i].score > 9000 {
+			scoreType = "mate"
+			displayScore = (10000 - results[i].score + 1) / 2
+		} else if results[i].score < -9000 {
+			scoreType = "mate"
+			displayScore = -(10000 + results[i].score + 1) / 2
+		}
+
+		// Convert PV moves to strings
+		pvStrings := make([]string, len(results[i].pv))
+		for j, move := range results[i].pv {
+			pvStrings[j] = move.String()
+		}
+
+		multiPV = append(multiPV, PVLine{
+			Score:     displayScore,
+			ScoreType: scoreType,
+			Moves:     pvStrings,
+		})
+	}
+
+	// Return best move info (first result)
+	if len(results) > 0 {
+		return results[0].score, results[0].move, results[0].pv, nodeCount, multiPV
+	}
+
+	return 0, nil, nil, nodeCount, multiPV
 }
 
 // alphaBetaWithPV performs alpha-beta search with PV tracking

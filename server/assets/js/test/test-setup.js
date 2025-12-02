@@ -92,8 +92,8 @@ function loadAppCode(filename) {
     vm.runInThisContext(code);
 }
 
-// Load Chessboard library
-loadAppCode('chessboard-1.0.1.js');
+// Load Chessboard library v2.0.1
+loadAppCode('chessboard-2.0.1.js');
 
 // Make Chessboard globally available
 global.Chessboard = window.Chessboard || window['Chessboard'];
@@ -121,7 +121,21 @@ global.board = {
     position: function(fen) { return true; },
     resize: function() {},
     clearArrow: function() {},
-    drawArrow: function() {}
+    drawArrow: function() {},
+    // Ghost piece and PV animation methods
+    cancelPVAnimation: function() {},
+    setPositionChanged: function() {},
+    addGhostPiece: function() {},
+    clearGhostPieces: function() {},
+    // Three visualization modes
+    drawBestMove: function() {},
+    drawMultipleBestMoves: function() {},
+    drawPVAnimation: function() {},
+    // Helper methods
+    drawPVArrowAtIndex: function() {},
+    // Deprecated (backward compatibility)
+    drawPrincipalVariation: function() {},
+    getArrow: function() { return null; }
 };
 
 loadAppCode('gochess-pgn.js');

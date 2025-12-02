@@ -242,6 +242,16 @@ func parseCECPAnalysis(line string, position *chess.Position) AnalysisInfo {
 	if len(pv) > 0 {
 		info.PV = pv
 		info.BestMove = pv[0]
+
+		// CECP engines don't support multi-PV natively
+		// Create a single-entry MultiPV for consistency with UCI engines
+		info.MultiPV = []PVLine{
+			{
+				Score:     info.Score,
+				ScoreType: info.ScoreType,
+				Moves:     pv,
+			},
+		}
 	}
 
 	return info

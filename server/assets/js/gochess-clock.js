@@ -61,9 +61,15 @@ function updateClockDisplay() {
         // Check for time out (only in timed mode)
         if (gameState.whiteTimeMs <= 0) {
             stopClock();
+            if (analysisActive) {
+                stopAnalysis();
+            }
             showTimeout('Time out! Black wins!');
         } else if (gameState.blackTimeMs <= 0) {
             stopClock();
+            if (analysisActive) {
+                stopAnalysis();
+            }
             showTimeout('Time out! White wins!');
         }
     }

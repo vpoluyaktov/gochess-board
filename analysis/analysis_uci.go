@@ -15,11 +15,13 @@ import (
 
 // AnalysisEngine manages a UCI engine for analysis
 type AnalysisEngine struct {
-	cmd    *exec.Cmd
-	stdin  *bufio.Writer
-	stdout *bufio.Scanner
-	mu     sync.Mutex
-	active bool
+	cmd       *exec.Cmd
+	stdin     *bufio.Writer
+	stdout    *bufio.Scanner
+	mu        sync.Mutex
+	active    bool
+	multiPVs  map[int]AnalysisInfo // Store multiple PV lines indexed by multipv number
+	multiPVMu sync.Mutex           // Mutex for multiPVs map
 }
 
 // NewAnalysisEngine creates a new UCI analysis engine
@@ -53,10 +55,11 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 	}
 
 	engine := &AnalysisEngine{
-		cmd:    cmd,
-		stdin:  bufio.NewWriter(stdin),
-		stdout: bufio.NewScanner(stdout),
-		active: true,
+		cmd:      cmd,
+		stdin:    bufio.NewWriter(stdin),
+		stdout:   bufio.NewScanner(stdout),
+		active:   true,
+		multiPVs: make(map[int]AnalysisInfo),
 	}
 
 	logger.Info("ANALYSIS", "Initializing UCI analysis engine: %s", enginePath)
@@ -74,6 +77,9 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 			break
 		}
 	}
+
+	// Set MultiPV option to 3 for getting 3 best moves
+	engine.sendCommand("setoption name MultiPV value 3")
 
 	engine.sendCommand("isready")
 	logger.Info("ANALYSIS", "Waiting for readyok...")
@@ -112,12 +118,24 @@ func (e *AnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- Analys
 			line := e.stdout.Text()
 
 			if strings.HasPrefix(line, "info") {
-				info := parseUCIAnalysisInfo(line)
+				info, multiPVNum := parseUCIAnalysisInfo(line)
 				if info.BestMove != "" {
-					select {
-					case analysisChannel <- info:
-					default:
-						// Channel full, skip this update
+					// Store this PV line
+					e.multiPVMu.Lock()
+					e.multiPVs[multiPVNum] = info
+
+					// If we have all 3 PVs (or at least PV 1), send combined info
+					if multiPVNum == 1 || len(e.multiPVs) >= 3 {
+						combinedInfo := e.buildCombinedInfo()
+						e.multiPVMu.Unlock()
+
+						select {
+						case analysisChannel <- combinedInfo:
+						default:
+							// Channel full, skip this update
+						}
+					} else {
+						e.multiPVMu.Unlock()
 					}
 				}
 			}
@@ -140,9 +158,35 @@ func (e *AnalysisEngine) Close() {
 	e.cmd.Wait()
 }
 
-// parseUCIAnalysisInfo parses a UCI info line
-func parseUCIAnalysisInfo(line string) AnalysisInfo {
+// buildCombinedInfo combines multiple PV lines into a single AnalysisInfo
+// Must be called with multiPVMu locked
+func (e *AnalysisEngine) buildCombinedInfo() AnalysisInfo {
+	// Use PV 1 as the base (best move)
+	baseInfo, ok := e.multiPVs[1]
+	if !ok {
+		return AnalysisInfo{}
+	}
+
+	// Build MultiPV array with all available PV lines
+	multiPV := make([]PVLine, 0, 3)
+	for i := 1; i <= 3; i++ {
+		if pvInfo, exists := e.multiPVs[i]; exists {
+			multiPV = append(multiPV, PVLine{
+				Score:     pvInfo.Score,
+				ScoreType: pvInfo.ScoreType,
+				Moves:     pvInfo.PV,
+			})
+		}
+	}
+
+	baseInfo.MultiPV = multiPV
+	return baseInfo
+}
+
+// parseUCIAnalysisInfo parses a UCI info line and returns the info and multipv number
+func parseUCIAnalysisInfo(line string) (AnalysisInfo, int) {
 	info := AnalysisInfo{}
+	multiPVNum := 1 // Default to 1 if not specified
 	parts := strings.Fields(line)
 
 	for i := 0; i < len(parts); i++ {
@@ -180,9 +224,13 @@ func parseUCIAnalysisInfo(line string) AnalysisInfo {
 					info.BestMove = info.PV[0]
 				}
 			}
-			return info // PV is always last, return immediately
+			return info, multiPVNum // PV is always last, return immediately
+		case "multipv":
+			if i+1 < len(parts) {
+				fmt.Sscanf(parts[i+1], "%d", &multiPVNum)
+			}
 		}
 	}
 
-	return info
+	return info, multiPVNum
 }

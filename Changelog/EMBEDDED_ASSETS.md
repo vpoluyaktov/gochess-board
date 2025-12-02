@@ -10,8 +10,8 @@ All assets, templates, and opening database files are now embedded in the binary
 - `index.html` - Main web interface
 
 ### 2. Static Assets (`server/assets/*`)
-- **CSS**: `gochess-ui.css`, `chessboard-1.0.1.css`
-- **JavaScript**: `chess.js`, `chess-ui.js`, `chessboard-1.0.1.js`, `jquery-3.5.1.min.js`
+- **CSS**: `gochess-ui.css`, `chessboard-2.0.1.css`
+- **JavaScript**: `chess.js`, `chess-ui.js`, `chessboard-2.0.1.js`, `jquery-3.5.1.min.js`
 - **Images**: All chess piece images in `assets/images/pieces/`
 
 ### 3. Opening Database (`server/assets/openings/*.tsv`)
@@ -241,11 +241,11 @@ book.LoadFromEmbedded(assetsFS, "assets/openings")
 assets/
 ├── css/
 │   ├── gochess-ui.css
-│   └── chessboard-1.0.1.css
+│   └── chessboard-2.0.1.css
 ├── js/
 │   ├── chess.js
 │   ├── chess-ui.js
-│   ├── chessboard-1.0.1.js
+│   ├── chessboard-2.0.1.js
 │   └── jquery-3.5.1.min.js
 ├── images/
 │   └── pieces/

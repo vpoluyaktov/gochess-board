@@ -61,6 +61,16 @@ func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<-
 				}
 
 				// Convert builtin.AnalysisInfo to analysis.AnalysisInfo
+				// Need to convert builtin.PVLine to analysis.PVLine
+				multiPV := make([]PVLine, len(info.MultiPV))
+				for i, pv := range info.MultiPV {
+					multiPV[i] = PVLine{
+						Score:     pv.Score,
+						ScoreType: pv.ScoreType,
+						Moves:     pv.Moves,
+					}
+				}
+
 				analysisInfo := AnalysisInfo{
 					Depth:     info.Depth,
 					Score:     info.Score,
@@ -70,6 +80,7 @@ func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<-
 					NPS:       info.NPS,
 					Time:      info.Time,
 					ScoreType: info.ScoreType,
+					MultiPV:   multiPV,
 				}
 
 				logger.Debug("ANALYSIS", "Built-in engine: depth=%d, score=%d (%s), move=%s, nodes=%d, nps=%d",

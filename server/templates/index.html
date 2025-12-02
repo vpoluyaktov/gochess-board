@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GoChess Board</title>
     
-    <!-- ChessboardJS CSS v1.0.1 -->
-    <link rel="stylesheet" href="/assets/css/chessboard-1.0.1.css?v={{.CacheBuster}}">
+    <!-- ChessboardJS CSS v2.0.1 -->
+    <link rel="stylesheet" href="/assets/css/chessboard-2.0.1.css?v={{.CacheBuster}}">
     
     <!-- CodeMirror CSS -->
     <link rel="stylesheet" href="/assets/css/codemirror.min.css?v={{.CacheBuster}}">
@@ -129,14 +129,20 @@
                 <div class="analysis-display-options">
                     <div class="analysis-option">
                         <label>
-                            <input type="radio" name="analysisDisplay" id="showPVArrows" value="pv" checked>
-                            Show principal variation
+                            <input type="radio" name="analysisDisplay" id="showBestMove" value="single" checked>
+                            Show the best move
                         </label>
                     </div>
                     <div class="analysis-option">
                         <label>
                             <input type="radio" name="analysisDisplay" id="showBestMoves" value="best">
                             Show 3 best moves
+                        </label>
+                    </div>
+                    <div class="analysis-option">
+                        <label>
+                            <input type="radio" name="analysisDisplay" id="showPVArrows" value="pv">
+                            Show principal variation
                         </label>
                     </div>
                     <div class="analysis-depth-container">
@@ -227,8 +233,8 @@
     <!-- Chess.js - Chess game logic -->
     <script src="/assets/js/chess.js?v={{.CacheBuster}}"></script>
 
-    <!-- ChessboardJS v1.0.1 (modified with click-to-move) -->
-    <script src="/assets/js/chessboard-1.0.1.js?v={{.CacheBuster}}"></script>
+    <!-- ChessboardJS v2.0.1 (modified with click-to-move, arrows, ghost pieces, PV animation) -->
+    <script src="/assets/js/chessboard-2.0.1.js?v={{.CacheBuster}}"></script>
 
     <!-- CodeMirror -->
     <script src="/assets/js/codemirror.min.js?v={{.CacheBuster}}"></script>
