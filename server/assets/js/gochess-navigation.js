@@ -7,6 +7,11 @@ function updateAnalysisForCurrentPosition() {
         cancelPVAnimation();
     }
     
+    // Set flag to force-start next PV animation (position changed)
+    if (typeof positionChanged !== 'undefined') {
+        positionChanged = true;
+    }
+    
     // Clear any existing arrows first
     board.clearArrow();
     

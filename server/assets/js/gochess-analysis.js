@@ -5,6 +5,10 @@ var analysisWs = null;
 var analysisActive = false;
 var pvAnimationTimeouts = []; // Track animation timeouts for cancellation
 var currentPVSequence = null; // Track current PV sequence for comparison
+var ghostPieces = []; // Track ghost pieces for cleanup
+var pendingPVData = null; // Store pending PV to apply after current loop finishes
+var isAnimating = false; // Track if animation is currently running
+var positionChanged = false; // Track if position changed (move made) to force-start next PV
 
 // Initialize event listeners for analysis display mode changes
 function initAnalysisDisplayListeners() {
@@ -15,6 +19,8 @@ function initAnalysisDisplayListeners() {
             cancelPVAnimation();
             // Clear arrows when switching modes
             board.clearArrow();
+            // Clear ghost pieces when switching modes
+            clearGhostPieces();
         });
     });
 }
@@ -79,7 +85,12 @@ function startAnalysis() {
             drawMultipleBestMoves(data.multiPV);
         } else if (data.pv && data.pv.length > 0) {
             // Show principal variation or single best move mode
-            drawPrincipalVariation(data, showPV, showBestMove);
+            // Force start if position changed (move was made)
+            var forceStart = positionChanged;
+            if (positionChanged) {
+                positionChanged = false; // Reset flag after using it
+            }
+            drawPrincipalVariation(data, showPV, showBestMove, forceStart);
         }
     };
     
@@ -120,10 +131,99 @@ function cancelPVAnimation() {
     }
     pvAnimationTimeouts = [];
     currentPVSequence = null;
+    pendingPVData = null;
+    isAnimating = false;
+    positionChanged = false;
+    // Also clear ghost pieces
+    clearGhostPieces();
+}
+
+// Add a ghost piece to the board
+function addGhostPiece(fromSquare, toSquare, piece) {
+    // Remove any existing ghost pieces from source and destination squares
+    var $fromSquare = $('#myBoard .square-' + fromSquare);
+    if ($fromSquare.length > 0) {
+        $fromSquare.find('.ghost-piece').remove();
+    }
+    
+    var $toSquare = $('#myBoard .square-' + toSquare);
+    if ($toSquare.length === 0) return;
+    $toSquare.find('.ghost-piece').remove();
+    
+    // Hide the piece on the source square
+    var $sourcePiece = null;
+    if ($fromSquare.length > 0) {
+        $sourcePiece = $fromSquare.find('img.piece-417db');
+        if ($sourcePiece.length > 0) {
+            $sourcePiece.css('visibility', 'hidden');
+        }
+    }
+    
+    // Hide any piece on the destination square (for captures)
+    var $destPiece = $toSquare.find('img.piece-417db');
+    if ($destPiece.length > 0) {
+        $destPiece.css('visibility', 'hidden');
+    }
+    
+    // Create ghost piece image
+    var pieceImage = '/assets/images/pieces/' + piece + '.png';
+    var $ghostPiece = $('<img>')
+        .attr('src', pieceImage)
+        .addClass('ghost-piece')
+        .addClass('ghost-fade-in')
+        .css({
+            width: '100%',
+            height: '100%',
+            position: 'absolute',
+            top: 0,
+            left: 0
+        });
+    
+    // Add to destination square
+    $toSquare.append($ghostPiece);
+    
+    // Track for cleanup (including both source and destination pieces for restoration)
+    ghostPieces.push({
+        fromSquare: fromSquare,
+        toSquare: toSquare,
+        element: $ghostPiece,
+        sourcePiece: $sourcePiece,
+        destPiece: $destPiece
+    });
+}
+
+// Remove a ghost piece from a specific square
+function removeGhostPiece(square) {
+    var $square = $('#myBoard .square-' + square);
+    $square.find('.ghost-piece').remove();
+    
+    // Remove from tracking array
+    ghostPieces = ghostPieces.filter(function(gp) {
+        return gp.square !== square;
+    });
+}
+
+// Clear all ghost pieces
+function clearGhostPieces() {
+    for (var i = 0; i < ghostPieces.length; i++) {
+        ghostPieces[i].element.remove();
+        // Restore source piece visibility if it was hidden
+        if (ghostPieces[i].sourcePiece && ghostPieces[i].sourcePiece.length > 0) {
+            ghostPieces[i].sourcePiece.css('visibility', 'visible');
+        }
+        // Restore destination piece visibility if it was hidden (for captures)
+        if (ghostPieces[i].destPiece && ghostPieces[i].destPiece.length > 0) {
+            ghostPieces[i].destPiece.css('visibility', 'visible');
+        }
+    }
+    ghostPieces = [];
 }
 
 // Draw principal variation (sequence of moves)
-function drawPrincipalVariation(data, showPV, showBestMove) {
+function drawPrincipalVariation(data, showPV, showBestMove, forceStart) {
+    // forceStart = true when position changes (move made), false when engine sends new PV
+    if (forceStart === undefined) forceStart = false;
+    
     // Check if this is a new PV sequence
     var newPVSequence = data.pv.join(',');
     if (newPVSequence === currentPVSequence) {
@@ -131,24 +231,38 @@ function drawPrincipalVariation(data, showPV, showBestMove) {
         return;
     }
     
-    // Cancel any ongoing animation for the previous PV
-    cancelPVAnimation();
-    currentPVSequence = newPVSequence;
-    
-    // Determine max moves based on mode:
-    // - showBestMove (default): show only 1 move
-    // - showPV: show up to 6 moves (3 full moves) in the principal variation
-    var maxMoves = showPV ? Math.min(6, data.pv.length) : 1;
-    
-    // If showing only best move, draw immediately without animation
+    // If showing only best move, draw immediately without animation (no ghost pieces)
     if (!showPV) {
-        drawPVArrowAtIndex(data, 0, true);
+        cancelPVAnimation();
+        currentPVSequence = newPVSequence;
+        drawPVArrowAtIndex(data, 0, true, false);
         return;
     }
     
+    // If forceStart (move made), cancel everything and start immediately
+    if (forceStart) {
+        cancelPVAnimation();
+        currentPVSequence = newPVSequence;
+        isAnimating = true;
+    } else {
+        // Engine sent new PV during animation - queue it
+        if (isAnimating) {
+            pendingPVData = { data: data, showPV: showPV, showBestMove: showBestMove };
+            return;
+        }
+        // No animation running, start new one
+        currentPVSequence = newPVSequence;
+        isAnimating = true;
+    }
+    
+    // Determine max moves based on mode:
+    // - showPV: show up to 6 moves (3 full moves) in the principal variation
+    var maxMoves = Math.min(6, data.pv.length);
+    
     // For PV mode, animate arrows sequentially with looping
-    var firstMoveDelay = 1500; // 1.5 seconds for first move (with score)
-    var subsequentMoveDelay = 1000; // 1 second for subsequent moves
+    var firstMoveDelay = 2000; // 2 seconds for first move (with score)
+    var subsequentMoveDelay = 1500; // 1.5 seconds for subsequent moves
+    var pauseAfterLoop = 2000; // 2 seconds pause after last move
     
     function scheduleAnimation(loopIteration) {
         var cumulativeDelay = 0;
@@ -158,18 +272,30 @@ function drawPrincipalVariation(data, showPV, showBestMove) {
                 var timeout = setTimeout(function() {
                     // Check if this animation is still valid
                     if (currentPVSequence === newPVSequence) {
-                        // Always clear previous arrows to show only one at a time
+                        // Clear previous arrows but keep ghost pieces
                         var clearPrevious = true;
-                        drawPVArrowAtIndex(data, index, clearPrevious);
+                        // Only clear ghost pieces at the start of a new loop (first move)
+                        var clearGhosts = (index === 0);
+                        drawPVArrowAtIndex(data, index, clearPrevious, true, clearGhosts);
                         
-                        // If this is the last arrow, schedule the next loop
+                        // If this is the last arrow, check for pending PV or schedule next loop
                         if (index === maxMoves - 1) {
                             var finalDelay = index === 0 ? firstMoveDelay : subsequentMoveDelay;
                             var loopTimeout = setTimeout(function() {
                                 if (currentPVSequence === newPVSequence) {
-                                    scheduleAnimation(loopIteration + 1);
+                                    // Check if there's a pending PV to start
+                                    if (pendingPVData) {
+                                        var pending = pendingPVData;
+                                        pendingPVData = null;
+                                        isAnimating = false;
+                                        // Start the pending PV animation
+                                        drawPrincipalVariation(pending.data, pending.showPV, pending.showBestMove, false);
+                                    } else {
+                                        // Continue looping with current PV
+                                        scheduleAnimation(loopIteration + 1);
+                                    }
                                 }
-                            }, finalDelay);
+                            }, finalDelay + pauseAfterLoop);
                             pvAnimationTimeouts.push(loopTimeout);
                         }
                     }
@@ -187,7 +313,10 @@ function drawPrincipalVariation(data, showPV, showBestMove) {
 }
 
 // Draw a single PV arrow at the specified index
-function drawPVArrowAtIndex(data, index, clearPrevious) {
+function drawPVArrowAtIndex(data, index, clearPrevious, showGhostPieces, clearGhosts) {
+    // Default parameters
+    if (showGhostPieces === undefined) showGhostPieces = false;
+    if (clearGhosts === undefined) clearGhosts = true;
     // Create a temporary game instance to track positions
     var tempGame = new Chess(game.fen());
     
@@ -208,11 +337,22 @@ function drawPVArrowAtIndex(data, index, clearPrevious) {
         
         // If this is the arrow we want to draw
         if (i === index) {
-            // Use different colors based on whose turn it is in the temp game
-            var arrowColor = tempGame.turn() === 'w' ? '#f4f5f7ff' : '#605e5eff';
+            // Clear ghost pieces only if requested (at start of new loop)
+            if (clearGhosts) {
+                clearGhostPieces();
+            }
             
-            // Use full opacity for all arrows
-            var opacity = 1.0;
+            // Add ghost piece at destination square (only in PV mode)
+            if (showGhostPieces) {
+                var pieceCode = piece.color + piece.type.toUpperCase();
+                addGhostPiece(from, to, pieceCode);
+            }
+            
+            // Use different colors based on whose turn it is in the temp game
+            var arrowColor = tempGame.turn() === 'w' ? '#FFFFFF' : '#000000';
+            
+            // Use 0.8 opacity for arrows
+            var opacity = 0.8;
             
             // Calculate actual chess move number from current FEN
             var currentFenParts = tempGame.fen().split(' ');

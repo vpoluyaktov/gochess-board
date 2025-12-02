@@ -1782,6 +1782,7 @@
       line.setAttribute('stroke-width', strokeWidth)
       line.setAttribute('stroke-linecap', 'round')
       line.setAttribute('opacity', opacity)
+      line.setAttribute('stroke-opacity', opacity)
       line.setAttribute('marker-end', 'url(#' + markerId + ')')
       
       $arrowSvg[0].appendChild(line)

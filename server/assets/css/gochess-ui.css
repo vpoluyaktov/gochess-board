@@ -1597,3 +1597,38 @@ button:hover {
         padding: 10px 4px;
     }
 }
+
+/* Ghost Pieces for PV Visualization */
+.ghost-piece {
+    opacity: 0.5 !important;
+    pointer-events: none;
+    z-index: 100;
+    position: absolute;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.ghost-piece.ghost-fade-in {
+    animation: ghostFadeIn 0.3s ease-in-out;
+}
+
+.ghost-piece.ghost-fade-out {
+    animation: ghostFadeOut 0.3s ease-in-out;
+}
+
+@keyframes ghostFadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 0.5;
+    }
+}
+
+@keyframes ghostFadeOut {
+    from {
+        opacity: 0.5;
+    }
+    to {
+        opacity: 0;
+    }
+}
