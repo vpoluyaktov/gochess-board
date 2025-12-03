@@ -135,7 +135,7 @@ function startAnalysis() {
     analysisWs.onopen = function() {
         console.log('Analysis WebSocket connected');
         analysisActive = true;
-        document.getElementById('analysisToggle').textContent = '⏹️ Stop Analysis';
+        document.getElementById('analysisToggle').innerHTML = '⏹️ Stop Analysis <span id="analysisDepth" style="opacity: 0.7; font-size: 0.85em;"></span>';
         
         analysisWs.send(JSON.stringify({
             action: 'start',
@@ -152,9 +152,9 @@ function startAnalysis() {
             return;
         }
         
-        // Update depth display
+        // Update depth display in button
         if (data.depth !== undefined) {
-            document.getElementById('analysisDepth').textContent = 'Depth: ' + data.depth;
+            document.getElementById('analysisDepth').textContent = '(Depth: ' + data.depth + ')';
         }
         
         // Draw arrows based on display mode
@@ -213,8 +213,7 @@ function stopAnalysis() {
     board.cancelPVAnimation();
     
     analysisActive = false;
-    document.getElementById('analysisToggle').textContent = '🔍 Start Analysis';
-    document.getElementById('analysisDepth').textContent = 'Depth: -';
+    document.getElementById('analysisToggle').innerHTML = '🔍 Start Analysis <span id="analysisDepth" style="opacity: 0.7; font-size: 0.85em;"></span>';
     board.clearArrow();
     
     if (analysisWs) {

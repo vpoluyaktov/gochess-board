@@ -184,8 +184,12 @@ $(document).ready(function() {
     
     // Add keyboard navigation
     document.addEventListener('keydown', function(e) {
-        // Only handle arrow keys if not typing in an input/textarea
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+        // Only handle arrow keys if not typing in an input/textarea/select
+        // Exception: allow arrow keys for radio buttons (they should only respond to mouse/touch)
+        if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        if (e.target.tagName === 'INPUT' && e.target.type !== 'radio') {
             return;
         }
         

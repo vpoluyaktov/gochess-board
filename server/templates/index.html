@@ -131,7 +131,7 @@
                     <button onclick="newGame()">New Game</button>
                     <button id="startPauseBtn" onclick="toggleClock()">▶️ Start Game</button>
                     <button onclick="flipBoard()">Flip Board</button>
-                    <button id="analysisToggle" onclick="toggleAnalysis()">🔍 Start Analysis</button>
+                    <button id="analysisToggle" onclick="toggleAnalysis()">🔍 Start Analysis <span id="analysisDepth" style="opacity: 0.7; font-size: 0.85em;"></span></button>
                 </div>
                 
                 <!-- Analysis Engine Selection -->
@@ -148,24 +148,21 @@
                 <div class="analysis-display-options">
                     <div class="analysis-option">
                         <label>
-                            <input type="radio" name="analysisDisplay" id="showBestMove" value="single" checked>
+                            <input type="radio" name="analysisDisplay" id="showBestMove" value="single" checked tabindex="-1">
                             Show the best move
                         </label>
                     </div>
                     <div class="analysis-option">
                         <label>
-                            <input type="radio" name="analysisDisplay" id="showBestMoves" value="best">
+                            <input type="radio" name="analysisDisplay" id="showBestMoves" value="best" tabindex="-1">
                             Show 3 best moves
                         </label>
                     </div>
                     <div class="analysis-option">
                         <label>
-                            <input type="radio" name="analysisDisplay" id="showPVArrows" value="pv">
+                            <input type="radio" name="analysisDisplay" id="showPVArrows" value="pv" tabindex="-1">
                             Show principal variation
                         </label>
-                    </div>
-                    <div class="analysis-depth-container">
-                        <span id="analysisDepth" class="analysis-depth">Depth: -</span>
                     </div>
                 </div>
                 
