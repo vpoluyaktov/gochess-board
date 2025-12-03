@@ -158,11 +158,27 @@ func (e *AnalysisEngine) StopAnalysis() {
 	time.Sleep(50 * time.Millisecond) // Give engine time to stop
 }
 
-// Close closes the engine
+// Close closes the engine with a timeout to prevent hanging
 func (e *AnalysisEngine) Close() {
 	e.active = false
 	e.sendCommand("quit")
-	e.cmd.Wait()
+
+	// Wait for engine to exit with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- e.cmd.Wait()
+	}()
+
+	select {
+	case <-done:
+		return
+	case <-time.After(2 * time.Second):
+		// Engine didn't exit gracefully, force kill
+		logger.Warn("ANALYSIS", "Engine did not exit gracefully, killing process")
+		if e.cmd.Process != nil {
+			e.cmd.Process.Kill()
+		}
+	}
 }
 
 // buildCombinedInfo combines multiple PV lines into a single AnalysisInfo

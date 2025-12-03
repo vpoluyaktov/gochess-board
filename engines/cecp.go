@@ -279,10 +279,27 @@ func (e *CECPEngine) GetBestMoveWithClock(fen string, moveHistory []string, whit
 	return "", fmt.Errorf("timeout waiting for move")
 }
 
-// Close closes the engine
+// Close closes the engine with a timeout to prevent hanging
 func (e *CECPEngine) Close() error {
 	e.sendCommand("quit")
 	e.stdin.Close()
 	e.stdout.Close()
-	return e.cmd.Wait()
+
+	// Wait for engine to exit with timeout
+	done := make(chan error, 1)
+	go func() {
+		done <- e.cmd.Wait()
+	}()
+
+	select {
+	case err := <-done:
+		return err
+	case <-time.After(2 * time.Second):
+		// Engine didn't exit gracefully, force kill
+		logger.Warn("ENGINE", "[%s] Engine did not exit gracefully, killing process", e.name)
+		if e.cmd.Process != nil {
+			e.cmd.Process.Kill()
+		}
+		return fmt.Errorf("engine did not exit gracefully, killed")
+	}
 }

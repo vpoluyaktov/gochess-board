@@ -402,6 +402,7 @@ function newGame() {
     gameState.blackTimeMs = gameState.timeControl.initial * 60 * 1000;
     gameState.clockRunning = false;
     gameState.gameStartTime = Date.now();
+    gameState.gameId = generateGameId();  // New game ID for engine pooling
     
     // Stop clock if running
     if (gameState.clockInterval) {

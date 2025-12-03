@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -73,8 +74,8 @@ func InitialModel(serverURL string, engines []engines.EngineInfo, monitor *engin
 
 	// Active engines table (dynamic, refreshed on ticks)
 	activeColumns := []table.Column{
-		{Title: "Type", Width: 9},
-		{Title: "Name", Width: 24},
+		{Title: "Type", Width: 15},
+		{Title: "Name", Width: 19},
 		{Title: "ELO", Width: 6},
 		{Title: "wtime", Width: 10},
 		{Title: "btime", Width: 10},
@@ -247,8 +248,8 @@ func (m model) View() string {
 	)
 
 	// Active engines runtime box (table) occupying the bottom half
-	activeCount := len(m.monitor.GetActiveEngines())
-	activeHeader := fmt.Sprintf("⚡ ACTIVE ENGINES (%d)", activeCount)
+	// Count is based on table rows (already de-duplicated in refreshActiveEnginesTable)
+	activeHeader := fmt.Sprintf("⚡ ACTIVE ENGINES (%d)", len(m.activeTable.Rows()))
 	activeContent := activeHeader + "\n\n" + m.activeTable.View()
 	activeEnginesBox := boxStyle.
 		Width(width - 4).
@@ -285,29 +286,38 @@ func (m *model) refreshActiveEnginesTable() {
 	var moveEngines []*engines.ActiveEngine
 
 	for _, ae := range activeEngines {
-		if strings.Contains(ae.Name, "(Analysis)") {
+		if ae.Type == engines.EngineTypeAnalysis {
 			analysisEngines = append(analysisEngines, ae)
 		} else {
 			moveEngines = append(moveEngines, ae)
 		}
 	}
 
-	// Build rows with analysis engines first, then move engines
-	rows := make([]table.Row, 0, len(activeEngines))
+	// Build a unified list of all engines with their display info
+	type engineRow struct {
+		typ  string
+		name string
+		elo  string
+		col3 string
+		col4 string
+		col5 string
+		col6 string
+	}
+	var allEngines []engineRow
 
 	for _, ae := range analysisEngines {
 		eloStr := "N/A"
 		if ae.ELO > 0 {
 			eloStr = fmt.Sprintf("%d", ae.ELO)
 		}
-		rows = append(rows, table.Row{
-			"Analysis",
-			ae.Name,
-			eloStr,
-			fmt.Sprintf("%dms", ae.WhiteTime),
-			fmt.Sprintf("%dms", ae.BlackTime),
-			fmt.Sprintf("%dms", ae.WhiteIncrement),
-			fmt.Sprintf("%dms", ae.BlackIncrement),
+		allEngines = append(allEngines, engineRow{
+			typ:  string(engines.EngineTypeAnalysis),
+			name: ae.Name,
+			elo:  eloStr,
+			col3: fmt.Sprintf("%dms", ae.WhiteTime),
+			col4: fmt.Sprintf("%dms", ae.BlackTime),
+			col5: fmt.Sprintf("%dms", ae.WhiteIncrement),
+			col6: fmt.Sprintf("%dms", ae.BlackIncrement),
 		})
 	}
 
@@ -316,15 +326,61 @@ func (m *model) refreshActiveEnginesTable() {
 		if ae.ELO > 0 {
 			eloStr = fmt.Sprintf("%d", ae.ELO)
 		}
-		rows = append(rows, table.Row{
-			"Move",
-			ae.Name,
-			eloStr,
-			fmt.Sprintf("%dms", ae.WhiteTime),
-			fmt.Sprintf("%dms", ae.BlackTime),
-			fmt.Sprintf("%dms", ae.WhiteIncrement),
-			fmt.Sprintf("%dms", ae.BlackIncrement),
+		allEngines = append(allEngines, engineRow{
+			typ:  string(engines.EngineTypeMove),
+			name: ae.Name,
+			elo:  eloStr,
+			col3: fmt.Sprintf("%dms", ae.WhiteTime),
+			col4: fmt.Sprintf("%dms", ae.BlackTime),
+			col5: fmt.Sprintf("%dms", ae.WhiteIncrement),
+			col6: fmt.Sprintf("%dms", ae.BlackIncrement),
 		})
+	}
+
+	// Add pooled engines (persistent engine mode)
+	// Skip engines that are already shown as "Move" (currently active)
+	if engines.GlobalEnginePool != nil {
+		poolStats := engines.GlobalEnginePool.Stats()
+		if pooledEngines, ok := poolStats["engines"].([]map[string]interface{}); ok {
+			for _, pe := range pooledEngines {
+				name := pe["name"].(string)
+				gameID := pe["game_id"].(string)
+				idleTime := pe["idle_time"].(string)
+
+				// Skip if this engine is currently shown as a Move engine (same name AND gameId)
+				isActive := false
+				for _, ae := range moveEngines {
+					if ae.Name == name && ae.GameID == gameID {
+						isActive = true
+						break
+					}
+				}
+				if isActive {
+					continue
+				}
+
+				allEngines = append(allEngines, engineRow{
+					typ:  string(engines.EngineTypeIdle) + " (" + idleTime + ")",
+					name: name,
+					elo:  "-",
+					col3: "-",
+					col4: "-",
+					col5: "-",
+					col6: "-",
+				})
+			}
+		}
+	}
+
+	// Sort by name for stable ordering
+	sort.Slice(allEngines, func(i, j int) bool {
+		return allEngines[i].name < allEngines[j].name
+	})
+
+	// Convert to table rows
+	rows := make([]table.Row, 0, len(allEngines))
+	for _, e := range allEngines {
+		rows = append(rows, table.Row{e.typ, e.name, e.elo, e.col3, e.col4, e.col5, e.col6})
 	}
 
 	// Note: table.Model has value semantics, so we must reassign

@@ -5,17 +5,28 @@ import (
 	"time"
 )
 
+// EngineType represents the type of engine activity
+type EngineType string
+
+const (
+	EngineTypeMove     EngineType = "Move"
+	EngineTypeAnalysis EngineType = "Analysis"
+	EngineTypeIdle     EngineType = "Idle"
+)
+
 // ActiveEngine represents a currently running engine instance
 type ActiveEngine struct {
-	Name           string    `json:"name"`
-	Path           string    `json:"path"`
-	ELO            int       `json:"elo"`
-	WhiteTime      int       `json:"whiteTime"`
-	BlackTime      int       `json:"blackTime"`
-	WhiteIncrement int       `json:"whiteIncrement"`
-	BlackIncrement int       `json:"blackIncrement"`
-	StartTime      time.Time `json:"startTime"`
-	SessionID      string    `json:"sessionId"`
+	Name           string     `json:"name"`
+	Path           string     `json:"path"`
+	Type           EngineType `json:"type"`
+	ELO            int        `json:"elo"`
+	WhiteTime      int        `json:"whiteTime"`
+	BlackTime      int        `json:"blackTime"`
+	WhiteIncrement int        `json:"whiteIncrement"`
+	BlackIncrement int        `json:"blackIncrement"`
+	StartTime      time.Time  `json:"startTime"`
+	SessionID      string     `json:"sessionId"`
+	GameID         string     `json:"gameId"`
 }
 
 // EngineMonitor tracks active engine instances
