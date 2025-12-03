@@ -20,10 +20,10 @@ async function makeComputerMove() {
         return;
     }
     
-    // Don't make computer moves if clock is paused (game is paused)
-    // Exception: Allow first move even if clock not started yet
-    if (!gameState.clockRunning && gameState.moveHistory.length > 0) {
-        console.log('Game is paused - computer waiting');
+    // Don't make computer moves if clock is not running
+    // Computer must wait for user to click "Start Game" button
+    if (!gameState.clockRunning) {
+        console.log('Clock not running - computer waiting for Start Game');
         return;
     }
 
@@ -93,21 +93,25 @@ async function makeComputerMove() {
         game.load(data.fen);
         board.position(game.fen());
         
-        // Auto-start clock on first move if not already running
-        if (!gameState.clockRunning && gameState.timeControl.initial > 0 && gameState.moveHistory.length === 1) {
-            startClock();
-        }
+        // Note: Clock is NOT auto-started for computer moves.
+        // User must click "Start Game" button to begin computer vs computer games.
         
         // Update clock (only if running)
         if (gameState.clockRunning) {
-            // Deduct time spent thinking
-            if (isWhiteTurn) {
-                gameState.whiteTimeMs -= data.thinkTime;
-                gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
-            } else {
-                gameState.blackTimeMs -= data.thinkTime;
-                gameState.blackTimeMs += gameState.timeControl.increment * 1000;
+            var isUnlimitedMode = gameState.timeControl.initial === 0 && gameState.timeControl.increment === 0;
+            
+            if (!isUnlimitedMode) {
+                // Timed mode: deduct time spent thinking and add increment
+                if (isWhiteTurn) {
+                    gameState.whiteTimeMs -= data.thinkTime;
+                    gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
+                } else {
+                    gameState.blackTimeMs -= data.thinkTime;
+                    gameState.blackTimeMs += gameState.timeControl.increment * 1000;
+                }
             }
+            // In unlimited mode, the clock interval already handles counting up
+            // so we don't need to adjust the time here
             updateClockDisplay();
         }
         
