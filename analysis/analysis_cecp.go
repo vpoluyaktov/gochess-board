@@ -68,19 +68,19 @@ func NewCECPAnalysisEngine(enginePath string) (*CECPAnalysisEngine, error) {
 		active: true,
 	}
 
-	logger.Info("ANALYSIS", "Initializing CECP analysis engine: %s", enginePath)
+	logger.Debug("ANALYSIS", "Initializing CECP analysis engine: %s", enginePath)
 
 	// Initialize CECP protocol
 	engine.sendCommand("xboard")
 	engine.sendCommand("protover 2")
 
 	// Wait for feature done=1
-	logger.Info("ANALYSIS", "Waiting for feature done=1...")
+	logger.Debug("ANALYSIS", "Waiting for feature done=1...")
 	for engine.stdout.Scan() {
 		line := engine.stdout.Text()
 		logger.Debug("ANALYSIS", "<<< %s", line)
 		if strings.Contains(line, "feature") && strings.Contains(line, "done=1") {
-			logger.Info("ANALYSIS", "Got feature done=1")
+			logger.Debug("ANALYSIS", "Got feature done=1")
 			break
 		}
 	}
@@ -88,7 +88,7 @@ func NewCECPAnalysisEngine(enginePath string) (*CECPAnalysisEngine, error) {
 	// Enable post mode to get thinking output
 	engine.sendCommand("post")
 
-	logger.Info("ANALYSIS", "CECP analysis engine ready")
+	logger.Debug("ANALYSIS", "CECP analysis engine ready")
 
 	return engine, nil
 }
@@ -120,10 +120,10 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 
 	// Read analysis output in a goroutine
 	go func() {
-		logger.Info("ANALYSIS", "CECP analysis goroutine started")
+		logger.Debug("ANALYSIS", "CECP analysis goroutine started")
 		for e.stdout.Scan() {
 			if !e.active {
-				logger.Info("ANALYSIS", "CECP analysis stopped (active=false)")
+				logger.Debug("ANALYSIS", "CECP analysis stopped (active=false)")
 				break
 			}
 
@@ -140,11 +140,11 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 
 			// Check for analyze complete
 			if strings.Contains(line, "analyze complete") {
-				logger.Info("ANALYSIS", "CECP analysis complete")
+				logger.Debug("ANALYSIS", "CECP analysis complete")
 				break
 			}
 		}
-		logger.Info("ANALYSIS", "CECP analysis goroutine exited")
+		logger.Debug("ANALYSIS", "CECP analysis goroutine exited")
 	}()
 
 	return nil

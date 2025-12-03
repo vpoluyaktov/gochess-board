@@ -28,7 +28,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 	}
 	defer conn.Close()
 
-	logger.Info("ANALYSIS", "WebSocket connected")
+	logger.Debug("ANALYSIS", "WebSocket connected")
 
 	var analysisEngine analysis.AnalysisEngineInterface
 	var sessionID string
@@ -139,7 +139,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 							}
 						}
 					case <-stopSending:
-						logger.Info("ANALYSIS", "Stopping analysis updates goroutine")
+						logger.Debug("ANALYSIS", "Stopping analysis updates goroutine")
 						return
 					}
 				}
@@ -187,5 +187,5 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 		engines.GlobalMonitor.UnregisterEngine(sessionID)
 	}
 
-	logger.Info("ANALYSIS", "WebSocket disconnected")
+	logger.Debug("ANALYSIS", "WebSocket disconnected")
 }

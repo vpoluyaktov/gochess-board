@@ -48,31 +48,26 @@ func InitDebugLogging(filename string) error {
 func New(addr string, bookFile string) *Server {
 	engines := engines.DiscoverEngines(bookFile)
 	logger.Info("SERVER", "Discovered %d chess engines", len(engines))
-	for _, eng := range engines {
-		logger.Info("SERVER", "  - %s (%s)", eng.Name, eng.Path)
-	}
 
 	// Initialize opening name database from embedded filesystem
-	logger.Info("SERVER", "Loading opening name database from embedded assets/openings")
 	openingBook := opening.NewOpeningBook()
 	if err := openingBook.LoadFromEmbedded(assetsFS, "assets/openings"); err != nil {
 		logger.Warn("SERVER", "Failed to load opening name database: %v", err)
 	} else {
 		stats := openingBook.Stats()
-		logger.Info("SERVER", "Opening name database loaded: %d openings, %d nodes, max depth %d",
+		logger.Debug("SERVER", "Opening name database loaded: %d openings, %d nodes, max depth %d",
 			stats["total_openings"], stats["total_nodes"], stats["max_depth"])
 	}
 
 	// Initialize Polyglot opening book if specified
 	var polyglotBook *book.PolyglotBook
 	if bookFile != "" {
-		logger.Info("SERVER", "Loading Polyglot opening book from %s", bookFile)
 		polyglotBook = book.NewPolyglotBook()
 		if err := polyglotBook.LoadFromFile(bookFile); err != nil {
-			logger.Warn("SERVER", "Failed to load Polyglot book: %v", err)
+			logger.Warn("SERVER", "Failed to load Polyglot book %s: %v", bookFile, err)
 			polyglotBook = nil
 		} else {
-			logger.Info("SERVER", "Polyglot book loaded successfully")
+			logger.Info("SERVER", "Polyglot opening book loaded: %s (%d entries)", bookFile, len(polyglotBook.Entries))
 		}
 	}
 

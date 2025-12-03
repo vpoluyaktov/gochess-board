@@ -206,6 +206,18 @@ func (pb *PolyglotBook) polyglotMoveToUCI(move uint16) string {
 	fromSquare := indexToSquare(from)
 	toSquare := indexToSquare(to)
 
+	// Handle castling moves: Polyglot uses king-to-rook notation (e.g., e1h1),
+	// but UCI/chess library expects king moves two squares (e.g., e1g1)
+	if fromSquare == "e1" && toSquare == "h1" {
+		toSquare = "g1" // White kingside castling
+	} else if fromSquare == "e1" && toSquare == "a1" {
+		toSquare = "c1" // White queenside castling
+	} else if fromSquare == "e8" && toSquare == "h8" {
+		toSquare = "g8" // Black kingside castling
+	} else if fromSquare == "e8" && toSquare == "a8" {
+		toSquare = "c8" // Black queenside castling
+	}
+
 	uci := fromSquare + toSquare
 
 	// Add promotion piece if present

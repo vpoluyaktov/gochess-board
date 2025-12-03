@@ -13,7 +13,7 @@ type BuiltinAnalysisEngine struct {
 
 // NewBuiltinAnalysisEngine creates a new built-in analysis engine
 func NewBuiltinAnalysisEngine() (*BuiltinAnalysisEngine, error) {
-	logger.Info("ANALYSIS", "Initializing built-in analysis engine")
+	logger.Debug("ANALYSIS", "Initializing built-in analysis engine")
 
 	return &BuiltinAnalysisEngine{
 		engine: builtin.NewEngine(),
@@ -22,7 +22,7 @@ func NewBuiltinAnalysisEngine() (*BuiltinAnalysisEngine, error) {
 
 // StartAnalysis starts analyzing a position
 func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error {
-	logger.Info("ANALYSIS", "Starting built-in engine analysis for position: %s", fen)
+	logger.Debug("ANALYSIS", "Starting built-in engine analysis for position: %s", fen)
 
 	// Stop any previous analysis
 	if e.currentStopCh != nil {
@@ -119,11 +119,11 @@ func (e *BuiltinAnalysisEngine) StopAnalysis() {
 		default:
 		}
 	}
-	logger.Info("ANALYSIS", "Built-in engine analysis stop requested")
+	logger.Debug("ANALYSIS", "Built-in engine analysis stop requested")
 }
 
 // Close closes the engine
 func (e *BuiltinAnalysisEngine) Close() {
 	e.StopAnalysis()
-	logger.Info("ANALYSIS", "Built-in analysis engine closed")
+	logger.Debug("ANALYSIS", "Built-in analysis engine closed")
 }

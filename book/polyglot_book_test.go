@@ -217,6 +217,11 @@ func TestPolyglotMoveToUCI(t *testing.T) {
 		{"a7a8n", 0x1C38, "a7a8n"}, // from=48 (a7), to=56 (a8), promo=knight
 		{"b7b8r", 0x3C79, "b7b8r"}, // from=49 (b7), to=57 (b8), promo=rook
 		{"c7c8b", 0x2CBA, "c7c8b"}, // from=50 (c7), to=58 (c8), promo=bishop
+		// Castling moves: Polyglot uses king-to-rook, UCI uses king moves two squares
+		{"white O-O", 0x0107, "e1g1"},   // from=4 (e1), to=7 (h1) -> e1g1
+		{"white O-O-O", 0x0100, "e1c1"}, // from=4 (e1), to=0 (a1) -> e1c1
+		{"black O-O", 0x0F3F, "e8g8"},   // from=60 (e8), to=63 (h8) -> e8g8
+		{"black O-O-O", 0x0F38, "e8c8"}, // from=60 (e8), to=56 (a8) -> e8c8
 	}
 
 	for _, tt := range tests {

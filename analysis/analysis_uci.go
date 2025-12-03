@@ -60,7 +60,7 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 	const maxScanTokenSize = 1024 * 1024 // 1MB
 	buf := make([]byte, maxScanTokenSize)
 	scanner.Buffer(buf, maxScanTokenSize)
-	
+
 	engine := &AnalysisEngine{
 		cmd:      cmd,
 		stdin:    bufio.NewWriter(stdin),
@@ -69,18 +69,18 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 		multiPVs: make(map[int]AnalysisInfo),
 	}
 
-	logger.Info("ANALYSIS", "Initializing UCI analysis engine: %s", enginePath)
+	logger.Debug("ANALYSIS", "Initializing UCI analysis engine: %s", enginePath)
 
 	// Initialize UCI
 	engine.sendCommand("uci")
 
 	// Wait for uciok
-	logger.Info("ANALYSIS", "Waiting for uciok...")
+	logger.Debug("ANALYSIS", "Waiting for uciok...")
 	for engine.stdout.Scan() {
 		line := engine.stdout.Text()
 		logger.Debug("ANALYSIS", "<<< %s", line)
 		if strings.HasPrefix(line, "uciok") {
-			logger.Info("ANALYSIS", "Got uciok")
+			logger.Debug("ANALYSIS", "Got uciok")
 			break
 		}
 	}
@@ -89,12 +89,12 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 	engine.sendCommand("setoption name MultiPV value 3")
 
 	engine.sendCommand("isready")
-	logger.Info("ANALYSIS", "Waiting for readyok...")
+	logger.Debug("ANALYSIS", "Waiting for readyok...")
 	for engine.stdout.Scan() {
 		line := engine.stdout.Text()
 		logger.Debug("ANALYSIS", "<<< %s", line)
 		if strings.HasPrefix(line, "readyok") {
-			logger.Info("ANALYSIS", "Got readyok, engine ready")
+			logger.Debug("ANALYSIS", "UCI analysis engine ready")
 			break
 		}
 	}
