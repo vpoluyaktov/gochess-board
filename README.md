@@ -258,6 +258,16 @@ All flags support both single dash (`-flag`) and double dash (`--flag`) formats:
   - CECP engines use the book
   - Without this flag, only UCI engines are available (no CECP)
 
+- `--persistent-engines`: Enable persistent engine pool for better performance
+  ```bash
+  ./gochess-board --persistent-engines
+  ```
+  When enabled:
+  - Engines stay alive between moves (no startup overhead)
+  - Each game session gets its own engine instances
+  - Idle engines are automatically closed after 10 minutes
+  - TUI shows engine status: Move (calculating), Analysis, or Idle (with idle time)
+
 ### Examples
 
 ```bash
@@ -269,6 +279,12 @@ All flags support both single dash (`-flag`) and double dash (`--flag`) formats:
 
 # Simple mode (no TUI)
 ./gochess-board --no-tui --book-file /usr/share/games/gnuchess/book.bin
+
+# Run with persistent engines (engines stay alive between moves)
+./gochess-board --persistent-engines
+
+# Full featured: persistent engines + opening book
+./gochess-board --persistent-engines --book-file /usr/share/games/gnuchess/book.bin
 ```
 
 ### TUI Interface
@@ -279,6 +295,16 @@ By default, the application displays a beautiful terminal UI with a **horizontal
 - 📊 **Game Stats** (left): Total moves, white/black move counts, game duration
 - 🤖 **Stockfish** (center): Last move, think time, time since last move, ELO rating
 - 📍 **Position** (right): Current FEN notation
+
+**Active Engines Table:**
+- **Type**: Engine activity type
+  - `Move` - Currently calculating a move
+  - `Analysis` - Running position analysis
+  - `Idle (Xs)` - Pooled engine waiting (with idle time)
+- **Name**: Engine name (e.g., Stockfish 16, Toga II 3.0)
+- **ELO**: Engine strength rating (if set)
+- **wtime/btime**: White/black clock times
+- **winc/binc**: White/black increment times
 
 **Features:**
 - 🔴 **Live Updates**: Real-time updates every second

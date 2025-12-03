@@ -54,7 +54,8 @@ async function makeComputerMove() {
             whiteIncrement: gameState.timeControl.increment * 1000,
             blackIncrement: gameState.timeControl.increment * 1000,
             isUnlimited: gameState.timeControl.initial === 0 && gameState.timeControl.increment === 0,
-            engineOptions: {} // Can add ELO settings here later
+            engineOptions: {}, // Can add ELO settings here later
+            gameId: gameState.gameId  // For persistent engine pooling
         };
         
         const response = await fetch('/api/computer-move', {

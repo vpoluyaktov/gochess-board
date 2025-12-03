@@ -20,6 +20,20 @@ const (
 	defaultPort = "35256"
 )
 
+// createEngineFactory returns a factory function for creating chess engines
+func createEngineFactory() engines.EngineFactory {
+	return func(enginePath, engineName, engineType string) (engines.ChessEngine, error) {
+		switch engineType {
+		case "internal":
+			return builtin.NewInternalEngine(), nil
+		case "cecp":
+			return engines.NewCECPEngine(enginePath, engineName)
+		default: // "uci" or unknown defaults to UCI
+			return engines.NewUCIEngine(enginePath, engineName)
+		}
+	}
+}
+
 func main() {
 	// Customize usage to show double dashes (GNU-style)
 	flag.Usage = func() {
@@ -38,6 +52,8 @@ func main() {
 		fmt.Fprintf(flag.CommandLine.Output(), "        Log level: DEBUG, INFO, WARN, ERROR (default \"INFO\")\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "  --engine-only\n")
 		fmt.Fprintf(flag.CommandLine.Output(), "        Run built-in engine in UCI protocol mode\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "  --persistent-engines\n")
+		fmt.Fprintf(flag.CommandLine.Output(), "        Keep chess engines running between moves (reuse for same game)\n")
 	}
 
 	// Command line flags
@@ -48,6 +64,7 @@ func main() {
 	bookFile := flag.String("book-file", "", "Path to opening book file for polyglot (optional)")
 	logLevel := flag.String("log-level", "INFO", "Log level: DEBUG, INFO, WARN, ERROR")
 	engineOnly := flag.Bool("engine-only", false, "Run built-in engine in UCI protocol mode")
+	persistentEngines := flag.Bool("persistent-engines", false, "Keep chess engines running between moves (reuse for same game)")
 	flag.Parse()
 
 	// Initialize debug logging to file
@@ -81,6 +98,21 @@ func main() {
 
 	addr := fmt.Sprintf(":%s", *port)
 	url := fmt.Sprintf("http://localhost:%s", *port)
+
+	// Initialize persistent engine pool if requested
+	if *persistentEngines {
+		fmt.Println("Initializing persistent engine pool...")
+		engines.GlobalEnginePool = engines.NewEnginePool(
+			engines.DefaultIdleTimeout,
+			createEngineFactory(),
+		)
+		// Ensure pool is cleaned up on exit
+		defer func() {
+			if engines.GlobalEnginePool != nil {
+				engines.GlobalEnginePool.Close()
+			}
+		}()
+	}
 
 	// Display startup message
 	fmt.Println("Discovering chess engines...")

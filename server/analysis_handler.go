@@ -96,8 +96,9 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 			sessionID = fmt.Sprintf("analysis-%s", time.Now().Format("20060102-150405.000000"))
 
 			activeEngine := &engines.ActiveEngine{
-				Name:           engineName + " (Analysis)",
+				Name:           engineName,
 				Path:           enginePath,
+				Type:           engines.EngineTypeAnalysis,
 				ELO:            0, // Analysis engines run at full strength
 				WhiteTime:      0,
 				BlackTime:      0,

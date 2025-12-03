@@ -29,6 +29,7 @@ type MoveRequest struct {
 	BlackIncrement int               `json:"blackIncrement"` // Black's increment in milliseconds
 	IsUnlimited    bool              `json:"isUnlimited"`    // True for unlimited time (0+0) mode
 	EngineOptions  map[string]string `json:"engineOptions"`  // UCI engine options (e.g., UCI_Elo, UCI_LimitStrength)
+	GameID         string            `json:"gameId"`         // Game identifier for engine pooling (optional)
 }
 
 // MoveResponse represents the server's move response
@@ -156,6 +157,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	activeEngine := &engines.ActiveEngine{
 		Name:           engineName,
 		Path:           enginePath,
+		Type:           engines.EngineTypeMove,
 		ELO:            eloValue,
 		WhiteTime:      req.WhiteTime,
 		BlackTime:      req.BlackTime,
@@ -163,42 +165,65 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 		BlackIncrement: req.BlackIncrement,
 		StartTime:      time.Now(),
 		SessionID:      sessionID,
+		GameID:         req.GameID,
 	}
 	engines.GlobalMonitor.RegisterEngine(sessionID, activeEngine)
 	defer engines.GlobalMonitor.UnregisterEngine(sessionID)
 
-	// Initialize chess engine based on type
+	// Initialize chess engine based on mode (persistent pool or per-request)
 	var chessEngine engines.ChessEngine
-	if engineType == "internal" || enginePath == "internal" {
-		// Use built-in internal engine
-		chessEngine = builtin.NewInternalEngine()
-		logger.Info("CHESS", "Using built-in internal engine")
-	} else if engineType == "cecp" {
-		chessEngine, err = engines.NewCECPEngine(enginePath, engineName)
-		if err != nil {
-			logger.Error("CHESS", "Failed to initialize CECP engine %s: %v", engineName, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
-			return
-		}
-	} else {
-		chessEngine, err = engines.NewUCIEngine(enginePath, engineName)
-		if err != nil {
-			logger.Error("CHESS", "Failed to initialize UCI engine %s: %v", engineName, err)
-			w.WriteHeader(http.StatusInternalServerError)
-			json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
-			return
-		}
-	}
-	defer chessEngine.Close()
+	var usePooledEngine bool
 
-	// Apply engine options if provided
-	if len(req.EngineOptions) > 0 {
-		for optionName, optionValue := range req.EngineOptions {
-			if err := chessEngine.SetOption(optionName, optionValue); err != nil {
-				logger.Warn("CHESS", "Failed to set option %s=%s: %v", optionName, optionValue, err)
+	if engines.GlobalEnginePool != nil && req.GameID != "" {
+		// Persistent engine mode - use engine pool
+		chessEngine, err = engines.GlobalEnginePool.GetOrCreateEngine(
+			req.GameID, enginePath, engineName, engineType, req.EngineOptions)
+		if err != nil {
+			logger.Error("CHESS", "Failed to get engine from pool: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
+			return
+		}
+		usePooledEngine = true
+		// Don't close pooled engines - they are managed by the pool
+	} else {
+		// Per-request engine mode (original behavior)
+		if engineType == "internal" || enginePath == "internal" {
+			// Use built-in internal engine
+			chessEngine = builtin.NewInternalEngine()
+			logger.Info("CHESS", "Using built-in internal engine")
+		} else if engineType == "cecp" {
+			chessEngine, err = engines.NewCECPEngine(enginePath, engineName)
+			if err != nil {
+				logger.Error("CHESS", "Failed to initialize CECP engine %s: %v", engineName, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
+				return
+			}
+		} else {
+			chessEngine, err = engines.NewUCIEngine(enginePath, engineName)
+			if err != nil {
+				logger.Error("CHESS", "Failed to initialize UCI engine %s: %v", engineName, err)
+				w.WriteHeader(http.StatusInternalServerError)
+				json.NewEncoder(w).Encode(ErrorResponse{Error: "Engine initialization failed"})
+				return
 			}
 		}
+		defer chessEngine.Close()
+
+		// Apply engine options if provided (only for non-pooled engines)
+		if len(req.EngineOptions) > 0 {
+			for optionName, optionValue := range req.EngineOptions {
+				if err := chessEngine.SetOption(optionName, optionValue); err != nil {
+					logger.Warn("CHESS", "Failed to set option %s=%s: %v", optionName, optionValue, err)
+				}
+			}
+		}
+	}
+
+	// For pooled engines, release back to pool after use
+	if usePooledEngine {
+		defer engines.GlobalEnginePool.ReleaseEngine(req.GameID, enginePath)
 	}
 
 	// Get best move from engine (track time)
