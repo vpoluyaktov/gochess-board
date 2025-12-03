@@ -139,6 +139,7 @@ func (pb *PolyglotBook) ProbeWeighted(position *chess.Position) string {
 
 	// Calculate Zobrist hash for the position
 	key := pb.zobristHash(position)
+	logger.Debug("POLYGLOT_BOOK", "Calculated Zobrist hash: 0x%016X for FEN: %s", key, position.String())
 
 	// Binary search for entries with this key
 	matches := []PolyglotEntry{}
@@ -146,11 +147,18 @@ func (pb *PolyglotBook) ProbeWeighted(position *chess.Position) string {
 		return pb.Entries[i].Key >= key
 	})
 
+	logger.Debug("POLYGLOT_BOOK", "Binary search returned index: %d (total entries: %d)", idx, len(pb.Entries))
+	if idx < len(pb.Entries) {
+		logger.Debug("POLYGLOT_BOOK", "Entry at index has key: 0x%016X", pb.Entries[idx].Key)
+	}
+
 	// Collect all entries with matching key
 	for idx < len(pb.Entries) && pb.Entries[idx].Key == key {
 		matches = append(matches, pb.Entries[idx])
 		idx++
 	}
+
+	logger.Debug("POLYGLOT_BOOK", "Found %d matching entries", len(matches))
 
 	if len(matches) == 0 {
 		return ""
@@ -254,9 +262,51 @@ func (pb *PolyglotBook) zobristHash(position *chess.Position) uint64 {
 	}
 
 	// Hash en passant square
+	// According to Polyglot spec, only hash the en passant file if an en passant capture is actually possible
 	if position.EnPassantSquare() != chess.NoSquare {
-		file := int(position.EnPassantSquare()) % 8
-		hash ^= polyglotRandom64[polyglotEnPassantOffset+file]
+		epSquare := position.EnPassantSquare()
+		file := int(epSquare) % 8
+		rank := int(epSquare) / 8
+
+		// Check if there's a pawn that can actually capture en passant
+		// The en passant square is where the capturing pawn would land
+		// The capturing pawn must be on the same rank as the pawn that just moved (one rank away from ep square)
+		// For white to move: ep square is on rank 5 (index 5), pawns on rank 4 (index 4)
+		// For black to move: ep square is on rank 2 (index 2), pawns on rank 3 (index 3)
+		canCapture := false
+		board := position.Board()
+		turn := position.Turn()
+
+		// Determine which rank to check for capturing pawns
+		var checkRank int
+		if turn == chess.White {
+			checkRank = rank - 1 // White pawns are one rank below the ep square
+		} else {
+			checkRank = rank + 1 // Black pawns are one rank above the ep square
+		}
+
+		// Check left file
+		if file > 0 {
+			checkSquare := chess.Square(checkRank*8 + file - 1)
+			piece := board.Piece(checkSquare)
+			if piece.Type() == chess.Pawn && piece.Color() == turn {
+				canCapture = true
+			}
+		}
+
+		// Check right file
+		if !canCapture && file < 7 {
+			checkSquare := chess.Square(checkRank*8 + file + 1)
+			piece := board.Piece(checkSquare)
+			if piece.Type() == chess.Pawn && piece.Color() == turn {
+				canCapture = true
+			}
+		}
+
+		// Only hash the en passant file if a capture is possible
+		if canCapture {
+			hash ^= polyglotRandom64[polyglotEnPassantOffset+file]
+		}
 	}
 
 	// Hash side to move

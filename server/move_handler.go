@@ -83,6 +83,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 
 	// Check opening book first (if available)
 	if s.polyglotBook != nil {
+		logger.Debug("POLYGLOT_BOOK", "Probing book for position: %s", req.FEN)
 		bookMove := s.polyglotBook.ProbeWeighted(game.Position())
 		if bookMove != "" {
 			logger.Info("POLYGLOT_BOOK", "Book move found: %s", bookMove)
@@ -112,6 +113,8 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+		} else {
+			logger.Debug("POLYGLOT_BOOK", "No book move found for position")
 		}
 	}
 
