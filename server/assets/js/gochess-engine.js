@@ -34,16 +34,26 @@ async function makeComputerMove() {
     try {
         console.log('Making move with engine:', currentPlayer);
         
+        // Get move time for unlimited mode
+        var moveTimeMs = 0;
+        if (gameState.timeControl.initial === 0 && gameState.timeControl.increment === 0) {
+            // Unlimited mode: use configured move time
+            var moveTimeSelect = document.getElementById('moveTime');
+            var moveTimeSeconds = moveTimeSelect ? parseInt(moveTimeSelect.value) : 5;
+            moveTimeMs = moveTimeSeconds * 1000;
+        }
+        
         // Build request with all game state
         const requestBody = {
             fen: fen,
             moves: gameState.moveHistory,
             enginePath: currentPlayer,
-            moveTime: 0, // Use clock-based if available
+            moveTime: moveTimeMs, // Use configured time for unlimited mode
             whiteTime: gameState.whiteTimeMs,
             blackTime: gameState.blackTimeMs,
             whiteIncrement: gameState.timeControl.increment * 1000,
             blackIncrement: gameState.timeControl.increment * 1000,
+            isUnlimited: gameState.timeControl.initial === 0 && gameState.timeControl.increment === 0,
             engineOptions: {} // Can add ELO settings here later
         };
         

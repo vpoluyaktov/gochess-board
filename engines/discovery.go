@@ -149,17 +149,17 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 	}
 	engines = append(engines, internalEngine)
 	seen["internal"] = true
-	logger.Warn("ENGINE_DISCOVERY", "Added built-in engine: %s (ELO ~1000-1200)", internalEngine.Name)
+	logger.Info("ENGINE_DISCOVERY", "Added built-in engine: %s (ELO ~1000-1200)", internalEngine.Name)
 
 	// Log book file status
 	if bookFile != "" {
-		logger.Warn("ENGINE_DISCOVERY", "Opening book file specified: %s (will be used with native Polyglot book reader)", bookFile)
+		logger.Info("ENGINE_DISCOVERY", "Opening book file specified: %s", bookFile)
 	} else {
-		logger.Warn("ENGINE_DISCOVERY", "No opening book file specified")
+		logger.Debug("ENGINE_DISCOVERY", "No opening book file specified")
 	}
 
 	// Discover UCI engines
-	logger.Warn("ENGINE_DISCOVERY", "Discovering UCI engines...")
+	logger.Debug("ENGINE_DISCOVERY", "Discovering UCI engines...")
 	uciEngines := discoverEngineList(getEngineNames(uciEngineBaseNames), getEngineInfo)
 	for _, engine := range uciEngines {
 		if !seen[engine.Path] {
@@ -171,22 +171,22 @@ func DiscoverEngines(bookFile string) []EngineInfo {
 				eloInfo = fmt.Sprintf(" [ELO: %d-%d, default: %d]",
 					engine.MinElo, engine.MaxElo, engine.DefaultElo)
 			}
-			logger.Warn("ENGINE_DISCOVERY", "Discovered UCI engine: %s (command: %s)%s",
+			logger.Info("ENGINE_DISCOVERY", "Discovered UCI engine: %s (command: %s)%s",
 				engine.Name, engine.Path, eloInfo)
 		}
 	}
 
 	// Discover CECP engines (native CECP support, no external wrapper needed)
-	logger.Warn("ENGINE_DISCOVERY", "Discovering CECP engines...")
+	logger.Debug("ENGINE_DISCOVERY", "Discovering CECP engines...")
 	cecpEngines := discoverEngineList(getEngineNames(cecpEngineBaseNames), getCECPEngineInfo)
 	for _, engine := range cecpEngines {
-		logger.Warn("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
+		logger.Info("ENGINE_DISCOVERY", "Discovered CECP engine: %s (command: %s)",
 			engine.Name, engine.Path)
 	}
 
 	// Add CECP engines directly (native CECP support)
 	if len(cecpEngines) > 0 {
-		logger.Warn("ENGINE_DISCOVERY", "Adding CECP engines with native support...")
+		logger.Debug("ENGINE_DISCOVERY", "Adding CECP engines with native support...")
 		for _, engine := range cecpEngines {
 			if !seen[engine.Path] {
 				engines = append(engines, engine)

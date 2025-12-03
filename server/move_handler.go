@@ -14,8 +14,7 @@ import (
 )
 
 const (
-	stockfishPath = "/usr/games/stockfish"
-	moveTime      = 1000 * time.Millisecond // 1 second per move
+	moveTime = 1000 * time.Millisecond // 1 second per move (used for unlimited mode and default)
 )
 
 // MoveRequest represents a move request from the client
@@ -28,6 +27,7 @@ type MoveRequest struct {
 	BlackTime      int               `json:"blackTime"`      // Black's remaining time in milliseconds
 	WhiteIncrement int               `json:"whiteIncrement"` // White's increment in milliseconds
 	BlackIncrement int               `json:"blackIncrement"` // Black's increment in milliseconds
+	IsUnlimited    bool              `json:"isUnlimited"`    // True for unlimited time (0+0) mode
 	EngineOptions  map[string]string `json:"engineOptions"`  // UCI engine options (e.g., UCI_Elo, UCI_LimitStrength)
 }
 
@@ -83,6 +83,7 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 
 	// Check opening book first (if available)
 	if s.polyglotBook != nil {
+		logger.Debug("POLYGLOT_BOOK", "Probing book for position: %s", req.FEN)
 		bookMove := s.polyglotBook.ProbeWeighted(game.Position())
 		if bookMove != "" {
 			logger.Info("POLYGLOT_BOOK", "Book move found: %s", bookMove)
@@ -112,14 +113,19 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 					return
 				}
 			}
+		} else {
+			logger.Debug("POLYGLOT_BOOK", "No book move found for position")
 		}
 	}
 
 	// Determine which engine to use
 	enginePath := req.EnginePath
 	if enginePath == "" {
-		// Default to stockfish if no engine specified
-		enginePath = stockfishPath
+		// This should never happen as client always sends enginePath from discovered engines
+		logger.Error("CHESS", "No engine path specified in request")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ErrorResponse{Error: "No engine specified"})
+		return
 	}
 
 	// Generate session ID for tracking
@@ -203,8 +209,11 @@ func (s *Server) handleComputerMove(w http.ResponseWriter, r *http.Request) {
 	if req.MoveTime > 0 {
 		// Fixed time per move
 		bestMoveUCI, err = chessEngine.GetBestMove(req.FEN, time.Duration(req.MoveTime)*time.Millisecond)
+	} else if req.IsUnlimited {
+		// Unlimited time mode (0+0): use fixed time per move
+		bestMoveUCI, err = chessEngine.GetBestMove(req.FEN, moveTime)
 	} else if req.WhiteTime > 0 || req.BlackTime > 0 {
-		// Clock-based time management
+		// Clock-based time management (timed games)
 		whiteTime := time.Duration(req.WhiteTime) * time.Millisecond
 		blackTime := time.Duration(req.BlackTime) * time.Millisecond
 		whiteInc := time.Duration(req.WhiteIncrement) * time.Millisecond
