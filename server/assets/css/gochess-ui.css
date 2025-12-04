@@ -1088,6 +1088,41 @@ button:hover {
    MOBILE RESPONSIVE STYLES
    ======================================== */
 
+/* iPad Mini landscape and similar devices (1100-1150px) - Compact desktop layout */
+@media screen and (min-width: 1100px) and (max-width: 1150px) {
+    .container {
+        padding: 15px 20px;
+        max-width: 95%;
+        width: 95%;
+        box-sizing: border-box;
+    }
+    
+    .game-layout {
+        gap: 15px;
+        justify-content: center;
+    }
+    
+    #myBoard {
+        width: 480px;
+    }
+    
+    .move-history-panel {
+        flex: 1 1 280px;
+        max-width: 320px;
+    }
+    
+    .sidebar {
+        flex: 0 0 auto;
+        min-width: 180px;
+        max-width: 200px;
+    }
+    
+    button {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+}
+
 /* Tablet and smaller screens - Stack vertically for better fit */
 @media screen and (max-width: 1099px) {
     .container {
