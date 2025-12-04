@@ -1289,25 +1289,27 @@ button:hover {
 /* Mobile devices - Stack layout vertically */
 @media screen and (max-width: 768px) {
     body {
-        padding: 10px;
+        padding: 5px;
         min-height: auto;
     }
     
     .container {
-        padding: 15px;
+        padding: 10px;
         border-radius: 8px;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        width: 95%;
+        max-width: 95%;
     }
     
     h1 {
         font-size: 15px;
-        margin-bottom: 11px;
+        margin-bottom: 8px;
     }
     
     /* Stack the layout vertically */
     .game-layout {
         flex-direction: column;
-        gap: 15px;
+        gap: 10px;
         min-height: auto;
     }
     
@@ -1317,18 +1319,19 @@ button:hover {
         display: flex;
         flex-direction: column;
         align-items: center;
+        order: 1;
     }
     
-    /* Scale board to fit mobile screen */
+    /* Scale board to use 95% of container width */
     #myBoard {
-        width: 100% !important;
-        max-width: 400px;
+        width: 95% !important;
+        max-width: none;
     }
     
     /* Player info adjustments */
     .player-info {
-        width: 100%;
-        max-width: 400px;
+        width: 95%;
+        max-width: none;
         padding: 8px 12px;
         gap: 10px;
     }
@@ -1341,10 +1344,21 @@ button:hover {
     .clock-compact {
         padding: 6px 15px;
         min-width: 80px;
+        max-width: 120px;
     }
     
     .clock-time {
         font-size: 20px;
+    }
+    
+    /* Eval graph styling for mobile - match board width */
+    .eval-graph-container {
+        width: 95%;
+        margin: 15px auto 10px auto;
+    }
+    
+    .eval-graph-container canvas {
+        width: 100% !important;
     }
     
     /* Move history panel full width */
@@ -1354,13 +1368,23 @@ button:hover {
         order: 2;
     }
     
+    /* Fix move history overflow on mobile */
     .move-history {
-        min-height: 250px;
-        max-height: 300px;
+        overflow: visible;
+        padding-bottom: 10px;
     }
     
-    .move-history-text {
-        min-height: 150px;
+    /* Make move history text scrollable with proper border */
+    .move-history-text,
+    .CodeMirror {
+        min-height: 200px !important;
+        max-height: 250px !important;
+        height: 200px !important;
+        overflow-y: auto !important;
+        border: 1px solid #ccc !important;
+        border-radius: 5px !important;
+        margin: 8px !important;
+        box-sizing: border-box !important;
     }
     
     /* Sidebar full width */
@@ -1425,13 +1449,15 @@ button:hover {
         gap: 10px;
     }
     
-    /* Smaller board for very small screens */
+    /* Board uses 95% width on small screens too */
     #myBoard {
-        max-width: 320px;
+        width: 95% !important;
+        max-width: none;
     }
     
     .player-info {
-        max-width: 320px;
+        width: 95%;
+        max-width: none;
         padding: 6px 10px;
         gap: 8px;
         flex-wrap: wrap;
