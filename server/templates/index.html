@@ -80,6 +80,11 @@
                         <button onclick="goToEnd()" class="nav-btn" title="To last move">⏭️</button>
                     </div>
                     <textarea id="moveHistoryText" class="move-history-text" placeholder="Load PGN file or play moves..."></textarea>
+                    <!-- Evaluation Graph -->
+                    <div class="eval-graph-container" id="evalGraphContainer">
+                        <canvas id="evalGraph" width="280" height="60"></canvas>
+                        <div class="eval-graph-score" id="evalGraphScore"></div>
+                    </div>
                     <div class="move-history-footer">
                         <button onclick="loadPGNFile()" class="history-footer-btn" title="Load PGN from file">📂 Load PGN</button>
                         <button onclick="savePGNFile()" class="history-footer-btn" title="Save PGN to file">💾 Save PGN</button>
@@ -267,6 +272,7 @@
     <script src="/assets/js/gochess-navigation.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-opening.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-analysis.js?v={{.CacheBuster}}"></script>
+    <script src="/assets/js/gochess-eval-graph.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-pgn.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-variants.js?v={{.CacheBuster}}"></script>
     <script src="/assets/js/gochess-main.js?v={{.CacheBuster}}"></script>

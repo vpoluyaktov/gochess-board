@@ -199,6 +199,11 @@ function goToPosition(targetPosition) {
     updateInfoText();
     updateOpeningDisplay();
     updateAnalysisForCurrentPosition();
+    
+    // Update eval graph if visible
+    if (typeof updateEvalGraph === 'function') {
+        updateEvalGraph();
+    }
 }
 
 function goToEnd() {

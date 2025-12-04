@@ -23,7 +23,7 @@ var movePositionCacheLength = -1;
 // Debounce timer for history display updates
 var historyDisplayUpdateTimer = null;
 
-// Schedule a debounced update to the history display
+// Schedule a debounced update to the history display and eval graph
 // This prevents flicker when multiple scores arrive in quick succession
 function scheduleHistoryDisplayUpdate() {
     if (historyDisplayUpdateTimer) {
@@ -32,6 +32,10 @@ function scheduleHistoryDisplayUpdate() {
     historyDisplayUpdateTimer = setTimeout(function() {
         historyDisplayUpdateTimer = null;
         updateMoveHistoryDisplay();
+        // Also update eval graph if visible
+        if (typeof updateEvalGraph === 'function') {
+            updateEvalGraph();
+        }
     }, 100); // 100ms debounce
 }
 
@@ -192,6 +196,11 @@ function toggleAnalysis() {
         // Also start history scoring if there are missing scores
         if (hasMissingScores()) {
             startHistoryScoring();
+        }
+        
+        // Update eval graph with any existing scores
+        if (typeof updateEvalGraph === 'function') {
+            updateEvalGraph();
         }
     }
 }

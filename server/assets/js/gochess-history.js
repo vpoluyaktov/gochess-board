@@ -35,6 +35,11 @@ function updateMoveHistoryDisplay() {
     
     // Update position indicator
     updatePositionIndicator();
+    
+    // Update eval graph if available
+    if (typeof updateEvalGraph === 'function') {
+        updateEvalGraph();
+    }
 }
 
 // Global mapping of line numbers to variant metadata
