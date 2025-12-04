@@ -132,7 +132,7 @@ func (s *Server) handleAnalysisWebSocket(w http.ResponseWriter, r *http.Request)
 						logger.Debug("ANALYSIS", "Received from channel: depth=%d, move=%s", info.Depth, info.BestMove)
 					case <-ticker.C:
 						if lastInfo.BestMove != "" {
-							logger.Debug("ANALYSIS", "Sending to WebSocket: depth=%d, move=%s", lastInfo.Depth, lastInfo.BestMove)
+							logger.Debug("ANALYSIS", "Sending to WebSocket: depth=%d, move=%s, fen=%s", lastInfo.Depth, lastInfo.BestMove, lastInfo.FEN)
 							err := conn.WriteJSON(lastInfo)
 							if err != nil {
 								logger.Error("ANALYSIS", "WebSocket write error: %v", err)

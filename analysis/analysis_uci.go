@@ -15,14 +15,17 @@ import (
 
 // AnalysisEngine manages a UCI engine for analysis
 type AnalysisEngine struct {
-	cmd         *exec.Cmd
-	stdin       *bufio.Writer
-	stdout      *bufio.Scanner
-	mu          sync.Mutex
-	active      bool
-	multiPVs    map[int]AnalysisInfo // Store multiple PV lines indexed by multipv number
-	multiPVMu   sync.Mutex           // Mutex for multiPVs map
-	blackToMove bool                 // Track whose turn it is for proper MultiPV sorting
+	cmd             *exec.Cmd
+	stdin           *bufio.Writer
+	stdout          *bufio.Scanner
+	mu              sync.Mutex
+	active          bool
+	multiPVs        map[int]AnalysisInfo // Store multiple PV lines indexed by multipv number
+	multiPVMu       sync.Mutex           // Mutex for multiPVs map
+	blackToMove     bool                 // Track whose turn it is for proper MultiPV sorting
+	currentFEN      string               // Current position being analyzed
+	analysisChannel chan<- AnalysisInfo  // Current channel to send analysis results
+	channelMu       sync.Mutex           // Mutex for analysisChannel
 }
 
 // NewAnalysisEngine creates a new UCI analysis engine
@@ -100,7 +103,47 @@ func NewAnalysisEngine(enginePath string) (*AnalysisEngine, error) {
 		}
 	}
 
+	// Start a single reader goroutine that will run for the lifetime of the engine
+	go engine.readLoop()
+
 	return engine, nil
+}
+
+// readLoop continuously reads from the engine stdout and processes analysis info
+func (e *AnalysisEngine) readLoop() {
+	for e.active && e.stdout.Scan() {
+		line := e.stdout.Text()
+
+		if strings.HasPrefix(line, "info") {
+			info, multiPVNum := parseUCIAnalysisInfo(line)
+			if info.BestMove != "" {
+				// Store this PV line
+				e.multiPVMu.Lock()
+				e.multiPVs[multiPVNum] = info
+
+				// If we have all 3 PVs (or at least PV 1), send combined info
+				if multiPVNum == 1 || len(e.multiPVs) >= 3 {
+					combinedInfo := e.buildCombinedInfo()
+					e.multiPVMu.Unlock()
+
+					// Send to current analysis channel (if set)
+					e.channelMu.Lock()
+					ch := e.analysisChannel
+					e.channelMu.Unlock()
+
+					if ch != nil {
+						select {
+						case ch <- combinedInfo:
+						default:
+							// Channel full, skip this update
+						}
+					}
+				} else {
+					e.multiPVMu.Unlock()
+				}
+			}
+		}
+	}
 }
 
 func (e *AnalysisEngine) sendCommand(cmd string) error {
@@ -117,6 +160,14 @@ func (e *AnalysisEngine) sendCommand(cmd string) error {
 
 // StartAnalysis starts analyzing a position
 func (e *AnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error {
+	// Update the channel reference (the readLoop goroutine will use this)
+	e.channelMu.Lock()
+	e.analysisChannel = analysisChannel
+	e.channelMu.Unlock()
+
+	// Store the FEN being analyzed
+	e.currentFEN = fen
+
 	// Parse FEN to determine whose turn it is
 	parts := strings.Fields(fen)
 	if len(parts) >= 2 {
@@ -127,38 +178,14 @@ func (e *AnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- Analys
 
 	logger.Debug("ANALYSIS", "UCI StartAnalysis: FEN=%s, blackToMove=%v", fen, e.blackToMove)
 
+	// Clear old MultiPV data from previous position
+	e.multiPVMu.Lock()
+	e.multiPVs = make(map[int]AnalysisInfo)
+	e.multiPVMu.Unlock()
+
 	e.sendCommand("ucinewgame")
 	e.sendCommand("position fen " + fen)
 	e.sendCommand("go infinite")
-
-	go func() {
-		for e.active && e.stdout.Scan() {
-			line := e.stdout.Text()
-
-			if strings.HasPrefix(line, "info") {
-				info, multiPVNum := parseUCIAnalysisInfo(line)
-				if info.BestMove != "" {
-					// Store this PV line
-					e.multiPVMu.Lock()
-					e.multiPVs[multiPVNum] = info
-
-					// If we have all 3 PVs (or at least PV 1), send combined info
-					if multiPVNum == 1 || len(e.multiPVs) >= 3 {
-						combinedInfo := e.buildCombinedInfo()
-						e.multiPVMu.Unlock()
-
-						select {
-						case analysisChannel <- combinedInfo:
-						default:
-							// Channel full, skip this update
-						}
-					} else {
-						e.multiPVMu.Unlock()
-					}
-				}
-			}
-		}
-	}()
 
 	return nil
 }
@@ -228,6 +255,7 @@ func (e *AnalysisEngine) buildCombinedInfo() AnalysisInfo {
 			if e.blackToMove {
 				score = -score
 			}
+			logger.Debug("ANALYSIS", "UCI MultiPV[%d]: score=%d, scoreType=%s, moves=%v", i, score, pvInfo.ScoreType, pvInfo.PV)
 			multiPV = append(multiPV, PVLine{
 				Score:     score,
 				ScoreType: pvInfo.ScoreType,
@@ -241,6 +269,7 @@ func (e *AnalysisEngine) buildCombinedInfo() AnalysisInfo {
 	// No need to reverse for Black's turn since we've negated the scores.
 
 	baseInfo.MultiPV = multiPV
+	baseInfo.FEN = e.currentFEN // Include FEN for frontend sync verification
 	return baseInfo
 }
 

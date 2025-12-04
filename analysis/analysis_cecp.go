@@ -17,15 +17,14 @@ import (
 
 // CECPAnalysisEngine manages a CECP engine for analysis
 type CECPAnalysisEngine struct {
-	cmd            *exec.Cmd
-	stdin          *bufio.Writer
-	stdout         *bufio.Scanner
-	mu             sync.Mutex
-	active         bool
-	position       *chess.Position // Track current position for SAN to UCI conversion
-	blackToMove    bool            // Track whose turn it is for score normalization
-	currentStopCh  chan struct{}   // Stop channel for current analysis goroutine
-	analysisActive bool            // Whether analysis goroutine is running
+	cmd         *exec.Cmd
+	stdin       *bufio.Writer
+	stdout      *bufio.Scanner
+	mu          sync.Mutex
+	active      bool
+	position    *chess.Position // Track current position for SAN to UCI conversion
+	blackToMove bool            // Track whose turn it is for score normalization
+	currentFEN  string          // Current position being analyzed (for sync verification)
 }
 
 // NewCECPAnalysisEngine creates a new CECP analysis engine
@@ -110,6 +109,9 @@ func (e *CECPAnalysisEngine) sendCommand(cmd string) error {
 
 // StartAnalysis starts analyzing a position
 func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error {
+	// Store the FEN being analyzed
+	e.currentFEN = fen
+
 	// Parse and store the position for SAN to UCI conversion
 	fenObj, err := chess.FEN(fen)
 	if err != nil {
@@ -135,8 +137,9 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 	e.sendCommand("post") // Ensure thinking output is enabled
 	e.sendCommand("analyze")
 
-	// Capture blackToMove for the goroutine
+	// Capture values for the goroutine
 	blackToMove := e.blackToMove
+	currentFEN := e.currentFEN
 
 	// Read analysis output in a goroutine
 	go func() {
@@ -164,6 +167,9 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 						info.MultiPV[i].Score = -info.MultiPV[i].Score
 					}
 				}
+
+				// Include FEN for frontend sync verification
+				info.FEN = currentFEN
 
 				logger.Debug("ANALYSIS", "Sending analysis: depth=%d, score=%d, move=%s", info.Depth, info.Score, info.BestMove)
 				analysisChannel <- info
