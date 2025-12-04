@@ -79,6 +79,8 @@ async function makeComputerMove() {
         
         // Update move history
         gameState.moveHistory.push(data.move);
+        // Ensure moveScores array slot exists (score will be filled by analysis)
+        captureScoreForLastMove();
         gameState.currentPosition = gameState.moveHistory.length;
         
         // Highlight move

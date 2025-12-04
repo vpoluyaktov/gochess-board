@@ -40,6 +40,37 @@ function updateMoveHistoryDisplay() {
 // Global mapping of line numbers to variant metadata
 var lineToVariantMap = {};
 
+// Format score label (same logic as board.formatScoreLabel)
+function formatScoreLabel(scoreType, score) {
+    if (scoreType === 'cp' && score !== undefined) {
+        var scoreValue = (score / 100).toFixed(2);
+        return (score >= 0 ? '+' : '') + scoreValue;
+    } else if (scoreType === 'mate' && score !== undefined) {
+        return (score >= 0 ? '+' : '-') + 'M' + Math.abs(score);
+    }
+    return '';
+}
+
+// Format score for display
+// scoreData can be:
+//   - null/undefined: no score
+//   - number: legacy format (centipawns)
+//   - object: {score: number, scoreType: "cp"|"mate"}
+function formatScoreForDisplay(scoreData) {
+    if (scoreData === null || scoreData === undefined) {
+        return '';
+    }
+    
+    // Handle legacy format (just a number) - treat as centipawns
+    if (typeof scoreData === 'number') {
+        return ' (' + formatScoreLabel('cp', scoreData) + ')';
+    }
+    
+    // Handle new format with scoreType
+    var label = formatScoreLabel(scoreData.scoreType, scoreData.score);
+    return label ? ' (' + label + ')' : '';
+}
+
 function buildPGNWithVariants() {
     // Build tree-style notation with variants on separate lines
     const tempGame = new Chess();
@@ -152,15 +183,20 @@ function buildPGNWithVariants() {
         const san = uciToSan(gameState.moveHistory[i], tempGame);
         if (!san) break;
         
+        // Get score for this move (if available)
+        const score = gameState.moveScores && gameState.moveScores[i];
+        const scoreStr = formatScoreForDisplay(score);
+        
         if (isWhiteMove) {
             // Start new line for each move pair
             if (currentLine.length > 0) {
                 lines.push(currentLine);
             }
-            currentLine = moveNumber + '. ' + san.padEnd(6);
+            // Add move with score annotation
+            currentLine = moveNumber + '. ' + san + scoreStr + ' ';
         } else {
             // Black move - add to current line (completing the move pair)
-            currentLine += san;
+            currentLine += san + scoreStr;
             
             // If there's a pending variant from the white move, show it now
             if (pendingVariantPosition >= 0) {
@@ -318,13 +354,16 @@ function highlightCurrentMove() {
             continue;
         }
         
-        // Match main line format: "1. e4    e5"
-        const mainLinePattern = new RegExp('^' + moveNumber + '\\.\\s+(\\S+)(?:\\s+(\\S+))?');
+        // Match main line format: "1. e4 (+0.03) e5 (-0.05)" or "1. e4 (-M2) e5 (-M1)" (with optional scores)
+        // Score formats: (+0.03), (-0.05), (+M2), (-M1)
+        // Captures: [1] white move, [2] optional white score, [3] black move, [4] optional black score
+        const scorePattern = '\\([+-]?(?:M?\\d+\\.?\\d*|M\\d+)\\)';
+        const mainLinePattern = new RegExp('^' + moveNumber + '\\.\\s+(\\S+)(\\s+' + scorePattern + ')?\\s+(\\S+)?(\\s+' + scorePattern + ')?');
         const match = line.match(mainLinePattern);
         
         if (match) {
             const whiteMove = match[1];
-            const blackMove = match[2];
+            const blackMove = match[3];  // Group 3 due to optional score in group 2
             
             if (isWhiteMove && whiteMove) {
                 // Highlight white's move
@@ -342,8 +381,9 @@ function highlightCurrentMove() {
                 }
                 break;
             } else if (!isWhiteMove && blackMove) {
-                // Highlight black's move
-                const moveStart = line.indexOf(blackMove, line.indexOf(whiteMove) + whiteMove.length);
+                // Highlight black's move - search after white move and its optional score
+                const whiteEnd = line.indexOf(whiteMove) + whiteMove.length;
+                const moveStart = line.indexOf(blackMove, whiteEnd);
                 const moveEnd = moveStart + blackMove.length;
                 
                 moveHistoryEditor.markText(
@@ -382,9 +422,10 @@ function navigateToMoveAtClick(lineNum, ch) {
     // Clear any selected variant when clicking on main line
     gameState.selectedVariant = null;
     
-    // Parse main line format: "1. e4    e5"
-    // Extract move number and moves
-    const mainLinePattern = /^(\d+)\.\s+(\S+)(?:\s+(\S+))?/;
+    // Parse main line format: "1. e4 (+0.30) e5 (-0.05)" or "1. e4 e5" (with optional scores)
+    // Score formats: (+0.03), (-0.05), (+M2), (-M1)
+    const scorePattern = '(?:\\s+\\([+-]?(?:M?\\d+\\.?\\d*|M\\d+)\\))?';
+    const mainLinePattern = new RegExp('^(\\d+)\\.\\s+(\\S+)' + scorePattern + '(?:\\s+(\\S+)' + scorePattern + ')?');
     const match = line.match(mainLinePattern);
     
     if (!match) return;
@@ -403,6 +444,7 @@ function navigateToMoveAtClick(lineNum, ch) {
         // Clicked on white's move
         targetPosition = (moveNumber - 1) * 2 + 1;
     } else if (blackMove) {
+        // Find black move position (after white move and its optional score)
         const blackMoveStart = line.indexOf(blackMove, whiteMoveEnd);
         const blackMoveEnd = blackMoveStart + blackMove.length;
         

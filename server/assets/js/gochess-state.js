@@ -3,6 +3,7 @@
 
 var gameState = {
     moveHistory: [],           // UCI move list (e.g., ["e2e4", "e7e5"])
+    moveScores: [],            // Evaluation scores for each move: {score: number, scoreType: "cp"|"mate"}
     variants: {},              // Variants at each position: { position: [[variant moves], ...] }
     whiteTimeMs: 300000,       // 5 minutes default
     blackTimeMs: 300000,

@@ -662,6 +662,7 @@ function loadPGNFromText(text) {
         game.reset();
         board.position('start');
         gameState.moveHistory = [];
+        gameState.moveScores = [];
         gameState.variants = {};
         clearLastMoveHighlight();
         

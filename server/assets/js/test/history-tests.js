@@ -7,6 +7,7 @@ describe('Move History Display', function() {
         // Reset game state before each test
         gameState = {
             moveHistory: [],
+            moveScores: [],
             currentPosition: 0,
             variants: {},
             timeControl: { initial: 0, increment: 0 },
@@ -277,6 +278,59 @@ describe('Move History Display', function() {
             chai.assert.include(lines[0], '1. ');
             chai.assert.include(lines[1], '2. ');
             chai.assert.include(lines[2], '3. ');
+        });
+        
+        it('should display scores for moves when available', function() {
+            gameState.moveHistory = [
+                'e2e4', 'e7e5',
+                'g1f3', 'b8c6'
+            ];
+            // Scores in centipawns
+            gameState.moveScores = [
+                30,   // e4: +0.30
+                -10,  // e5: -0.10
+                25,   // Nf3: +0.25
+                -5    // Nc6: -0.05
+            ];
+            
+            const pgn = buildPGNWithVariants();
+            
+            // Should include score annotations
+            chai.assert.include(pgn, '(+0.30)', 'Should show positive score for e4');
+            chai.assert.include(pgn, '(-0.10)', 'Should show negative score for e5');
+            chai.assert.include(pgn, '(+0.25)', 'Should show positive score for Nf3');
+            chai.assert.include(pgn, '(-0.05)', 'Should show negative score for Nc6');
+        });
+        
+        it('should handle moves without scores gracefully', function() {
+            gameState.moveHistory = [
+                'e2e4', 'e7e5'
+            ];
+            // No scores provided
+            gameState.moveScores = [];
+            
+            const pgn = buildPGNWithVariants();
+            
+            // Should still display moves without scores
+            chai.assert.include(pgn, 'e4', 'Should show e4');
+            chai.assert.include(pgn, 'e5', 'Should show e5');
+            // Should not have score annotations
+            chai.assert.notInclude(pgn, '(+', 'Should not have positive score annotations');
+            chai.assert.notInclude(pgn, '(-', 'Should not have negative score annotations');
+        });
+        
+        it('should handle null scores in the array', function() {
+            gameState.moveHistory = [
+                'e2e4', 'e7e5'
+            ];
+            // Some scores are null (analysis wasn't running)
+            gameState.moveScores = [null, 15];
+            
+            const pgn = buildPGNWithVariants();
+            
+            // Should show score only for e5
+            chai.assert.notInclude(pgn, 'e4 (+', 'e4 should not have score');
+            chai.assert.include(pgn, '(+0.15)', 'e5 should have score');
         });
     });
 });

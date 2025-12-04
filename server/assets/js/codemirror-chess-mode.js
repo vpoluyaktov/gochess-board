@@ -22,6 +22,12 @@
                     return "chess-move-number";
                 }
 
+                // Score annotations - skip them (don't style)
+                // Formats: (+0.30), (-0.05), (+M2), (-M1)
+                if (stream.match(/^\([+-]?(?:M?\d+\.?\d*|M\d+)\)/)) {
+                    return null;
+                }
+
                 // Ellipsis for black's move number (e.g., "1...")
                 if (stream.match(/^\.\.\./)) {
                     return "chess-move-number";
