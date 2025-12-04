@@ -17,12 +17,15 @@ import (
 
 // CECPAnalysisEngine manages a CECP engine for analysis
 type CECPAnalysisEngine struct {
-	cmd      *exec.Cmd
-	stdin    *bufio.Writer
-	stdout   *bufio.Scanner
-	mu       sync.Mutex
-	active   bool
-	position *chess.Position // Track current position for SAN to UCI conversion
+	cmd            *exec.Cmd
+	stdin          *bufio.Writer
+	stdout         *bufio.Scanner
+	mu             sync.Mutex
+	active         bool
+	position       *chess.Position // Track current position for SAN to UCI conversion
+	blackToMove    bool            // Track whose turn it is for score normalization
+	currentStopCh  chan struct{}   // Stop channel for current analysis goroutine
+	analysisActive bool            // Whether analysis goroutine is running
 }
 
 // NewCECPAnalysisEngine creates a new CECP analysis engine
@@ -115,8 +118,25 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 	game := chess.NewGame(fenObj)
 	e.position = game.Position()
 
+	// Determine whose turn it is for score normalization
+	parts := strings.Fields(fen)
+	if len(parts) >= 2 {
+		e.blackToMove = parts[1] == "b"
+	} else {
+		e.blackToMove = false
+	}
+
+	// Mark engine as active before starting analysis
+	e.active = true
+
+	// Send force to ensure engine is not trying to make moves
+	e.sendCommand("force")
 	e.sendCommand("setboard " + fen)
+	e.sendCommand("post") // Ensure thinking output is enabled
 	e.sendCommand("analyze")
+
+	// Capture blackToMove for the goroutine
+	blackToMove := e.blackToMove
 
 	// Read analysis output in a goroutine
 	go func() {
@@ -134,6 +154,17 @@ func (e *CECPAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- An
 			// Format: depth score time nodes PV
 			info := parseCECPAnalysis(line, e.position)
 			if info.BestMove != "" {
+				// Normalize score to White's perspective:
+				// - Positive score = White is winning
+				// - Negative score = Black is winning
+				if blackToMove {
+					info.Score = -info.Score
+					// Also negate MultiPV scores
+					for i := range info.MultiPV {
+						info.MultiPV[i].Score = -info.MultiPV[i].Score
+					}
+				}
+
 				logger.Debug("ANALYSIS", "Sending analysis: depth=%d, score=%d, move=%s", info.Depth, info.Score, info.BestMove)
 				analysisChannel <- info
 			}

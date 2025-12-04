@@ -378,3 +378,66 @@ func TestMultiPV_MixedScoreTypes(t *testing.T) {
 		t.Error("Second line should be centipawn score")
 	}
 }
+
+// TestBuiltinAnalysisEngine_MultiPV_BlackToMove tests that scores are correctly
+// normalized to White's perspective when it's Black's turn.
+// All scores should be from White's perspective: positive = White winning, negative = Black winning.
+func TestBuiltinAnalysisEngine_MultiPV_BlackToMove(t *testing.T) {
+	engine, err := NewBuiltinAnalysisEngine()
+	if err != nil {
+		t.Fatalf("Failed to create builtin analysis engine: %v", err)
+	}
+	defer engine.Close()
+
+	analysisChannel := make(chan AnalysisInfo, 10)
+
+	// Position where Black is to move
+	// After 1.e4 e5 2.Nf3 - Black to move
+	fen := "rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 1 2"
+	err = engine.StartAnalysis(fen, analysisChannel)
+	if err != nil {
+		t.Fatalf("Failed to start analysis: %v", err)
+	}
+
+	// Wait for analysis results
+	var lastInfo AnalysisInfo
+	timeout := time.After(3 * time.Second)
+	gotResult := false
+
+	for !gotResult {
+		select {
+		case info := <-analysisChannel:
+			lastInfo = info
+			if info.Depth >= 3 && len(info.MultiPV) >= 2 {
+				gotResult = true
+			}
+		case <-timeout:
+			gotResult = true
+		}
+	}
+
+	engine.StopAnalysis()
+
+	if len(lastInfo.MultiPV) < 2 {
+		t.Skipf("Not enough PV lines to test (got %d)", len(lastInfo.MultiPV))
+	}
+
+	// Scores should be normalized to White's perspective and sorted descending
+	// (best move for the side to move should still be first, but scores are from White's view)
+	// For this roughly equal position, scores should be close to 0 or slightly negative
+	// (since Black has a slight initiative after e5)
+	for i := 0; i < len(lastInfo.MultiPV)-1; i++ {
+		// Scores should be in descending order (best for current player first)
+		// Since we normalize to White's perspective, for Black's turn the best move
+		// (most negative from White's view) should be first
+		if lastInfo.MultiPV[i].Score > lastInfo.MultiPV[i+1].Score {
+			t.Errorf("MultiPV not sorted correctly: PV %d score %d > PV %d score %d (should be <=)",
+				i+1, lastInfo.MultiPV[i].Score, i+2, lastInfo.MultiPV[i+1].Score)
+		}
+	}
+
+	t.Logf("Black to move: Found %d PV lines (scores normalized to White's perspective)", len(lastInfo.MultiPV))
+	for i, pv := range lastInfo.MultiPV {
+		t.Logf("  PV %d: %s (score: %d %s)", i+1, pv.Moves[0], pv.Score, pv.ScoreType)
+	}
+}
