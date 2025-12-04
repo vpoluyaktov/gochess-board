@@ -167,6 +167,7 @@ function handleVariantMessage(event) {
         
         // Set game state
         gameState.moveHistory = data.moveHistory.slice();
+        gameState.moveScores = [];  // Reset scores for variant window
         gameState.currentPosition = data.currentPosition;
         gameState.timeControl = data.timeControl;
         gameState.whiteTimeMs = data.whiteTimeMs;

@@ -662,6 +662,7 @@ function loadPGNFromText(text) {
         game.reset();
         board.position('start');
         gameState.moveHistory = [];
+        gameState.moveScores = [];
         gameState.variants = {};
         clearLastMoveHighlight();
         
@@ -736,6 +737,11 @@ function loadPGNFromText(text) {
         updateInfoText();
         updateAnalysisForCurrentPosition();
         saveGameState();
+        
+        // Clear eval graph for fresh start
+        if (typeof clearEvalGraph === 'function') {
+            clearEvalGraph();
+        }
         
         // Visual feedback
         const btn = event.target;

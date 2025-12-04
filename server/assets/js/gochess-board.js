@@ -62,6 +62,8 @@ function onDrop(source, target) {
         uciMove += move.promotion;
     }
     gameState.moveHistory.push(uciMove);
+    // Ensure moveScores array slot exists (score will be filled by analysis)
+    captureScoreForLastMove();
     gameState.currentPosition = gameState.moveHistory.length;
     
     // Auto-start clock on first move if not already running

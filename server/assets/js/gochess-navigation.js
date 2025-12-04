@@ -199,6 +199,11 @@ function goToPosition(targetPosition) {
     updateInfoText();
     updateOpeningDisplay();
     updateAnalysisForCurrentPosition();
+    
+    // Update eval graph if visible
+    if (typeof updateEvalGraph === 'function') {
+        updateEvalGraph();
+    }
 }
 
 function goToEnd() {
@@ -394,6 +399,7 @@ function newGame() {
     game.reset();
     board.position('start');
     gameState.moveHistory = [];
+    gameState.moveScores = [];
     gameState.variants = {};
     gameState.currentPosition = 0;
     gameState.isNavigating = false;
@@ -421,6 +427,11 @@ function newGame() {
     updateClockDisplay();
     updateInfoText();
     updateOpeningDisplay();
+    
+    // Clear eval graph
+    if (typeof clearEvalGraph === 'function') {
+        clearEvalGraph();
+    }
     
     // Clear saved state
     clearGameState();

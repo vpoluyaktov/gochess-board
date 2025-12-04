@@ -32,7 +32,7 @@ h1 {
 }
 
 .move-history-panel {
-    flex: 0 0 280px;
+    flex: 0 0 320px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -48,8 +48,8 @@ h1 {
 
 .sidebar {
     flex: 0 0 auto;
-    min-width: 250px;
-    max-width: 280px;
+    min-width: 200px;
+    max-width: 220px;
     display: flex;
     flex-direction: column;
     gap: 15px;
@@ -360,6 +360,36 @@ button:hover {
 
 .analysis-option label:hover {
     color: #667eea;
+}
+
+/* Evaluation Graph */
+.eval-graph-container {
+    background: #e8e8e8;
+    border-radius: 3px;
+    padding: 4px;
+    margin: 8px 0;
+    position: relative;
+    min-height: 60px;
+}
+
+#evalGraph {
+    width: 100%;
+    height: 52px;
+    cursor: pointer;
+    border-radius: 2px;
+    display: block;
+}
+
+.eval-graph-score {
+    position: absolute;
+    top: 6px;
+    right: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 1px 5px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
 }
 
 .clock-compact {
