@@ -11,6 +11,7 @@ type BuiltinAnalysisEngine struct {
 	engine        *builtin.InternalEngine
 	currentStopCh chan bool // Stop channel for current analysis
 	blackToMove   bool      // Track whose turn it is for proper MultiPV sorting
+	currentFEN    string    // Current position being analyzed (for sync verification)
 }
 
 // NewBuiltinAnalysisEngine creates a new built-in analysis engine
@@ -25,6 +26,9 @@ func NewBuiltinAnalysisEngine() (*BuiltinAnalysisEngine, error) {
 // StartAnalysis starts analyzing a position
 func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error {
 	logger.Debug("ANALYSIS", "Starting built-in engine analysis for position: %s", fen)
+
+	// Store the FEN being analyzed
+	e.currentFEN = fen
 
 	// Parse FEN to determine whose turn it is
 	parts := strings.Fields(fen)
@@ -60,8 +64,9 @@ func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<-
 		close(builtinCh) // Close channel when analysis completes
 	}()
 
-	// Capture blackToMove for the goroutine
+	// Capture values for the goroutine
 	blackToMove := e.blackToMove
+	currentFEN := e.currentFEN
 
 	// Forward analysis info from builtin channel to analysis channel
 	go func() {
@@ -111,6 +116,7 @@ func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<-
 					Time:      info.Time,
 					ScoreType: info.ScoreType,
 					MultiPV:   multiPV,
+					FEN:       currentFEN, // Include FEN for frontend sync verification
 				}
 
 				logger.Debug("ANALYSIS", "Built-in engine: depth=%d, score=%d (%s), move=%s, nodes=%d, nps=%d",

@@ -18,6 +18,7 @@ type AnalysisInfo struct {
 	Time      int      `json:"time"`      // milliseconds
 	ScoreType string   `json:"scoreType"` // "cp" or "mate" (for backward compatibility)
 	MultiPV   []PVLine `json:"multiPV"`   // multiple PV lines (for 3 best moves feature)
+	FEN       string   `json:"fen"`       // position being analyzed (for sync verification)
 }
 
 // AnalysisEngineInterface is an interface for analysis engines (UCI or CECP)

@@ -152,6 +152,17 @@ function startAnalysis() {
             return;
         }
         
+        // Verify the analysis is for the current position
+        // Compare only the position part of FEN (first 4 fields), ignoring move counters
+        if (data.fen) {
+            var analysisFenParts = data.fen.split(' ').slice(0, 4).join(' ');
+            var currentFenParts = game.fen().split(' ').slice(0, 4).join(' ');
+            if (analysisFenParts !== currentFenParts) {
+                // Silently discard stale analysis - this is expected during navigation
+                return;
+            }
+        }
+        
         // Update depth display in button
         if (data.depth !== undefined) {
             document.getElementById('analysisDepth').textContent = '(Depth: ' + data.depth + ')';
