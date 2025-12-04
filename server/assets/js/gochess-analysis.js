@@ -364,6 +364,15 @@ function analyzeNextHistoryPosition(enginePath) {
     var item = historyScoringQueue[historyScoringCurrent];
     console.log('Analyzing position ' + (historyScoringCurrent + 1) + '/' + historyScoringQueue.length + ' (move ' + (item.moveIndex + 1) + ')');
     
+    // If game is not running, navigate to the position being analyzed
+    // But don't navigate to the last move (avoids jumping to checkmate position)
+    if (!gameState.clockRunning && typeof goToPosition === 'function') {
+        var isLastMove = (item.moveIndex === gameState.moveHistory.length - 1);
+        if (!isLastMove) {
+            goToPosition(item.moveIndex + 1);
+        }
+    }
+    
     // Send analysis request
     if (historyScoringCurrent === 0) {
         // First position - start engine

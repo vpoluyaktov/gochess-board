@@ -428,6 +428,11 @@ function newGame() {
     updateInfoText();
     updateOpeningDisplay();
     
+    // Clear eval graph
+    if (typeof clearEvalGraph === 'function') {
+        clearEvalGraph();
+    }
+    
     // Clear saved state
     clearGameState();
     

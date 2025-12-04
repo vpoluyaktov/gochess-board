@@ -738,6 +738,11 @@ function loadPGNFromText(text) {
         updateAnalysisForCurrentPosition();
         saveGameState();
         
+        // Clear eval graph for fresh start
+        if (typeof clearEvalGraph === 'function') {
+            clearEvalGraph();
+        }
+        
         // Visual feedback
         const btn = event.target;
         const originalText = btn.textContent;

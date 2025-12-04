@@ -67,6 +67,12 @@ function drawEmptyGraph() {
     evalGraphCtx.setLineDash([]);
 }
 
+// Clear the eval graph (called on new game or PGN load)
+function clearEvalGraph() {
+    drawEmptyGraph();
+    updateEvalScoreDisplay(null);
+}
+
 // Update the evaluation graph with current scores
 function updateEvalGraph() {
     if (!evalGraphCanvas || !evalGraphCtx) {

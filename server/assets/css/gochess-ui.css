@@ -32,7 +32,7 @@ h1 {
 }
 
 .move-history-panel {
-    flex: 0 0 280px;
+    flex: 0 0 320px;
     display: flex;
     flex-direction: column;
     overflow: hidden;
@@ -48,8 +48,8 @@ h1 {
 
 .sidebar {
     flex: 0 0 auto;
-    min-width: 250px;
-    max-width: 280px;
+    min-width: 200px;
+    max-width: 220px;
     display: flex;
     flex-direction: column;
     gap: 15px;
