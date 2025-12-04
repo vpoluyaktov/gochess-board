@@ -96,13 +96,13 @@ function updatePlayerControls() {
     // Show/hide white player controls
     const whiteControls = document.getElementById('whitePlayerControls');
     if (whiteControls) {
-        whiteControls.style.display = isHuman(whitePlayer) ? 'block' : 'none';
+        whiteControls.style.display = isHuman(whitePlayer) ? 'flex' : 'none';
     }
     
     // Show/hide black player controls
     const blackControls = document.getElementById('blackPlayerControls');
     if (blackControls) {
-        blackControls.style.display = isHuman(blackPlayer) ? 'block' : 'none';
+        blackControls.style.display = isHuman(blackPlayer) ? 'flex' : 'none';
     }
     
     // Highlight draw buttons if threefold repetition is available
@@ -126,7 +126,8 @@ function updateDrawButtonState() {
 
 function restorePlayerSelections() {
     // DISABLED: Always start with Human vs Human (default dropdown values)
-    return;
+    // But still need to update controls visibility on page load
+    updatePlayerControls();
 }
 
 function savePlayerSelections() {

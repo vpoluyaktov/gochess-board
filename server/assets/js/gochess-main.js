@@ -1,6 +1,32 @@
 // Main Initialization
 // Handles board initialization, event listeners, and application startup
 
+// Move eval graph between board and history on mobile
+function adjustEvalGraphPosition() {
+    var evalGraph = document.getElementById('evalGraphContainer');
+    var boardArea = document.querySelector('.board-area');
+    var moveHistory = document.querySelector('.move-history');
+    var bottomPlayer = document.querySelector('.player-info.bottom-player');
+    
+    if (!evalGraph || !boardArea || !moveHistory || !bottomPlayer) return;
+    
+    var isMobile = window.innerWidth <= 768;
+    var isInBoardArea = evalGraph.parentElement === boardArea;
+    
+    if (isMobile && !isInBoardArea) {
+        // Mobile: move eval graph inside board-area, after bottom player
+        boardArea.appendChild(evalGraph);
+    } else if (!isMobile && isInBoardArea) {
+        // Desktop: move eval graph back inside move-history (before footer)
+        var footer = moveHistory.querySelector('.move-history-footer');
+        if (footer) {
+            moveHistory.insertBefore(evalGraph, footer);
+        } else {
+            moveHistory.appendChild(evalGraph);
+        }
+    }
+}
+
 $(document).ready(function() {
     // Initialize chessboard
     var config = {
@@ -15,10 +41,14 @@ $(document).ready(function() {
     
     board = Chessboard('myBoard', config);
     
-    // Make board responsive
+    // Make board responsive and adjust eval graph position
     $(window).resize(function() {
         board.resize();
+        adjustEvalGraphPosition();
     });
+    
+    // Initial eval graph position adjustment
+    adjustEvalGraphPosition();
     
     // Player selection event handlers
     document.getElementById('whitePlayer').addEventListener('change', function() {

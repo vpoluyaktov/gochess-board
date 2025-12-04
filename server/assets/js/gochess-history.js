@@ -3,6 +3,27 @@
 
 var moveHistoryEditor = null;
 
+// Helper function to check if we're on mobile
+function isMobileView() {
+    return window.innerWidth <= 768;
+}
+
+// Safe scroll that only scrolls within CodeMirror on mobile (doesn't move page)
+function safeScrollIntoView(editor, pos, margin) {
+    if (!editor) return;
+    
+    if (isMobileView()) {
+        // On mobile, use CodeMirror's internal scroll without affecting page scroll
+        var scrollInfo = editor.getScrollInfo();
+        var coords = editor.charCoords(pos, "local");
+        var scrollTop = coords.top - scrollInfo.clientHeight / 2;
+        editor.scrollTo(null, Math.max(0, scrollTop));
+    } else {
+        // On desktop, use normal scrollIntoView
+        editor.scrollIntoView(pos, margin);
+    }
+}
+
 function updateMoveHistoryDisplay() {
     if (!moveHistoryEditor) return;
     
@@ -29,7 +50,7 @@ function updateMoveHistoryDisplay() {
         const lastLine = moveHistoryEditor.lineCount();
         // Ensure line number is valid (0-indexed, so lastLine-1 is the last valid line)
         if (lastLine > 0) {
-            moveHistoryEditor.scrollIntoView({line: lastLine - 1, ch: 0});
+            safeScrollIntoView(moveHistoryEditor, {line: lastLine - 1, ch: 0});
         }
     }
     
@@ -382,7 +403,7 @@ function highlightCurrentMove() {
                 );
                 
                 if (gameState.isNavigating) {
-                    moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
+                    safeScrollIntoView(moveHistoryEditor, {line: lineNum, ch: moveStart}, 100);
                 }
                 break;
             } else if (!isWhiteMove && blackMove) {
@@ -398,7 +419,7 @@ function highlightCurrentMove() {
                 );
                 
                 if (gameState.isNavigating) {
-                    moveHistoryEditor.scrollIntoView({line: lineNum, ch: moveStart}, 100);
+                    safeScrollIntoView(moveHistoryEditor, {line: lineNum, ch: moveStart}, 100);
                 }
                 break;
             }
@@ -491,7 +512,7 @@ function highlightVariantLines(startLine, endLine) {
     }
     
     // Scroll to the variant
-    moveHistoryEditor.scrollIntoView({line: startLine, ch: 0}, 100);
+    safeScrollIntoView(moveHistoryEditor, {line: startLine, ch: 0}, 100);
 }
 
 // Select a variant line when clicked

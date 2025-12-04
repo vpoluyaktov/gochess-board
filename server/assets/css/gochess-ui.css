@@ -3,15 +3,16 @@ body {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     min-height: 100vh;
     margin: 0;
+    padding-top: 15px;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
 
 .container {
     background: white;
-    padding: 30px;
+    padding: 20px 30px;
     border-radius: 10px;
     box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
     max-width: fit-content;
@@ -21,7 +22,7 @@ body {
 h1 {
     text-align: center;
     color: #333;
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
 .game-layout {
@@ -114,7 +115,7 @@ button:hover {
 
 .player-info {
     display: flex;
-    align-items: center;
+    align-items: stretch;
     justify-content: space-between;
     gap: 15px;
     padding: 10px 15px;
@@ -132,23 +133,36 @@ button:hover {
     margin-top: 15px;
 }
 
-.player-controls {
+.player-selector-wrapper {
     display: flex;
+    flex-direction: column;
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+}
+
+.player-controls {
+    flex-direction: row;
     gap: 3px;
     flex-wrap: nowrap;
+    width: 100%;
+}
+
+.player-controls button {
+    flex: 1;
+    width: auto;
 }
 
 .resign-btn {
     background: #ef5350;
     color: white;
     border: none;
-    padding: 4px 8px;
-    border-radius: 3px;
+    padding: 6px 10px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 14px;
     transition: all 0.2s;
     white-space: nowrap;
-    min-width: 0;
 }
 
 .resign-btn:hover {
@@ -159,13 +173,12 @@ button:hover {
     background: #66bb6a;
     color: white;
     border: none;
-    padding: 4px 8px;
-    border-radius: 3px;
+    padding: 6px 10px;
+    border-radius: 5px;
     cursor: pointer;
-    font-size: 11px;
+    font-size: 14px;
     transition: all 0.2s;
     white-space: nowrap;
-    min-width: 0;
 }
 
 .draw-btn:hover {
@@ -191,7 +204,7 @@ button:hover {
 }
 
 .player-select {
-    flex: 1;
+    width: 100%;
     padding: 8px 15px;
     font-size: 16px;
     border: 2px solid #667eea;
@@ -400,6 +413,9 @@ button:hover {
     transition: all 0.3s;
     min-width: 100px;
     text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .clock-compact.active {
@@ -1072,6 +1088,41 @@ button:hover {
    MOBILE RESPONSIVE STYLES
    ======================================== */
 
+/* iPad Mini landscape and similar devices (1100-1150px) - Compact desktop layout */
+@media screen and (min-width: 1100px) and (max-width: 1150px) {
+    .container {
+        padding: 15px 20px;
+        max-width: 95%;
+        width: 95%;
+        box-sizing: border-box;
+    }
+    
+    .game-layout {
+        gap: 15px;
+        justify-content: center;
+    }
+    
+    #myBoard {
+        width: 480px;
+    }
+    
+    .move-history-panel {
+        flex: 1 1 280px;
+        max-width: 320px;
+    }
+    
+    .sidebar {
+        flex: 0 0 auto;
+        min-width: 180px;
+        max-width: 200px;
+    }
+    
+    button {
+        padding: 8px 15px;
+        font-size: 13px;
+    }
+}
+
 /* Tablet and smaller screens - Stack vertically for better fit */
 @media screen and (max-width: 1099px) {
     .container {
@@ -1082,8 +1133,8 @@ button:hover {
     }
     
     h1 {
-        font-size: 22px;
-        margin-bottom: 15px;
+        font-size: 17px;
+        margin-bottom: 11px;
     }
     
     /* Stack the layout vertically */
@@ -1165,8 +1216,8 @@ button:hover {
     }
     
     h1 {
-        font-size: 22px;
-        margin-bottom: 15px;
+        font-size: 17px;
+        margin-bottom: 11px;
     }
     
     /* Stack the layout vertically */
@@ -1238,25 +1289,27 @@ button:hover {
 /* Mobile devices - Stack layout vertically */
 @media screen and (max-width: 768px) {
     body {
-        padding: 10px;
+        padding: 5px;
         min-height: auto;
     }
     
     .container {
-        padding: 15px;
+        padding: 10px;
         border-radius: 8px;
         box-shadow: 0 5px 20px rgba(0, 0, 0, 0.15);
+        width: 95%;
+        max-width: 95%;
     }
     
     h1 {
-        font-size: 20px;
-        margin-bottom: 15px;
+        font-size: 15px;
+        margin-bottom: 8px;
     }
     
     /* Stack the layout vertically */
     .game-layout {
         flex-direction: column;
-        gap: 15px;
+        gap: 10px;
         min-height: auto;
     }
     
@@ -1266,18 +1319,19 @@ button:hover {
         display: flex;
         flex-direction: column;
         align-items: center;
+        order: 1;
     }
     
-    /* Scale board to fit mobile screen */
+    /* Scale board to use 95% of container width */
     #myBoard {
-        width: 100% !important;
-        max-width: 400px;
+        width: 95% !important;
+        max-width: none;
     }
     
     /* Player info adjustments */
     .player-info {
-        width: 100%;
-        max-width: 400px;
+        width: 95%;
+        max-width: none;
         padding: 8px 12px;
         gap: 10px;
     }
@@ -1290,10 +1344,21 @@ button:hover {
     .clock-compact {
         padding: 6px 15px;
         min-width: 80px;
+        max-width: 120px;
     }
     
     .clock-time {
         font-size: 20px;
+    }
+    
+    /* Eval graph styling for mobile - match board width */
+    .eval-graph-container {
+        width: 95%;
+        margin: 15px auto 10px auto;
+    }
+    
+    .eval-graph-container canvas {
+        width: 100% !important;
     }
     
     /* Move history panel full width */
@@ -1303,13 +1368,23 @@ button:hover {
         order: 2;
     }
     
+    /* Fix move history overflow on mobile */
     .move-history {
-        min-height: 250px;
-        max-height: 300px;
+        overflow: visible;
+        padding-bottom: 10px;
     }
     
-    .move-history-text {
-        min-height: 150px;
+    /* Make move history text scrollable with proper border */
+    .move-history-text,
+    .CodeMirror {
+        min-height: 200px !important;
+        max-height: 250px !important;
+        height: 200px !important;
+        overflow-y: auto !important;
+        border: 1px solid #ccc !important;
+        border-radius: 5px !important;
+        margin: 8px !important;
+        box-sizing: border-box !important;
     }
     
     /* Sidebar full width */
@@ -1366,21 +1441,23 @@ button:hover {
     }
     
     h1 {
-        font-size: 18px;
-        margin-bottom: 10px;
+        font-size: 14px;
+        margin-bottom: 8px;
     }
     
     .game-layout {
         gap: 10px;
     }
     
-    /* Smaller board for very small screens */
+    /* Board uses 95% width on small screens too */
     #myBoard {
-        max-width: 320px;
+        width: 95% !important;
+        max-width: none;
     }
     
     .player-info {
-        max-width: 320px;
+        width: 95%;
+        max-width: none;
         padding: 6px 10px;
         gap: 8px;
         flex-wrap: wrap;
