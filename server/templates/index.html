@@ -29,16 +29,18 @@
             <div class="board-area">
                 <!-- Black Player (Top) -->
                 <div class="player-info top-player">
-                    <select id="blackPlayer" class="player-select">
-                        <option value="human">Human</option>
-                        {{range .Engines}}
-                        <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
-                        {{end}}
-                    </select>
-                    <!-- Black player controls (only shown if human) -->
-                    <div id="blackPlayerControls" class="player-controls" style="display: none;">
-                        <button onclick="resignBlack()" class="resign-btn">Resign</button>
-                        <button onclick="offerDraw()" class="draw-btn">Draw</button>
+                    <div class="player-selector-wrapper">
+                        <select id="blackPlayer" class="player-select">
+                            <option value="human">Human</option>
+                            {{range .Engines}}
+                            <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                            {{end}}
+                        </select>
+                        <!-- Black player controls (only shown if human) -->
+                        <div id="blackPlayerControls" class="player-controls" style="display: none;">
+                            <button onclick="resignBlack()" class="resign-btn">Resign</button>
+                            <button onclick="offerDraw()" class="draw-btn">Draw</button>
+                        </div>
                     </div>
                     <div class="clock-compact" id="blackClock">
                         <div class="clock-time" id="blackClockTime">5:00</div>
@@ -49,16 +51,18 @@
                 
                 <!-- White Player (Bottom) -->
                 <div class="player-info bottom-player">
-                    <select id="whitePlayer" class="player-select">
-                        <option value="human">Human</option>
-                        {{range .Engines}}
-                        <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
-                        {{end}}
-                    </select>
-                    <!-- White player controls (only shown if human) -->
-                    <div id="whitePlayerControls" class="player-controls" style="display: none;">
-                        <button onclick="resignWhite()" class="resign-btn">Resign</button>
-                        <button onclick="offerDraw()" class="draw-btn">Draw</button>
+                    <div class="player-selector-wrapper">
+                        <select id="whitePlayer" class="player-select">
+                            <option value="human">Human</option>
+                            {{range .Engines}}
+                            <option value="{{.Path}}" data-engine-id="{{.ID}}">{{.Name}}</option>
+                            {{end}}
+                        </select>
+                        <!-- White player controls (only shown if human) -->
+                        <div id="whitePlayerControls" class="player-controls" style="display: none;">
+                            <button onclick="resignWhite()" class="resign-btn">Resign</button>
+                            <button onclick="offerDraw()" class="draw-btn">Draw</button>
+                        </div>
                     </div>
                     <div class="clock-compact" id="whiteClock">
                         <div class="clock-time" id="whiteClockTime">5:00</div>
