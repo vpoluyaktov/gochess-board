@@ -15,13 +15,14 @@ import (
 
 // AnalysisEngine manages a UCI engine for analysis
 type AnalysisEngine struct {
-	cmd       *exec.Cmd
-	stdin     *bufio.Writer
-	stdout    *bufio.Scanner
-	mu        sync.Mutex
-	active    bool
-	multiPVs  map[int]AnalysisInfo // Store multiple PV lines indexed by multipv number
-	multiPVMu sync.Mutex           // Mutex for multiPVs map
+	cmd         *exec.Cmd
+	stdin       *bufio.Writer
+	stdout      *bufio.Scanner
+	mu          sync.Mutex
+	active      bool
+	multiPVs    map[int]AnalysisInfo // Store multiple PV lines indexed by multipv number
+	multiPVMu   sync.Mutex           // Mutex for multiPVs map
+	blackToMove bool                 // Track whose turn it is for proper MultiPV sorting
 }
 
 // NewAnalysisEngine creates a new UCI analysis engine
@@ -116,6 +117,16 @@ func (e *AnalysisEngine) sendCommand(cmd string) error {
 
 // StartAnalysis starts analyzing a position
 func (e *AnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error {
+	// Parse FEN to determine whose turn it is
+	parts := strings.Fields(fen)
+	if len(parts) >= 2 {
+		e.blackToMove = parts[1] == "b"
+	} else {
+		e.blackToMove = false
+	}
+
+	logger.Debug("ANALYSIS", "UCI StartAnalysis: FEN=%s, blackToMove=%v", fen, e.blackToMove)
+
 	e.sendCommand("ucinewgame")
 	e.sendCommand("position fen " + fen)
 	e.sendCommand("go infinite")
@@ -190,17 +201,44 @@ func (e *AnalysisEngine) buildCombinedInfo() AnalysisInfo {
 		return AnalysisInfo{}
 	}
 
+	// UCI engines report scores from the side-to-move's perspective.
+	// A positive score means the position is good for the side to move.
+	// A negative score means the position is bad for the side to move.
+	//
+	// To normalize to White's perspective (positive = White winning):
+	// - When White is to move: keep the score as-is (positive = good for White)
+	// - When Black is to move: negate the score (positive from Black's view = negative from White's view)
+	//
+	// Example: After 1.e4, Black to move, Stockfish says +30 (good for Black)
+	//          We negate to -30 (bad for White = good for Black) ✓
+	//
+	// Example: After 1.e4, Black to move, Stockfish says -10 (bad for Black)
+	//          We negate to +10 (good for White) ✓
+	if e.blackToMove {
+		logger.Debug("ANALYSIS", "UCI: Black to move, negating score %d -> %d", baseInfo.Score, -baseInfo.Score)
+		baseInfo.Score = -baseInfo.Score
+	}
+
 	// Build MultiPV array with all available PV lines
 	multiPV := make([]PVLine, 0, 3)
 	for i := 1; i <= 3; i++ {
 		if pvInfo, exists := e.multiPVs[i]; exists {
+			score := pvInfo.Score
+			// Normalize score to White's perspective
+			if e.blackToMove {
+				score = -score
+			}
 			multiPV = append(multiPV, PVLine{
-				Score:     pvInfo.Score,
+				Score:     score,
 				ScoreType: pvInfo.ScoreType,
 				Moves:     pvInfo.PV,
 			})
 		}
 	}
+
+	// MultiPV is now normalized to White's perspective (positive = good for White).
+	// The array is already sorted by the engine with best move first.
+	// No need to reverse for Black's turn since we've negated the scores.
 
 	baseInfo.MultiPV = multiPV
 	return baseInfo

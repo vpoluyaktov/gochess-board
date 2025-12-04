@@ -3,12 +3,14 @@ package analysis
 import (
 	"gochess-board/engines/builtin"
 	"gochess-board/logger"
+	"strings"
 )
 
 // BuiltinAnalysisEngine manages the built-in engine for analysis
 type BuiltinAnalysisEngine struct {
 	engine        *builtin.InternalEngine
 	currentStopCh chan bool // Stop channel for current analysis
+	blackToMove   bool      // Track whose turn it is for proper MultiPV sorting
 }
 
 // NewBuiltinAnalysisEngine creates a new built-in analysis engine
@@ -23,6 +25,14 @@ func NewBuiltinAnalysisEngine() (*BuiltinAnalysisEngine, error) {
 // StartAnalysis starts analyzing a position
 func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<- AnalysisInfo) error {
 	logger.Debug("ANALYSIS", "Starting built-in engine analysis for position: %s", fen)
+
+	// Parse FEN to determine whose turn it is
+	parts := strings.Fields(fen)
+	if len(parts) >= 2 {
+		e.blackToMove = parts[1] == "b"
+	} else {
+		e.blackToMove = false
+	}
 
 	// Stop any previous analysis
 	if e.currentStopCh != nil {
@@ -50,6 +60,9 @@ func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<-
 		close(builtinCh) // Close channel when analysis completes
 	}()
 
+	// Capture blackToMove for the goroutine
+	blackToMove := e.blackToMove
+
 	// Forward analysis info from builtin channel to analysis channel
 	go func() {
 		for {
@@ -62,18 +75,35 @@ func (e *BuiltinAnalysisEngine) StartAnalysis(fen string, analysisChannel chan<-
 
 				// Convert builtin.AnalysisInfo to analysis.AnalysisInfo
 				// Need to convert builtin.PVLine to analysis.PVLine
+				// Also normalize scores to White's perspective:
+				// - Positive score = White is winning
+				// - Negative score = Black is winning
 				multiPV := make([]PVLine, len(info.MultiPV))
 				for i, pv := range info.MultiPV {
+					score := pv.Score
+					// Normalize score to White's perspective
+					if blackToMove {
+						score = -score
+					}
 					multiPV[i] = PVLine{
-						Score:     pv.Score,
+						Score:     score,
 						ScoreType: pv.ScoreType,
 						Moves:     pv.Moves,
 					}
 				}
 
+				// Normalize main score to White's perspective
+				mainScore := info.Score
+				if blackToMove {
+					mainScore = -mainScore
+				}
+
+				// MultiPV is now normalized to White's perspective.
+				// The array is already sorted by the engine with best move first.
+
 				analysisInfo := AnalysisInfo{
 					Depth:     info.Depth,
-					Score:     info.Score,
+					Score:     mainScore,
 					BestMove:  info.BestMove,
 					PV:        info.PV, // Real PV from engine
 					Nodes:     int64(info.Nodes),
