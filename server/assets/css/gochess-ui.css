@@ -1187,7 +1187,8 @@ button:hover {
     
     .move-history {
         min-height: 280px;
-        max-height: 350px;
+        max-height: none;
+        overflow: visible;
     }
     
     .move-history-text {
@@ -1270,7 +1271,8 @@ button:hover {
     
     .move-history {
         min-height: 280px;
-        max-height: 350px;
+        max-height: none;
+        overflow: visible;
     }
     
     .move-history-text {
@@ -1372,6 +1374,7 @@ button:hover {
     .move-history {
         overflow: visible;
         padding-bottom: 10px;
+        max-height: none;
     }
     
     /* Make move history text scrollable with proper border */
@@ -1519,7 +1522,8 @@ button:hover {
     /* Compact move history */
     .move-history {
         min-height: 200px;
-        max-height: 250px;
+        max-height: none;
+        overflow: visible;
     }
     
     .move-history-text {
