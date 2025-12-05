@@ -223,7 +223,7 @@ function hasMissingScores() {
 function startHistoryScoring() {
     if (historyScoringActive) return;
     
-    console.log('Starting history scoring...');
+    Logger.analysis.info('Starting history scoring...');
     
     // Build queue of positions to analyze (after each move)
     historyScoringQueue = [];
@@ -256,11 +256,11 @@ function startHistoryScoring() {
     }
     
     if (historyScoringQueue.length === 0) {
-        console.log('All moves already have scores');
+        Logger.analysis.info('All moves already have scores');
         return;
     }
     
-    console.log('Scoring ' + historyScoringQueue.length + ' positions...');
+    Logger.analysis.info('Scoring ' + historyScoringQueue.length + ' positions...');
     
     // Ensure moveScores array exists and is the right size
     if (!gameState.moveScores) {
@@ -283,7 +283,7 @@ function startHistoryScoring() {
     historyScoringWs = new WebSocket(wsUrl);
     
     historyScoringWs.onopen = function() {
-        console.log('History scoring WebSocket connected');
+        Logger.analysis.debug('History scoring WebSocket connected');
         // Start analyzing first position
         analyzeNextHistoryPosition(enginePath);
     };
@@ -292,7 +292,7 @@ function startHistoryScoring() {
         var data = JSON.parse(event.data);
         
         if (data.error) {
-            console.error('History scoring error:', data.error);
+            Logger.analysis.error('History scoring error', { error: data.error });
             return;
         }
         
@@ -325,7 +325,7 @@ function startHistoryScoring() {
                 scoreType: data.scoreType || 'cp'
             };
             var scoreStr = data.scoreType === 'mate' ? 'M' + data.score : data.score + ' cp';
-            console.log('Scored move ' + (currentItem.moveIndex + 1) + ': ' + scoreStr);
+            Logger.analysis.debug('Scored move ' + (currentItem.moveIndex + 1) + ': ' + scoreStr);
             
             // Update display
             updateMoveHistoryDisplay();
@@ -336,12 +336,12 @@ function startHistoryScoring() {
     };
     
     historyScoringWs.onerror = function(error) {
-        console.error('History scoring WebSocket error:', error);
+        Logger.analysis.error('History scoring WebSocket error', { error: error });
         stopHistoryScoring();
     };
     
     historyScoringWs.onclose = function() {
-        console.log('History scoring WebSocket closed');
+        Logger.analysis.debug('History scoring WebSocket closed');
         if (historyScoringActive) {
             stopHistoryScoring();
         }
@@ -355,14 +355,14 @@ function analyzeNextHistoryPosition(enginePath) {
     
     if (historyScoringCurrent >= historyScoringQueue.length) {
         // Done scoring all positions
-        console.log('History scoring complete!');
+        Logger.analysis.info('History scoring complete!');
         stopHistoryScoring();
         // Regular analysis is already running, no need to start it
         return;
     }
     
     var item = historyScoringQueue[historyScoringCurrent];
-    console.log('Analyzing position ' + (historyScoringCurrent + 1) + '/' + historyScoringQueue.length + ' (move ' + (item.moveIndex + 1) + ')');
+    Logger.analysis.debug('Analyzing position ' + (historyScoringCurrent + 1) + '/' + historyScoringQueue.length + ' (move ' + (item.moveIndex + 1) + ')');
     
     // If game is not running, navigate to the position being analyzed
     // But don't navigate to the last move (avoids jumping to checkmate position)
@@ -426,7 +426,7 @@ function startAnalysis() {
     analysisWs = new WebSocket(wsUrl);
     
     analysisWs.onopen = function() {
-        console.log('Analysis WebSocket connected');
+        Logger.analysis.debug('Analysis WebSocket connected');
         analysisActive = true;
         document.getElementById('analysisToggle').innerHTML = '⏹️ Stop Analysis <span id="analysisDepth" style="opacity: 0.7; font-size: 0.85em;"></span>';
         
@@ -441,7 +441,7 @@ function startAnalysis() {
         var data = JSON.parse(event.data);
         
         if (data.error) {
-            console.error('Analysis error:', data.error);
+            Logger.analysis.error('Analysis error', { error: data.error });
             return;
         }
         
@@ -537,12 +537,12 @@ function startAnalysis() {
     };
     
     analysisWs.onerror = function(error) {
-        console.error('Analysis WebSocket error:', error);
+        Logger.analysis.error('Analysis WebSocket error', { error: error });
         stopAnalysis();
     };
     
     analysisWs.onclose = function() {
-        console.log('Analysis WebSocket closed');
+        Logger.analysis.debug('Analysis WebSocket closed');
         if (analysisActive) {
             stopAnalysis();
         }

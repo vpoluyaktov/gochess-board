@@ -141,17 +141,15 @@ function savePlayerSelections() {
 
 function resignWhite() {
     showConfirm('White resigns. Black wins!', function() {
-        stopClock();
+        handleGameEnd();
         showGameOver('Game Over: Black wins by resignation');
-        // Optionally start a new game or disable moves
     });
 }
 
 function resignBlack() {
     showConfirm('Black resigns. White wins!', function() {
-        stopClock();
+        handleGameEnd();
         showGameOver('Game Over: White wins by resignation');
-        // Optionally start a new game or disable moves
     });
 }
 
@@ -159,18 +157,12 @@ function offerDraw() {
     // Check if draw can be claimed by threefold repetition
     if (game.in_threefold_repetition()) {
         showConfirm('Threefold repetition detected! Claim draw?', function() {
-            stopClock();
-            if (analysisActive) {
-                stopAnalysis();
-            }
+            handleGameEnd();
             showGameOver('Game Over: Draw by threefold repetition');
         });
     } else {
         showConfirm('Offer a draw?', function() {
-            stopClock();
-            if (analysisActive) {
-                stopAnalysis();
-            }
+            handleGameEnd();
             showGameOver('Game Over: Draw by agreement');
         });
     }

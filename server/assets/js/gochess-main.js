@@ -82,6 +82,12 @@ $(document).ready(function() {
         var initialMinutes = parseInt(parts[0]);
         var incrementSeconds = parseInt(parts[1]);
         
+        Logger.game.info('User changed time control', {
+            selectedValue: value,
+            initialMinutes: initialMinutes,
+            incrementSeconds: incrementSeconds
+        });
+        
         setTimeControl(initialMinutes, incrementSeconds);
         stopClock();
         
@@ -100,10 +106,18 @@ $(document).ready(function() {
     // Set default to Unlimited (0+0)
     var select = document.getElementById('timeControl');
     select.value = '0+0';
+    
+    Logger.game.debug('Setting default time control to 0+0 (Unlimited)');
+    
     setTimeControl(0, 0);
     
     // Show move time selector for unlimited mode
     document.getElementById('moveTimeSelection').style.display = 'flex';
+    
+    Logger.game.info('Initialization complete', {
+        timeControl: gameState.timeControl,
+        clockRunning: gameState.clockRunning
+    });
     
     /* DISABLED CODE: Restore time control preference
     var savedTimeControl = localStorage.getItem('timeControl');
@@ -163,18 +177,17 @@ $(document).ready(function() {
                 clickTimer = null;
                 lastClickLine = null;
                 
-                console.log('Double-click detected at line:', pos.line);
-                console.log('Variant info at line:', lineToVariantMap[pos.line]);
+                Logger.navigation.debug('Double-click detected', { line: pos.line, variantInfo: lineToVariantMap[pos.line] });
                 
                 // Check if this is a variant line
                 if (isVariantLine) {
-                    console.log('Opening variant at line', pos.line);
+                    Logger.navigation.debug('Opening variant at line', { line: pos.line });
                     // Select the variant first
                     selectVariantLine(pos.line);
                     // Then open it
                     openVariation();
                 } else {
-                    console.log('Not a variant line, navigating normally');
+                    Logger.navigation.trace('Not a variant line, navigating normally');
                     navigateToMoveAtClick(pos.line, pos.ch);
                 }
             } else {

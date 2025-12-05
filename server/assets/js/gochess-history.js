@@ -529,7 +529,7 @@ function selectVariantLine(lineNum) {
     
     // Validate that the variant still exists
     if (!gameState.variants[position] || !gameState.variants[position][index]) {
-        console.warn('Variant no longer exists:', position, index);
+        Logger.navigation.warn('Variant no longer exists', { position, index });
         return;
     }
     

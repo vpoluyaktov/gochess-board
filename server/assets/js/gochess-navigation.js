@@ -266,34 +266,32 @@ function openVariation() {
         // Use the clicked/selected variant
         variantPosition = gameState.selectedVariant.position;
         variantIndex = gameState.selectedVariant.index;
-        console.log('Opening selected variant:', { variantPosition, variantIndex, selectedVariant: gameState.selectedVariant });
+        Logger.navigation.debug('Opening selected variant', { variantPosition, variantIndex, selectedVariant: gameState.selectedVariant });
     } else {
         // Use variant at current position (legacy behavior)
         const currentMoveIndex = gameState.currentPosition > 0 ? gameState.currentPosition - 1 : -1;
         
         if (currentMoveIndex < 0 || !gameState.variants[currentMoveIndex] || 
             gameState.variants[currentMoveIndex].length === 0) {
-            console.log('No variant at current position:', currentMoveIndex);
+            Logger.navigation.debug('No variant at current position', { currentMoveIndex });
             return;
         }
         
         variantPosition = currentMoveIndex;
         variantIndex = 0; // Default to first variant
-        console.log('Opening variant at current position:', { variantPosition, variantIndex });
+        Logger.navigation.debug('Opening variant at current position', { variantPosition, variantIndex });
     }
     
     // Validate variant exists
-    console.log('Checking if variant exists:', { 
+    Logger.navigation.trace('Checking if variant exists', { 
         variantPosition, 
         variantIndex,
-        variantExists: gameState.variants[variantPosition] !== undefined,
-        variantAtIndex: gameState.variants[variantPosition] ? gameState.variants[variantPosition][variantIndex] : undefined
+        variantExists: gameState.variants[variantPosition] !== undefined
     });
     
     if (!gameState.variants[variantPosition] || 
         !gameState.variants[variantPosition][variantIndex]) {
-        console.log('Variant does not exist at position', variantPosition, 'index', variantIndex);
-        console.log('Available variants:', gameState.variants);
+        Logger.navigation.debug('Variant does not exist', { variantPosition, variantIndex });
         return;
     }
     
@@ -338,14 +336,14 @@ function openVariation() {
     const readyListener = function(event) {
         if (event.origin !== window.location.origin) return;
         if (event.data.type === 'variant-ready' && !messageSent) {
-            console.log('Variant window is ready, sending data');
+            Logger.navigation.debug('Variant window is ready, sending data');
             messageSent = true;
             try {
-                console.log('Sending variant data to child window:', variantData);
+                Logger.navigation.trace('Sending variant data to child window', variantData);
                 variantWindow.postMessage(variantData, window.location.origin);
-                console.log('Variant data sent successfully');
+                Logger.navigation.debug('Variant data sent successfully');
             } catch (e) {
-                console.error('Error sending variant data:', e);
+                Logger.navigation.error('Error sending variant data', { error: e.message });
             }
             window.removeEventListener('message', readyListener);
         }
@@ -356,12 +354,12 @@ function openVariation() {
     // Fallback: if no ready signal after 5 seconds, try sending anyway
     setTimeout(function() {
         if (!messageSent && variantWindow && !variantWindow.closed) {
-            console.log('Timeout waiting for ready signal, sending anyway');
+            Logger.navigation.warn('Timeout waiting for ready signal, sending anyway');
             try {
                 variantWindow.postMessage(variantData, window.location.origin);
                 messageSent = true;
             } catch (e) {
-                console.error('Error sending variant data:', e);
+                Logger.navigation.error('Error sending variant data', { error: e.message });
             }
         }
         window.removeEventListener('message', readyListener);
@@ -395,6 +393,8 @@ function updateVariantButtons() {
 // -------------------------------------------------------------------------
 
 function newGame() {
+    Logger.game.info('Starting new game');
+    
     // Reset game state
     game.reset();
     board.position('start');
@@ -410,9 +410,16 @@ function newGame() {
     gameState.gameStartTime = Date.now();
     gameState.gameId = generateGameId();  // New game ID for engine pooling
     
+    Logger.game.debug('New game state reset', {
+        whiteTimeMs: gameState.whiteTimeMs,
+        blackTimeMs: gameState.blackTimeMs,
+        timeControl: gameState.timeControl
+    });
+    
     // Stop clock if running
     if (gameState.clockInterval) {
         clearInterval(gameState.clockInterval);
+        Logger.clock.debug('Cleared existing clock interval', { intervalId: gameState.clockInterval });
         gameState.clockInterval = null;
     }
     

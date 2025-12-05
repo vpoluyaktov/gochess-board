@@ -49,7 +49,7 @@ async function updateOpeningDisplay() {
         });
         
         if (!response.ok) {
-            console.error('Failed to fetch opening info');
+            Logger.game.error('Failed to fetch opening info');
             return;
         }
         
@@ -63,6 +63,6 @@ async function updateOpeningDisplay() {
             document.getElementById('openingDisplay').style.display = 'none';
         }
     } catch (error) {
-        console.error('Error fetching opening info:', error);
+        Logger.game.error('Error fetching opening info', { error: error.message });
     }
 }
