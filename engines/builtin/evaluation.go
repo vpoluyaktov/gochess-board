@@ -80,6 +80,18 @@ var kingMiddleGameTable = [64]int{
 	20, 30, 10, 0, 0, 10, 30, 20,
 }
 
+// King endgame table - king should be active in endgame
+var kingEndGameTable = [64]int{
+	-50, -40, -30, -20, -20, -30, -40, -50,
+	-30, -20, -10, 0, 0, -10, -20, -30,
+	-30, -10, 20, 30, 30, 20, -10, -30,
+	-30, -10, 30, 40, 40, 30, -10, -30,
+	-30, -10, 30, 40, 40, 30, -10, -30,
+	-30, -10, 20, 30, 30, 20, -10, -30,
+	-30, -30, 0, 0, 0, 0, -30, -30,
+	-50, -30, -30, -30, -30, -30, -30, -50,
+}
+
 // getPieceValue returns the material value of a piece
 func getPieceValue(piece chess.Piece) int {
 	switch piece.Type() {
@@ -102,6 +114,11 @@ func getPieceValue(piece chess.Piece) int {
 
 // getPieceSquareValue returns the positional value for a piece on a square
 func getPieceSquareValue(piece chess.Piece, sq chess.Square) int {
+	return getPieceSquareValueWithPhase(piece, sq, false)
+}
+
+// getPieceSquareValueWithPhase returns the positional value considering game phase
+func getPieceSquareValueWithPhase(piece chess.Piece, sq chess.Square, isEndgame bool) int {
 	// Convert square to array index
 	sqIndex := int(sq)
 
@@ -122,6 +139,9 @@ func getPieceSquareValue(piece chess.Piece, sq chess.Square) int {
 	case chess.Queen:
 		return queenTable[sqIndex]
 	case chess.King:
+		if isEndgame {
+			return kingEndGameTable[sqIndex]
+		}
 		return kingMiddleGameTable[sqIndex]
 	default:
 		return 0
@@ -174,8 +194,205 @@ func (e *InternalEngine) evaluate(pos *chess.Position) int {
 	score += evaluateMobility(pos, chess.White)
 	score -= evaluateMobility(pos, chess.Black)
 
+	// Add king attack evaluation (bonus for attacking enemy king zone)
+	score += evaluateKingAttack(pos, chess.White)
+	score -= evaluateKingAttack(pos, chess.Black)
+
 	// Return score from white's perspective
 	return score
+}
+
+// evaluateKingAttack evaluates attacks on the enemy king zone
+func evaluateKingAttack(pos *chess.Position, color chess.Color) int {
+	score := 0
+	board := pos.Board()
+
+	// Find enemy king position
+	enemyColor := chess.Black
+	if color == chess.Black {
+		enemyColor = chess.White
+	}
+
+	var enemyKingSquare chess.Square
+	for sq := 0; sq < 64; sq++ {
+		piece := board.Piece(chess.Square(sq))
+		if piece.Type() == chess.King && piece.Color() == enemyColor {
+			enemyKingSquare = chess.Square(sq)
+			break
+		}
+	}
+
+	kingRank := int(enemyKingSquare) / 8
+	kingFile := int(enemyKingSquare) % 8
+
+	// Count pieces attacking squares around enemy king
+	attackers := 0
+	attackWeight := 0
+
+	for sq := 0; sq < 64; sq++ {
+		piece := board.Piece(chess.Square(sq))
+		if piece == chess.NoPiece || piece.Color() != color {
+			continue
+		}
+
+		// Check if this piece attacks any square in the king zone (3x3 around king)
+		for dr := -1; dr <= 1; dr++ {
+			for df := -1; df <= 1; df++ {
+				targetRank := kingRank + dr
+				targetFile := kingFile + df
+				if targetRank < 0 || targetRank > 7 || targetFile < 0 || targetFile > 7 {
+					continue
+				}
+
+				targetSq := chess.Square(targetRank*8 + targetFile)
+				if canPieceAttack(board, chess.Square(sq), targetSq, piece) {
+					attackers++
+					// Weight by piece type - queens and rooks are more dangerous
+					switch piece.Type() {
+					case chess.Queen:
+						attackWeight += 4
+					case chess.Rook:
+						attackWeight += 3
+					case chess.Bishop, chess.Knight:
+						attackWeight += 2
+					case chess.Pawn:
+						attackWeight += 1
+					}
+				}
+			}
+		}
+	}
+
+	// Bonus for multiple attackers (attacks are more dangerous when coordinated)
+	if attackers >= 2 {
+		score += attackWeight * 5
+	}
+
+	return score
+}
+
+// canPieceAttack checks if a piece can attack a target square
+func canPieceAttack(board *chess.Board, from, to chess.Square, piece chess.Piece) bool {
+	fromRank := int(from) / 8
+	fromFile := int(from) % 8
+	toRank := int(to) / 8
+	toFile := int(to) % 8
+
+	rankDiff := toRank - fromRank
+	fileDiff := toFile - fromFile
+	absRankDiff := rankDiff
+	if absRankDiff < 0 {
+		absRankDiff = -absRankDiff
+	}
+	absFileDiff := fileDiff
+	if absFileDiff < 0 {
+		absFileDiff = -absFileDiff
+	}
+
+	switch piece.Type() {
+	case chess.Pawn:
+		if absFileDiff == 1 {
+			if piece.Color() == chess.White && rankDiff == 1 {
+				return true
+			} else if piece.Color() == chess.Black && rankDiff == -1 {
+				return true
+			}
+		}
+
+	case chess.Knight:
+		if (absRankDiff == 2 && absFileDiff == 1) || (absRankDiff == 1 && absFileDiff == 2) {
+			return true
+		}
+
+	case chess.Bishop:
+		if absRankDiff == absFileDiff && absRankDiff > 0 {
+			return isDiagClear(board, from, to)
+		}
+
+	case chess.Rook:
+		if (absRankDiff == 0 || absFileDiff == 0) && (absRankDiff > 0 || absFileDiff > 0) {
+			return isStraightPathClear(board, from, to)
+		}
+
+	case chess.Queen:
+		if absRankDiff == absFileDiff && absRankDiff > 0 {
+			return isDiagClear(board, from, to)
+		} else if (absRankDiff == 0 || absFileDiff == 0) && (absRankDiff > 0 || absFileDiff > 0) {
+			return isStraightPathClear(board, from, to)
+		}
+
+	case chess.King:
+		if absRankDiff <= 1 && absFileDiff <= 1 {
+			return true
+		}
+	}
+
+	return false
+}
+
+// isDiagClear checks if diagonal is clear (for evaluation)
+func isDiagClear(board *chess.Board, from, to chess.Square) bool {
+	fromRank := int(from) / 8
+	fromFile := int(from) % 8
+	toRank := int(to) / 8
+	toFile := int(to) % 8
+
+	rankDir := 1
+	if toRank < fromRank {
+		rankDir = -1
+	}
+	fileDir := 1
+	if toFile < fromFile {
+		fileDir = -1
+	}
+
+	rank := fromRank + rankDir
+	file := fromFile + fileDir
+
+	for rank != toRank && file != toFile {
+		sq := chess.Square(rank*8 + file)
+		if board.Piece(sq) != chess.NoPiece {
+			return false
+		}
+		rank += rankDir
+		file += fileDir
+	}
+
+	return true
+}
+
+// isStraightPathClear checks if straight path is clear (for evaluation)
+func isStraightPathClear(board *chess.Board, from, to chess.Square) bool {
+	fromRank := int(from) / 8
+	fromFile := int(from) % 8
+	toRank := int(to) / 8
+	toFile := int(to) % 8
+
+	if fromRank == toRank {
+		dir := 1
+		if toFile < fromFile {
+			dir = -1
+		}
+		for file := fromFile + dir; file != toFile; file += dir {
+			sq := chess.Square(fromRank*8 + file)
+			if board.Piece(sq) != chess.NoPiece {
+				return false
+			}
+		}
+	} else {
+		dir := 1
+		if toRank < fromRank {
+			dir = -1
+		}
+		for rank := fromRank + dir; rank != toRank; rank += dir {
+			sq := chess.Square(rank*8 + fromFile)
+			if board.Piece(sq) != chess.NoPiece {
+				return false
+			}
+		}
+	}
+
+	return true
 }
 
 // evaluateKingSafety evaluates king safety for a given color

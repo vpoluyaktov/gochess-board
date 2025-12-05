@@ -92,3 +92,41 @@ func TestInternalEngineClose(t *testing.T) {
 		t.Errorf("Close should not error: %v", err)
 	}
 }
+
+func TestAspirationWindows(t *testing.T) {
+	engine := NewEngine()
+
+	// Test position where aspiration windows should help
+	// Middle game position with clear evaluation
+	fen := "r1bqkb1r/pppp1ppp/2n2n2/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R w KQkq - 4 4"
+
+	// Run search with enough time to trigger aspiration windows (depth >= 4)
+	move, err := engine.GetBestMove(fen, 3*time.Second)
+	if err != nil {
+		t.Fatalf("Failed to get best move: %v", err)
+	}
+
+	if move == "" {
+		t.Fatal("Engine returned empty move")
+	}
+
+	t.Logf("Engine suggested move with aspiration windows: %s", move)
+}
+
+func TestAspirationWindowsDeepSearch(t *testing.T) {
+	engine := NewEngine()
+
+	// Position requiring deeper search
+	fen := "r3k2r/ppp2ppp/2n1bn2/2bpp3/4P3/2NP1N2/PPP1BPPP/R1BQK2R w KQkq - 0 1"
+
+	move, err := engine.GetBestMove(fen, 5*time.Second)
+	if err != nil {
+		t.Fatalf("Failed to get best move: %v", err)
+	}
+
+	if move == "" {
+		t.Fatal("Engine returned empty move")
+	}
+
+	t.Logf("Deep search move: %s", move)
+}
