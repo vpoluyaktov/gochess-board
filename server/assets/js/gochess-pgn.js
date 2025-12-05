@@ -241,7 +241,7 @@ async function lookupOpeningNames(games, startTime) {
                     }
                 }
             } catch (error) {
-                console.error('Error fetching opening for game', gameData.index, error);
+                Logger.game.error('Error fetching opening for game', { index: gameData.index, error: error.message });
                 // Show moves as fallback
                 gameData.opening = gameData.moves.slice(0, 6).join(' ') || '-';
                 const cell = document.getElementById('opening-cell-' + gameData.index);
@@ -475,8 +475,7 @@ function savePGNFile() {
     const dateStr = date.toISOString().split('T')[0].replace(/-/g, '.');
     
     const pgnMoves = buildStandardPGN();
-    console.log('Generated PGN moves:', pgnMoves);
-    console.log('Variants object:', gameState.variants);
+    Logger.game.debug('Generated PGN', { moves: pgnMoves, variants: gameState.variants });
     
     let pgnWithHeaders = '[Event "Casual Game"]\n';
     pgnWithHeaders += '[Site "gochess-board"]\n';
@@ -752,7 +751,7 @@ function loadPGNFromText(text) {
         }, 1500);
         
     } catch (err) {
-        console.error('Failed to parse PGN:', err);
+        Logger.game.error('Failed to parse PGN', { error: err.message });
         showDialog('Failed to parse PGN. Please check the format and try again.', 'error');
     }
 }

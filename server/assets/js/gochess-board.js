@@ -7,6 +7,32 @@ var lastMoveSquares = { from: null, to: null };
 var squareClass = 'square-55d63';
 
 // -------------------------------------------------------------------------
+// Game End Helper
+// -------------------------------------------------------------------------
+
+/**
+ * Handles all cleanup when a game ends (checkmate, stalemate, draw, resign, timeout)
+ * This ensures consistent behavior across all game-ending scenarios.
+ */
+function handleGameEnd() {
+    // Stop the clock
+    stopClock();
+    
+    // Stop analysis if running
+    if (typeof analysisActive !== 'undefined' && analysisActive) {
+        stopAnalysis();
+    }
+    
+    // Stop history scoring if running
+    if (typeof historyScoringActive !== 'undefined' && historyScoringActive) {
+        stopHistoryScoring();
+    }
+    
+    // Update buttons
+    updateStartPauseButton();
+}
+
+// -------------------------------------------------------------------------
 // Last Move Highlighting
 // -------------------------------------------------------------------------
 
@@ -69,17 +95,30 @@ function onDrop(source, target) {
     // Auto-start clock on first move if not already running
     // Start clock for any first move, regardless of time control setting
     if (!gameState.clockRunning && gameState.moveHistory.length === 1) {
+        Logger.board.info('Auto-starting clock on first move');
         startClock();
     }
     
     // Add increment to the player who just moved (only if clock is running)
     // Note: move.color is the color that just moved ('w' or 'b')
     if (gameState.clockRunning) {
+        var prevWhite = gameState.whiteTimeMs;
+        var prevBlack = gameState.blackTimeMs;
+        
         if (move.color === 'w') {
             gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
         } else {
             gameState.blackTimeMs += gameState.timeControl.increment * 1000;
         }
+        
+        Logger.board.debug('Human move completed - adding increment', {
+            moveColor: move.color,
+            move: uciMove,
+            increment: gameState.timeControl.increment * 1000,
+            whiteChange: gameState.whiteTimeMs - prevWhite,
+            blackChange: gameState.blackTimeMs - prevBlack
+        });
+        
         updateClockDisplay();
     }
 
@@ -118,23 +157,15 @@ function onMoveEnd() {
 function checkGameOver() {
     // Check for threefold repetition first (even if game_over() doesn't catch it)
     if (game.in_threefold_repetition()) {
-        console.log('Threefold repetition detected!');
-        stopClock();
-        if (analysisActive) {
-            stopAnalysis();
-        }
+        Logger.game.info('Threefold repetition detected');
+        handleGameEnd();
         showGameOver('Draw by threefold repetition.');
         return true;
     }
     
     if (game.game_over()) {
-        // Stop the clock
-        stopClock();
-        
-        // Stop analysis if running
-        if (analysisActive) {
-            stopAnalysis();
-        }
+        // Handle all game end cleanup
+        handleGameEnd();
         
         // Determine the game result
         let message = '';

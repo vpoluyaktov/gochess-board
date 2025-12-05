@@ -10,20 +10,20 @@ async function makeComputerMove() {
     if (isHuman(currentPlayer)) return;
 
     if (game.game_over()) {
-        console.log('Game over');
+        Logger.engine.debug('Game over');
         return;
     }
     
     // Don't make computer moves if navigating in history
     if (gameState.isNavigating) {
-        console.log('Navigating in history - computer waiting');
+        Logger.engine.debug('Navigating in history - computer waiting');
         return;
     }
     
     // Don't make computer moves if clock is not running
     // Computer must wait for user to click "Start Game" button
     if (!gameState.clockRunning) {
-        console.log('Clock not running - computer waiting for Start Game');
+        Logger.engine.debug('Clock not running - computer waiting for Start Game');
         return;
     }
 
@@ -32,7 +32,7 @@ async function makeComputerMove() {
     var isWhiteTurn = game.turn() === 'w';
     
     try {
-        console.log('Making move with engine:', currentPlayer);
+        Logger.engine.info('Making move with engine:', { engine: currentPlayer });
         
         // Get move time for unlimited mode
         var moveTimeMs = 0;
@@ -67,15 +67,15 @@ async function makeComputerMove() {
         });
 
         const data = await response.json();
-        console.log('Response:', data);
+        Logger.engine.debug('Response received', data);
         
         if (data.error) {
-            console.log('Game over or no legal moves:', data.error);
+            Logger.engine.info('Game over or no legal moves', { error: data.error });
             isComputerThinking = false;
             return;
         }
 
-        console.log('Applying move:', data.move, 'think time:', data.thinkTime, 'ms');
+        Logger.engine.info('Applying move', { move: data.move, thinkTime: data.thinkTime });
         
         // Update move history
         gameState.moveHistory.push(data.move);
@@ -99,22 +99,49 @@ async function makeComputerMove() {
         // User must click "Start Game" button to begin computer vs computer games.
         
         // Update clock (only if running)
+        // NOTE: The clock interval already counts down time in real-time while the engine thinks.
+        // We should NOT deduct thinkTime again here - that would cause double deduction!
+        // We only need to add the increment (if any) for the player who just moved.
         if (gameState.clockRunning) {
             var isUnlimitedMode = gameState.timeControl.initial === 0 && gameState.timeControl.increment === 0;
+            var prevWhite = gameState.whiteTimeMs;
+            var prevBlack = gameState.blackTimeMs;
+            
+            Logger.engine.debug('Computer move completed - before clock update', {
+                move: data.move,
+                thinkTime: data.thinkTime,
+                isWhiteTurn: isWhiteTurn,
+                isUnlimitedMode: isUnlimitedMode,
+                whiteTimeMs: gameState.whiteTimeMs,
+                blackTimeMs: gameState.blackTimeMs,
+                increment: gameState.timeControl.increment * 1000
+            });
             
             if (!isUnlimitedMode) {
-                // Timed mode: deduct time spent thinking and add increment
+                // Timed mode: only add increment (time already counted down by interval)
+                // DO NOT deduct thinkTime - the clock interval already did that in real-time!
                 if (isWhiteTurn) {
-                    gameState.whiteTimeMs -= data.thinkTime;
                     gameState.whiteTimeMs += gameState.timeControl.increment * 1000;
                 } else {
-                    gameState.blackTimeMs -= data.thinkTime;
                     gameState.blackTimeMs += gameState.timeControl.increment * 1000;
                 }
+                
+                Logger.engine.debug('Computer move - after adding increment', {
+                    isWhiteTurn: isWhiteTurn,
+                    incrementAdded: gameState.timeControl.increment * 1000,
+                    whiteChange: gameState.whiteTimeMs - prevWhite,
+                    blackChange: gameState.blackTimeMs - prevBlack
+                });
+            } else {
+                Logger.engine.trace('Computer move - unlimited mode, no clock adjustment');
             }
             // In unlimited mode, the clock interval already handles counting up
             // so we don't need to adjust the time here
             updateClockDisplay();
+        } else {
+            Logger.engine.debug('Computer move completed - clock not running, no update', {
+                move: data.move
+            });
         }
         
         // Update display
@@ -133,14 +160,14 @@ async function makeComputerMove() {
         window.setTimeout(checkForComputerMove, 250);
         
     } catch (error) {
-        console.error('Error getting computer move:', error);
+        Logger.engine.error('Error getting computer move', { error: error.message });
         isComputerThinking = false;
     }
 }
 
 function checkForComputerMove() {
     const currentPlayer = getCurrentPlayer();
-    console.log('checkForComputerMove - currentPlayer:', currentPlayer, 'isHuman:', isHuman(currentPlayer));
+    Logger.engine.trace('checkForComputerMove', { currentPlayer: currentPlayer, isHuman: isHuman(currentPlayer) });
     if (!isHuman(currentPlayer) && !game.game_over()) {
         makeComputerMove();
     }

@@ -34,9 +34,9 @@ function initializeVariantMode() {
         window.addEventListener('message', handleMainWindowMessage);
         
         // Notify parent window that variant is ready
-        console.log('Variant window initialized, sending ready signal to parent');
+        Logger.navigation.debug('Variant window initialized, sending ready signal to parent');
         mainWindow.postMessage({ type: 'variant-ready' }, window.location.origin);
-        console.log('Ready signal sent');
+        Logger.navigation.debug('Ready signal sent');
     } else {
         // Main window mode - listen for messages from variant windows
         window.addEventListener('message', handleMainWindowMessage);
@@ -89,14 +89,14 @@ function startVariant() {
     const readyListener = function(event) {
         if (event.origin !== window.location.origin) return;
         if (event.data.type === 'variant-ready' && !messageSent) {
-            console.log('Variant window is ready, sending data');
+            Logger.navigation.debug('Variant window is ready, sending data');
             messageSent = true;
             try {
-                console.log('Sending new variant data to child window:', variantData);
+                Logger.navigation.trace('Sending new variant data to child window', variantData);
                 variantWindow.postMessage(variantData, window.location.origin);
-                console.log('New variant data sent successfully');
+                Logger.navigation.debug('New variant data sent successfully');
             } catch (e) {
-                console.error('Error sending variant data:', e);
+                Logger.navigation.error('Error sending variant data', { error: e.message });
             }
             window.removeEventListener('message', readyListener);
         }
@@ -107,12 +107,12 @@ function startVariant() {
     // Fallback: if no ready signal after 5 seconds, try sending anyway
     setTimeout(function() {
         if (!messageSent && variantWindow && !variantWindow.closed) {
-            console.log('Timeout waiting for ready signal, sending anyway');
+            Logger.navigation.warn('Timeout waiting for ready signal, sending anyway');
             try {
                 variantWindow.postMessage(variantData, window.location.origin);
                 messageSent = true;
             } catch (e) {
-                console.error('Error sending variant data:', e);
+                Logger.navigation.error('Error sending variant data', { error: e.message });
             }
         }
         window.removeEventListener('message', readyListener);
@@ -122,7 +122,7 @@ function startVariant() {
 function handleVariantMessage(event) {
     // Verify origin for security
     if (event.origin !== window.location.origin) {
-        console.log('Rejected message from wrong origin:', event.origin);
+        Logger.navigation.debug('Rejected message from wrong origin', { origin: event.origin });
         return;
     }
     
@@ -133,21 +133,21 @@ function handleVariantMessage(event) {
         return;
     }
     
-    console.log('Received message:', data.type, data);
+    Logger.navigation.trace('Received message', { type: data.type });
     
     if (data.type === 'start-variant') {
         // Prevent processing the same message multiple times
         if (window.variantDataLoaded) {
-            console.log('Ignoring duplicate variant data message');
+            Logger.navigation.debug('Ignoring duplicate variant data message');
             return;
         }
         window.variantDataLoaded = true;
         
         // Check if moveHistoryEditor is initialized
-        console.log('moveHistoryEditor initialized:', moveHistoryEditor !== null);
+        Logger.navigation.trace('moveHistoryEditor initialized', { initialized: moveHistoryEditor !== null });
         
         // Load the game state from main window
-        console.log('Loading variant data:', data);
+        Logger.navigation.debug('Loading variant data', data);
         
         // Reset game to starting position first
         game.reset();
@@ -222,8 +222,8 @@ function handleVariantMessage(event) {
         // Don't clear variants - allow sub-variants in variant windows
         
         // Update all displays
-        console.log('Updating displays with gameState:', {
-            moveHistory: gameState.moveHistory,
+        Logger.navigation.trace('Updating displays with gameState', {
+            moveHistoryLength: gameState.moveHistory.length,
             currentPosition: gameState.currentPosition,
             variantStartPosition: variantStartPosition,
             variantIndex: variantIndex
@@ -243,7 +243,7 @@ function handleVariantMessage(event) {
         }
     } else if (data.type === 'apply-variant-moves') {
         // Apply variant moves to the current position
-        console.log('Applying variant moves:', data.moves);
+        Logger.navigation.debug('Applying variant moves', { moves: data.moves });
         
         for (let i = 0; i < data.moves.length; i++) {
             const uciMove = data.moves[i];
@@ -285,19 +285,21 @@ function handleMainWindowMessage(event) {
     const data = event.data;
     
     if (data.type === 'variant-ready') {
-        console.log('Variant window is ready');
+        Logger.navigation.debug('Variant window is ready');
     } else if (data.type === 'merge-variant') {
         // Add or update variant as a branch in PGN notation
-        console.log('Main window received merge request:', data);
+        Logger.navigation.debug('Main window received merge request', data);
         
         const variantStartPos = data.variantStartPosition;
         const variantMoves = data.moveHistory.slice(variantStartPos);
         const variantIdx = data.variantIndex;
         
-        console.log('Variant start position:', variantStartPos);
-        console.log('Variant index:', variantIdx);
-        console.log('Extracted variant moves:', variantMoves);
-        console.log('Current main line length:', gameState.moveHistory.length);
+        Logger.navigation.trace('Merge details', {
+            variantStartPos,
+            variantIdx,
+            variantMovesCount: variantMoves.length,
+            mainLineLength: gameState.moveHistory.length
+        });
         
         if (variantMoves.length === 0) {
             showDialog('No variant moves to merge!', 'warning');
@@ -317,11 +319,11 @@ function handleMainWindowMessage(event) {
         // If variantIdx is valid (>= 0), replace the existing variant
         // Otherwise, add as a new variant
         if (variantIdx >= 0 && variantIdx < gameState.variants[variantStartPos].length) {
-            console.log('Replacing existing variant at index', variantIdx);
+            Logger.navigation.debug('Replacing existing variant', { index: variantIdx });
             gameState.variants[variantStartPos][variantIdx] = variantMoves;
             showDialog('Variant updated successfully!', 'success');
         } else {
-            console.log('Adding new variant');
+            Logger.navigation.debug('Adding new variant');
             gameState.variants[variantStartPos].push(variantMoves);
             showDialog('Variant added successfully!', 'success');
         }
@@ -331,7 +333,7 @@ function handleMainWindowMessage(event) {
         // move history, so we need to keep them as-is since they reference positions within
         // the variant line we just merged
         if (data.variants && Object.keys(data.variants).length > 0) {
-            console.log('Merging sub-variants:', data.variants);
+            Logger.navigation.debug('Merging sub-variants', data.variants);
             
             // The sub-variants are stored with positions relative to the variant window
             // Since we're storing the variant moves starting at variantStartPos,
@@ -350,10 +352,10 @@ function handleMainWindowMessage(event) {
                 }
             }
             
-            console.log('Sub-variants merged');
+            Logger.navigation.debug('Sub-variants merged');
         }
         
-        console.log('Variants after merge:', gameState.variants);
+        Logger.navigation.trace('Variants after merge', gameState.variants);
         
         // Update display to show the variant
         updateMoveHistoryDisplay();
@@ -366,10 +368,11 @@ function mergeVariant() {
         return;
     }
     
-    console.log('Merging variant - Start position:', variantStartPosition);
-    console.log('Total move history length:', gameState.moveHistory.length);
-    console.log('Variant moves:', gameState.moveHistory.slice(variantStartPosition));
-    console.log('Sub-variants:', gameState.variants);
+    Logger.navigation.debug('Merging variant', {
+        startPosition: variantStartPosition,
+        totalMoves: gameState.moveHistory.length,
+        variantMovesCount: gameState.moveHistory.length - variantStartPosition
+    });
     
     // Send variant data back to parent window (could be main window or another variant window)
     const variantData = {
