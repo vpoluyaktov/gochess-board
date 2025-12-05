@@ -496,20 +496,33 @@ When no TT move exists at sufficient depth, performs a reduced-depth search to f
 | IID | +10-20 |
 | **Total Estimated** | **1750-2200** |
 
-## Tactical Test Results
+## Test Results
 
-Current performance on tactical test suite:
+### Custom Tactical Test Suite
 - **Score:** 7/10 (70%)
 - **Solved:** Back rank mate, Fork (Qh5), Pin (Qa4), Passed Pawn (Kd3), Promotion, Deflection (Nb5), Skewer (Qg5)
 - **Category:** Intermediate+
-- **Estimated ELO:** 1500-1700
 
-Note: Test suite was corrected - several positions had invalid FENs or suboptimal expected moves. Futility pruning disabled to improve tactical accuracy.
+### Bratko-Kopec Test Suite (Standard)
+The Bratko-Kopec test is a well-known standard test suite designed by Dr. Ivan Bratko and Dr. Danny Kopec in 1982.
 
-### Remaining Challenges
-- WAC.001: Mate in 2 (requires deep tactical vision)
-- WAC.002: Knight fork Nf5 (engine plays other developing moves)
-- Discovered Attack: Nd5 (engine plays Be3)
+- **Score:** 3/24 (12.5%)
+- **Solved:** BK.01 (Qd1+), BK.15 (Qxg7+), BK.22 (Bxe4)
+- **Category:** Class D
+- **Estimated Rating:** ~1200
+
+Note: The Bratko-Kopec test is significantly harder than basic tactical puzzles. It tests deep positional understanding and long-term planning, not just tactical vision. Most positions require understanding pawn breaks and strategic concepts.
+
+### Analysis
+The engine performs well on:
+- ✅ Simple tactical patterns (checks, captures, forks)
+- ✅ Back rank mates
+- ✅ Basic material wins
+
+The engine struggles with:
+- ❌ Pawn break decisions (f4, g4, b4, etc.)
+- ❌ Long-term strategic planning
+- ❌ Complex positional evaluation
 
 ## Future Improvements
 
