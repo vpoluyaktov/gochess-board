@@ -155,8 +155,13 @@ function onMoveEnd() {
 // -------------------------------------------------------------------------
 
 function checkGameOver() {
+    // Debug: Check history length and threefold repetition status
+    var historyLen = game.history().length;
+    var isThreefold = game.in_threefold_repetition();
+    Logger.game.debug('checkGameOver: history length=' + historyLen + ', threefold=' + isThreefold);
+    
     // Check for threefold repetition first (even if game_over() doesn't catch it)
-    if (game.in_threefold_repetition()) {
+    if (isThreefold) {
         Logger.game.info('Threefold repetition detected');
         handleGameEnd();
         showGameOver('Draw by threefold repetition.');

@@ -83,16 +83,29 @@ async function makeComputerMove() {
         captureScoreForLastMove();
         gameState.currentPosition = gameState.moveHistory.length;
         
-        // Highlight move
+        // Parse UCI move format (e.g., "e2e4" or "e7e8q" for promotion)
         var moveStr = data.move;
-        if (moveStr && moveStr.length >= 4) {
-            var from = moveStr.substring(0, 2);
-            var to = moveStr.substring(2, 4);
-            highlightLastMove(from, to);
-        }
+        var from = moveStr.substring(0, 2);
+        var to = moveStr.substring(2, 4);
+        var promotion = moveStr.length > 4 ? moveStr.substring(4, 5) : undefined;
         
-        // Apply move to board
-        game.load(data.fen);
+        // Highlight move
+        highlightLastMove(from, to);
+        
+        // Apply move to board using game.move() to preserve history for threefold repetition detection
+        var moveResult = game.move({
+            from: from,
+            to: to,
+            promotion: promotion
+        });
+        
+        if (!moveResult) {
+            // Fallback to load if move fails (shouldn't happen with valid engine moves)
+            Logger.engine.warn('game.move() failed, falling back to load()', { move: data.move, from: from, to: to, promotion: promotion });
+            game.load(data.fen);
+        } else {
+            Logger.engine.debug('game.move() succeeded, history length=' + game.history().length);
+        }
         board.position(game.fen());
         
         // Note: Clock is NOT auto-started for computer moves.
