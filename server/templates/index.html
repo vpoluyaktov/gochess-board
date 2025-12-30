@@ -90,8 +90,9 @@
                         <div class="eval-graph-score" id="evalGraphScore"></div>
                     </div>
                     <div class="move-history-footer">
-                        <button onclick="loadPGNFile()" class="history-footer-btn" title="Load PGN from file">📂 Load PGN</button>
-                        <button onclick="savePGNFile()" class="history-footer-btn" title="Save PGN to file">💾 Save PGN</button>
+                        <button onclick="pastePGN()" class="history-footer-btn" title="Paste PGN from clipboard">📋 Paste<span class="pgn-label"> PGN</span></button>
+                        <button onclick="loadPGNFile()" class="history-footer-btn" title="Load PGN from file">📂 Load<span class="pgn-label"> PGN</span></button>
+                        <button onclick="savePGNFile()" class="history-footer-btn" title="Save PGN to file">💾 Save<span class="pgn-label"> PGN</span></button>
                     </div>
                     <input type="file" id="pgnFileInput" accept=".pgn" style="display: none;">
                 </div>

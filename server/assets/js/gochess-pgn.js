@@ -1,5 +1,5 @@
 // PGN Loading and Saving
-// Handles PGN file operations, parsing, and game selection
+// Handles PGN file operations, parsing, game selection, and clipboard paste
 
 // Count total games in PGN file (fast, doesn't parse content)
 function countPGNGames(pgnText) {
@@ -742,16 +742,148 @@ function loadPGNFromText(text) {
             clearEvalGraph();
         }
         
-        // Visual feedback
-        const btn = event.target;
-        const originalText = btn.textContent;
-        btn.textContent = '✓ Loaded';
-        setTimeout(function() {
-            btn.textContent = originalText;
-        }, 1500);
+        // Visual feedback (only if called from a button click event)
+        if (typeof event !== 'undefined' && event && event.target) {
+            const btn = event.target;
+            const originalText = btn.textContent;
+            btn.textContent = '✓ Loaded';
+            setTimeout(function() {
+                btn.textContent = originalText;
+            }, 1500);
+        }
         
     } catch (err) {
         Logger.game.error('Failed to parse PGN', { error: err.message });
         showDialog('Failed to parse PGN. Please check the format and try again.', 'error');
     }
+}
+
+// Paste PGN from clipboard
+async function pastePGN() {
+    try {
+        // Check if Clipboard API is available
+        if (!navigator.clipboard || !navigator.clipboard.readText) {
+            // Fallback for browsers without Clipboard API support
+            showPasteDialog();
+            return;
+        }
+        
+        // Try to read from clipboard using the modern Clipboard API
+        const text = await navigator.clipboard.readText();
+        
+        if (!text || text.trim() === '') {
+            showDialog('Clipboard is empty. Copy a PGN first, then try again.', 'warning');
+            return;
+        }
+        
+        // Check if it looks like PGN (has move numbers or PGN headers)
+        const looksLikePGN = /(\[.*\]|\d+\.\s*[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8]|O-O)/i.test(text);
+        
+        if (!looksLikePGN) {
+            showDialog('The clipboard content does not appear to be valid PGN notation.', 'warning');
+            return;
+        }
+        
+        // Stop any running analysis and clear arrows
+        if (typeof analysisActive !== 'undefined' && analysisActive) {
+            stopAnalysis();
+        }
+        if (typeof board !== 'undefined' && board.clearArrow) {
+            board.clearArrow();
+        }
+        
+        // Load the PGN
+        loadPGNFromText(text);
+        
+    } catch (err) {
+        // Handle permission denied or other errors
+        if (err.name === 'NotAllowedError') {
+            // Clipboard access denied - show fallback dialog
+            showPasteDialog();
+        } else {
+            Logger.game.error('Failed to paste PGN', { error: err.message });
+            showDialog('Failed to read clipboard. Please use the manual paste option.', 'error');
+            showPasteDialog();
+        }
+    }
+}
+
+// Show a dialog for manual PGN paste (fallback for browsers without clipboard API)
+function showPasteDialog() {
+    // Create modal overlay
+    const modal = document.createElement('div');
+    modal.id = 'pasteModal';
+    modal.className = 'modal';
+    modal.style.display = 'flex';
+    
+    // Use font-size: 16px to prevent iOS Safari from zooming on focus
+    modal.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>📋 Paste PGN</h2>
+                <span class="modal-close" onclick="closePasteDialog()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p class="modal-info">Paste your PGN notation below:</p>
+                <textarea id="pasteTextarea" style="width: 100%; height: 200px; font-family: 'Courier New', monospace; font-size: 16px; padding: 10px; border: 2px solid #667eea; border-radius: 5px; resize: vertical;" placeholder="1. e4 e5 2. Nf3 Nc6 3. Bb5 a6..."></textarea>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closePasteDialog()" class="modal-btn modal-btn-cancel">Cancel</button>
+                <button onclick="loadPastedPGN()" class="modal-btn" style="background: #667eea; color: white;">Load PGN</button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Set up paste event listener to auto-load when user pastes
+    const textarea = document.getElementById('pasteTextarea');
+    if (textarea) {
+        textarea.addEventListener('paste', function(e) {
+            // Let the paste happen, then load after a short delay
+            setTimeout(function() {
+                if (textarea.value.trim()) {
+                    loadPastedPGN();
+                }
+            }, 100);
+        });
+    }
+}
+
+// Close the paste dialog
+function closePasteDialog() {
+    const modal = document.getElementById('pasteModal');
+    if (modal) {
+        modal.remove();
+    }
+}
+
+// Load PGN from the paste dialog textarea
+function loadPastedPGN() {
+    const textarea = document.getElementById('pasteTextarea');
+    if (!textarea) {
+        closePasteDialog();
+        return;
+    }
+    
+    const text = textarea.value.trim();
+    
+    if (!text) {
+        showDialog('Please paste PGN notation first.', 'warning');
+        return;
+    }
+    
+    // Close the dialog
+    closePasteDialog();
+    
+    // Stop any running analysis and clear arrows
+    if (typeof analysisActive !== 'undefined' && analysisActive) {
+        stopAnalysis();
+    }
+    if (typeof board !== 'undefined' && board.clearArrow) {
+        board.clearArrow();
+    }
+    
+    // Load the PGN
+    loadPGNFromText(text);
 }
