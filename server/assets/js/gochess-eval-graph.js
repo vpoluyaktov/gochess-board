@@ -113,7 +113,30 @@ function updateEvalGraph() {
     var padding = 10;
     var graphWidth = width - padding * 2;
     var graphHeight = height - padding * 2;
-    var maxEval = 500; // 5 pawns max scale (in centipawns)
+    var minEvalScale = 500; // Minimum 5 pawns scale (in centipawns)
+    
+    // First pass: find the maximum absolute evaluation to determine scale
+    var maxAbsEval = minEvalScale;
+    var hasMate = false;
+    for (var i = 0; i < totalMoves; i++) {
+        var scoreData = scores[i];
+        if (scoreData !== null && scoreData !== undefined) {
+            if (typeof scoreData === 'number') {
+                maxAbsEval = Math.max(maxAbsEval, Math.abs(scoreData));
+            } else if (scoreData.scoreType === 'mate') {
+                hasMate = true;
+            } else if (scoreData.score !== undefined) {
+                maxAbsEval = Math.max(maxAbsEval, Math.abs(scoreData.score));
+            }
+        }
+    }
+    
+    // Use dynamic scale with minimal padding (5% headroom) to use full vertical space
+    var maxEval = Math.max(minEvalScale, maxAbsEval * 1.05);
+    // If there's a mate, set maxEval slightly above the max centipawn value
+    if (hasMate) {
+        maxEval = maxAbsEval * 1.1;
+    }
     
     var points = [];
     var lastValidScore = null;
@@ -162,7 +185,7 @@ function updateEvalGraph() {
             }
         }
         
-        // Clamp to max scale
+        // Clamp to max scale (should rarely happen now with dynamic scaling)
         evalCp = Math.max(-maxEval, Math.min(maxEval, evalCp));
         
         // Convert to Y coordinate (positive = up = white winning)

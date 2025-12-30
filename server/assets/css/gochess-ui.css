@@ -506,6 +506,10 @@ button:hover {
     white-space: nowrap;
 }
 
+.history-footer-btn .pgn-label {
+    display: none;
+}
+
 .history-footer-btn:hover {
     background: #5568d3;
     transform: translateY(-1px);
@@ -1293,6 +1297,11 @@ button:hover {
     body {
         padding: 5px;
         min-height: auto;
+    }
+    
+    /* Show PGN label on mobile */
+    .history-footer-btn .pgn-label {
+        display: inline;
     }
     
     .container {
