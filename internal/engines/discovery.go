@@ -106,6 +106,7 @@ var uciEngineBaseNames = []string{
 	"lc0",
 	"leela",
 	"komodo",
+	"dragon",
 	"houdini",
 	"rybka",
 	"fruit",

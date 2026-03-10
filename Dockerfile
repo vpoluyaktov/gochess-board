@@ -50,12 +50,12 @@ RUN cd /tmp && \
 
 # Install Dragon by Komodo Chess (Dragon 1 is free)
 RUN cd /tmp && \
-    (wget --no-check-certificate -O dragon.zip https://komodochess.com/downloads/Dragon1-Linux.zip && \
+    (wget --no-check-certificate -O dragon.zip https://komodochess.com/pub/dragon.zip && \
     unzip -q dragon.zip && \
-    find . -name "dragon*" -type f -executable -exec mv {} /usr/games/dragon \; && \
+    find . -type f \( -name "*linux*" -o -name "*Linux*" \) -executable -exec cp {} /usr/games/dragon \; && \
     chmod +x /usr/games/dragon 2>/dev/null && \
     rm -rf dragon.zip dragon* || true) && \
-    (test -f /usr/games/dragon && echo "Dragon installed successfully" || echo "Dragon download failed - skipping")
+    (test -f /usr/games/dragon && /usr/games/dragon --version 2>&1 | head -1 && echo "Dragon installed successfully" || echo "Dragon download failed or wrong architecture - skipping")
 
 # Create non-root user for running the application
 RUN useradd -m chess && \
