@@ -10,6 +10,7 @@ The Docker image includes the following chess engines:
 - **Stockfish 16** - World's strongest open-source engine (ELO: 1320-3190)
 - **Fruit 2.1** - Strong tactical engine
 - **Toga II 3.0** - Fruit derivative
+- **Dragon by Komodo Chess 64-bit** - Neural network engine (free version)
 
 ### CECP/XBoard Protocol Engines
 - **GNU Chess 6.2.9** - Classic free chess engine (built from source, fixes CVE-2021-30184)
@@ -259,14 +260,10 @@ The current image uses Ubuntu 24.04 to ensure all chess engines are available. T
 
 ## Notes
 
-- **Dragon by Komodo Chess**: Not automatically installed
-   - Download requires manual intervention due to website certificate issues
-   - Dragon 1 is free but must be manually added to the container
-   - To add manually: Download from https://komodochess.com/ and copy to `/usr/games/dragon`
-
-- **GNU Chess smallbook.bin**: Has alignment issues (not 16-byte aligned)
-   - Container uses Fruit's book_small.bin instead (31,467 entries)
-   - GNU Chess smallbook.bin is available but not recommended
+- **All 7 engines working**: GoChess, Stockfish, Fruit, Toga II, Dragon, Crafty, GNU Chess
+- **Dragon by Komodo Chess**: Successfully installed from https://komodochess.com/pub/dragon.zip
+- **GNU Chess 6.2.9**: Built from source to fix CVE-2021-30184 buffer overflow
+- **Opening book**: 31,467 entries from Fruit's book_small.bin (GNU Chess smallbook.bin has alignment issues)
 - **TUI Mode**: The `--no-tui` flag is set by default in Docker
 - **Browser Auto-open**: The `--no-browser` flag is set because browser auto-open doesn't work in containers
 

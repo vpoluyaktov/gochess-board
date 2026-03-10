@@ -42,7 +42,7 @@ Comprehensive documentation covering:
 
 ## Chess Engines Included
 
-Successfully installed and verified **6 engines**:
+Successfully installed and verified **ALL 7 engines**:
 
 | Engine | Version | Protocol | Status |
 |--------|---------|----------|--------|
@@ -50,10 +50,11 @@ Successfully installed and verified **6 engines**:
 | Stockfish | 16 | UCI | ✅ Working |
 | Fruit | 2.1 | UCI | ✅ Working |
 | Toga II | 3.0 | UCI | ✅ Working |
+| Dragon by Komodo Chess | 64-bit | UCI | ✅ Working |
 | Crafty | 23.4 | CECP | ✅ Working |
 | GNU Chess | 6.2.9 | CECP | ✅ Working (built from source) |
 
-**Note**: Dragon by Komodo Chess requires manual installation due to SSL certificate issues with the download site.
+**All engines from your original list are now working!**
 
 ## Key Technical Details
 
@@ -132,10 +133,10 @@ docker logs -f gochess-board
    - **Solution**: Built GNU Chess 6.2.9 from source with fix
    - **Result**: GNU Chess 6.2.9 now discovered and working perfectly
 
-3. ⚠️ **Dragon by Komodo**: Attempted automatic installation
-   - **Issue**: SSL certificate verification fails on komodochess.com
-   - **Status**: Requires manual installation
-   - **Workaround**: Download Dragon 1 (free) manually and add to container
+3. ✅ **Dragon by Komodo**: Fixed download and discovery
+   - **Root Cause**: Wrong URL and missing from engine discovery list
+   - **Solution**: Corrected URL to https://komodochess.com/pub/dragon.zip, extract Linux binary, add to discovery
+   - **Result**: Dragon by Komodo Chess 64-bit now working perfectly
 
 ## Next Steps (Optional)
 
