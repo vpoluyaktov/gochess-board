@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"gochess-board/logger"
+	"gochess-board/internal/logger"
 )
 
 // EnginePool manages persistent engine instances with automatic cleanup

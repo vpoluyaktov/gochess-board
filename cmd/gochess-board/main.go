@@ -8,12 +8,12 @@ import (
 	"strings"
 	"time"
 
-	"gochess-board/engines"
-	"gochess-board/engines/builtin"
-	"gochess-board/logger"
-	"gochess-board/server"
-	"gochess-board/tui"
-	"gochess-board/utils"
+	"gochess-board/internal/engines"
+	"gochess-board/internal/engines/builtin"
+	"gochess-board/internal/logger"
+	"gochess-board/internal/server"
+	"gochess-board/internal/tui"
+	"gochess-board/internal/utils"
 )
 
 const (

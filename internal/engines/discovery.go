@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"gochess-board/logger"
-	"gochess-board/utils"
+	"gochess-board/internal/logger"
+	"gochess-board/internal/utils"
 )
 
 // getExecutableName returns the platform-specific executable name

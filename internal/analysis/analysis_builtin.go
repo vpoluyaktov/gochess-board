@@ -1,8 +1,8 @@
 package analysis
 
 import (
-	"gochess-board/engines/builtin"
-	"gochess-board/logger"
+	"gochess-board/internal/engines/builtin"
+	"gochess-board/internal/logger"
 	"strings"
 )
 

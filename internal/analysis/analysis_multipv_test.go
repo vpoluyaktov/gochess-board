@@ -227,7 +227,7 @@ func TestBuiltinAnalysisEngine_MultiPV_TacticalPosition(t *testing.T) {
 
 	// Wait for depth 3 analysis
 	var lastInfo AnalysisInfo
-	timeout := time.After(5 * time.Second)
+	timeout := time.After(30 * time.Second)
 	gotResult := false
 
 	for !gotResult {

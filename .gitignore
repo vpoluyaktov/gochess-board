@@ -13,8 +13,8 @@
 
 # Dependency directories
 vendor/
-server/assets/js/test/node_modules/
-server/assets/js/test/package-lock.json
+internal/server/assets/js/test/node_modules/
+internal/server/assets/js/test/package-lock.json
 
 # Go workspace file
 go.work
