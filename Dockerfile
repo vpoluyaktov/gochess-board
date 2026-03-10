@@ -56,6 +56,9 @@ RUN chmod +x /usr/local/bin/gochess-board
 USER chess
 WORKDIR /home/chess
 
+# Add /usr/games to PATH for chess engines
+ENV PATH="/usr/games:${PATH}"
+
 # Expose the default port
 EXPOSE 35256
 
@@ -63,4 +66,4 @@ EXPOSE 35256
 ENTRYPOINT ["/usr/local/bin/gochess-board"]
 
 # Default arguments as specified
-CMD ["--no-browser", "--restart", "--log-level", "INFO", "--book-file", "/usr/share/games/gnuchess/book.bin"]
+CMD ["--no-browser", "--no-tui", "--restart", "--log-level", "INFO", "--book-file", "/usr/share/games/gnuchess/book.bin"]
