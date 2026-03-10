@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  gochess-board:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: gochess-board
+    ports:
+      - "35256:35256"
+    restart: unless-stopped
+    # Optional: Mount a volume for logs
+    volumes:
+      - ./logs:/home/chess/logs
+    # Override default CMD if needed
+    # command: ["--no-browser", "--restart", "--log-level", "DEBUG", "--book-file", "/usr/share/games/gnuchess/book.bin"]
