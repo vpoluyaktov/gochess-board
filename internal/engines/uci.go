@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"gochess-board/logger"
+	"gochess-board/internal/logger"
 )
 
 // UCIEngine represents a UCI chess engine

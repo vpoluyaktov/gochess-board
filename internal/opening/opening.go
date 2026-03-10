@@ -13,7 +13,7 @@ import (
 
 	"github.com/notnil/chess"
 
-	"gochess-board/logger"
+	"gochess-board/internal/logger"
 )
 
 // OpeningInfo contains information about a chess opening

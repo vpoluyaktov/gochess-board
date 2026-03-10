@@ -7,8 +7,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"gochess-board/engines"
-	"gochess-board/opening"
+	"gochess-board/internal/engines"
+	"gochess-board/internal/opening"
 )
 
 func TestOpeningAPIEndpoint(t *testing.T) {

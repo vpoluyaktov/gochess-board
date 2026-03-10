@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"gochess-board/logger"
+	"gochess-board/internal/logger"
 )
 
 // AnalysisEngine manages a UCI engine for analysis

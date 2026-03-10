@@ -12,7 +12,7 @@ import (
 
 	"github.com/notnil/chess"
 
-	"gochess-board/logger"
+	"gochess-board/internal/logger"
 )
 
 // CECPAnalysisEngine manages a CECP engine for analysis

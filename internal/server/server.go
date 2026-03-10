@@ -9,10 +9,10 @@ import (
 	"os"
 	"time"
 
-	"gochess-board/book"
-	"gochess-board/engines"
-	"gochess-board/logger"
-	"gochess-board/opening"
+	"gochess-board/internal/book"
+	"gochess-board/internal/engines"
+	"gochess-board/internal/logger"
+	"gochess-board/internal/opening"
 )
 
 //go:embed templates/*

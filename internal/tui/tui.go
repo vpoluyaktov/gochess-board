@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"gochess-board/engines"
+	"gochess-board/internal/engines"
 
 	"github.com/charmbracelet/bubbles/spinner"
 	"github.com/charmbracelet/bubbles/table"
