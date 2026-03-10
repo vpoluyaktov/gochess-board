@@ -12,7 +12,7 @@ The Docker image includes the following chess engines:
 - **Toga II 3.0** - Fruit derivative
 
 ### CECP/XBoard Protocol Engines
-- **GNU Chess 6.2.9** - Classic free chess engine
+- **GNU Chess 6.2.9** - Classic free chess engine (built from source, fixes CVE-2021-30184)
 - **Crafty 23.4** - Strong traditional engine
 
 ### Built-in Engine
@@ -74,9 +74,10 @@ http://localhost:35256
 
 The Docker container starts with the following flags:
 - `--no-browser` - Don't auto-open browser (not applicable in container)
+- `--no-tui` - Disable TUI (required for Docker)
 - `--restart` - Kill any existing process before starting
 - `--log-level INFO` - Set logging level to INFO
-- `--book-file /usr/share/games/gnuchess/book.bin` - Use GNU Chess opening book
+- `--book-file /usr/share/games/fruit/book_small.bin` - Use Fruit opening book (31,467 entries)
 
 ## Customizing Configuration
 
@@ -140,8 +141,10 @@ docker run -d \
   -p 35256:35256 \
   -v /path/to/your/book.bin:/data/book.bin:ro \
   gochess-board:latest \
-  --no-browser --book-file /data/book.bin
+  --no-browser --no-tui --book-file /data/book.bin
 ```
+
+**Note**: Opening books must be in Polyglot binary format (.bin) with proper 16-byte alignment.
 
 ### Persist Logs
 
@@ -256,9 +259,16 @@ The current image uses Ubuntu 24.04 to ensure all chess engines are available. T
 
 ## Notes
 
-- **Dragon by Komodo Chess**: This engine may require manual installation or licensing. The Dockerfile includes a placeholder for it. If you have a licensed copy, you can add it to the image.
-- **TUI Mode**: The `--no-tui` flag is not set by default, but the TUI won't display properly in Docker without a TTY. The application will still work correctly.
-- **Browser Auto-open**: The `--no-browser` flag is set because browser auto-open doesn't work in containers.
+- **Dragon by Komodo Chess**: Not automatically installed
+   - Download requires manual intervention due to website certificate issues
+   - Dragon 1 is free but must be manually added to the container
+   - To add manually: Download from https://komodochess.com/ and copy to `/usr/games/dragon`
+
+- **GNU Chess smallbook.bin**: Has alignment issues (not 16-byte aligned)
+   - Container uses Fruit's book_small.bin instead (31,467 entries)
+   - GNU Chess smallbook.bin is available but not recommended
+- **TUI Mode**: The `--no-tui` flag is set by default in Docker
+- **Browser Auto-open**: The `--no-browser` flag is set because browser auto-open doesn't work in containers
 
 ## Support
 

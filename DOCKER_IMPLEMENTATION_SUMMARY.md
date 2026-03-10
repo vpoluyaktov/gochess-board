@@ -42,7 +42,7 @@ Comprehensive documentation covering:
 
 ## Chess Engines Included
 
-Successfully installed and verified **5 engines**:
+Successfully installed and verified **6 engines**:
 
 | Engine | Version | Protocol | Status |
 |--------|---------|----------|--------|
@@ -51,8 +51,9 @@ Successfully installed and verified **5 engines**:
 | Fruit | 2.1 | UCI | ✅ Working |
 | Toga II | 3.0 | UCI | ✅ Working |
 | Crafty | 23.4 | CECP | ✅ Working |
+| GNU Chess | 6.2.9 | CECP | ✅ Working (built from source) |
 
-**Note**: GNU Chess is installed but not discovered (investigation needed). Dragon by Komodo Chess requires manual installation/licensing.
+**Note**: Dragon by Komodo Chess requires manual installation due to SSL certificate issues with the download site.
 
 ## Key Technical Details
 
@@ -92,7 +93,13 @@ docker run -d --name gochess-test -p 35257:35256 gochess-board:latest
 ```bash
 curl http://localhost:35257/api/engines
 ```
-Returns 5 engines with full configuration details.
+Returns 6 engines with full configuration details.
+
+### Opening Book Verification
+```
+Polyglot opening book loaded: 31467 entries
+```
+Book successfully loads from `/usr/share/games/fruit/book_small.bin`
 
 ## Usage Examples
 
@@ -113,20 +120,22 @@ Open browser to: `http://localhost:35256`
 docker logs -f gochess-board
 ```
 
-## Known Issues
+## Issues Fixed
 
-1. **Opening Book Warning**: The GNU Chess book file path may need adjustment
-   - Warning message: "Book file specified but failed to load"
-   - Application still works without the book
-   - Engines can calculate moves normally
+1. ✅ **Opening Book**: Fixed path and format issues
+   - **Root Cause**: GNU Chess smallbook.bin has alignment issues (38,673 bytes, not divisible by 16)
+   - **Solution**: Switched to Fruit's book_small.bin (503,472 bytes, 31,467 entries)
+   - **Result**: Book loads successfully with no warnings
 
-2. **GNU Chess Discovery**: Installed but not discovered by the application
-   - Binary exists at `/usr/games/gnuchess`
-   - May require additional configuration
+2. ✅ **GNU Chess Discovery**: Fixed buffer overflow bug
+   - **Root Cause**: Ubuntu 24.04 ships GNU Chess 6.2.7 with CVE-2021-30184 buffer overflow
+   - **Solution**: Built GNU Chess 6.2.9 from source with fix
+   - **Result**: GNU Chess 6.2.9 now discovered and working perfectly
 
-3. **Dragon by Komodo**: Placeholder only
-   - Requires manual installation
-   - May need licensing
+3. ⚠️ **Dragon by Komodo**: Attempted automatic installation
+   - **Issue**: SSL certificate verification fails on komodochess.com
+   - **Status**: Requires manual installation
+   - **Workaround**: Download Dragon 1 (free) manually and add to container
 
 ## Next Steps (Optional)
 

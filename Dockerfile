@@ -26,20 +26,36 @@ RUN apt-get update && \
     stockfish \
     fruit \
     toga2 \
-    # CECP Engines
-    gnuchess \
+    # CECP Engines - skip gnuchess from apt (has buffer overflow bug)
     crafty \
-    # Build dependencies for additional engines
+    # Build dependencies
+    build-essential \
     wget \
     unzip \
+    tar \
     ca-certificates && \
     # Clean up apt cache
     rm -rf /var/lib/apt/lists/*
 
-# Install Dragon by Komodo Chess (if available via direct download)
-# Note: Dragon/Komodo might require manual installation or licensing
-# This is a placeholder - adjust based on actual availability
-RUN mkdir -p /usr/local/bin/dragon
+# Build GNU Chess 6.2.9 from source (fixes CVE-2021-30184 buffer overflow)
+RUN cd /tmp && \
+    wget https://ftp.gnu.org/gnu/chess/gnuchess-6.2.9.tar.gz && \
+    tar xzf gnuchess-6.2.9.tar.gz && \
+    cd gnuchess-6.2.9 && \
+    ./configure --prefix=/usr && \
+    make && \
+    make install && \
+    cd / && \
+    rm -rf /tmp/gnuchess-6.2.9*
+
+# Install Dragon by Komodo Chess (Dragon 1 is free)
+RUN cd /tmp && \
+    (wget --no-check-certificate -O dragon.zip https://komodochess.com/downloads/Dragon1-Linux.zip && \
+    unzip -q dragon.zip && \
+    find . -name "dragon*" -type f -executable -exec mv {} /usr/games/dragon \; && \
+    chmod +x /usr/games/dragon 2>/dev/null && \
+    rm -rf dragon.zip dragon* || true) && \
+    (test -f /usr/games/dragon && echo "Dragon installed successfully" || echo "Dragon download failed - skipping")
 
 # Create non-root user for running the application
 RUN useradd -m chess && \
@@ -65,5 +81,5 @@ EXPOSE 35256
 # Set the entrypoint with the specified flags
 ENTRYPOINT ["/usr/local/bin/gochess-board"]
 
-# Default arguments as specified
-CMD ["--no-browser", "--no-tui", "--restart", "--log-level", "INFO", "--book-file", "/usr/share/games/gnuchess/book.bin"]
+# Default arguments as specified (using Fruit's book - properly formatted)
+CMD ["--no-browser", "--no-tui", "--restart", "--log-level", "INFO", "--book-file", "/usr/share/games/fruit/book_small.bin"]
