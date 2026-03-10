@@ -3,8 +3,8 @@ version: '3.8'
 services:
   gochess-board:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: docker/Dockerfile
     container_name: gochess-board
     ports:
       - "35256:35256"
