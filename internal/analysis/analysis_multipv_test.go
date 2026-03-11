@@ -209,6 +209,10 @@ func TestBuiltinAnalysisEngine_MultiPV(t *testing.T) {
 
 // TestBuiltinAnalysisEngine_MultiPV_TacticalPosition tests multi-PV on a tactical position
 func TestBuiltinAnalysisEngine_MultiPV_TacticalPosition(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping long-running tactical analysis test in short mode")
+	}
+	
 	engine, err := NewBuiltinAnalysisEngine()
 	if err != nil {
 		t.Fatalf("Failed to create builtin analysis engine: %v", err)
