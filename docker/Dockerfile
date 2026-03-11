@@ -26,27 +26,15 @@ RUN apt-get update && \
     stockfish \
     fruit \
     toga2 \
-    # CECP Engines - skip gnuchess from apt (has buffer overflow bug)
+    # CECP Engines
+    gnuchess \
     crafty \
-    # Build dependencies
-    build-essential \
+    # Utilities for optional engines
     wget \
     unzip \
-    tar \
     ca-certificates && \
     # Clean up apt cache
     rm -rf /var/lib/apt/lists/*
-
-# Build GNU Chess 6.2.9 from source (fixes CVE-2021-30184 buffer overflow)
-RUN cd /tmp && \
-    wget https://ftp.gnu.org/gnu/chess/gnuchess-6.2.9.tar.gz && \
-    tar xzf gnuchess-6.2.9.tar.gz && \
-    cd gnuchess-6.2.9 && \
-    ./configure --prefix=/usr && \
-    make && \
-    make install && \
-    cd / && \
-    rm -rf /tmp/gnuchess-6.2.9*
 
 # Install Dragon by Komodo Chess (Dragon 1 is free)
 RUN cd /tmp && \
