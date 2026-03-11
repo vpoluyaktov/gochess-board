@@ -197,6 +197,57 @@ Or use online PGN to Polyglot converters.
 
 ## Installation
 
+### Option 1: Using Docker (Recommended)
+
+The easiest way to run GoChess Board is using Docker. Pre-built multi-platform images are available for Linux (amd64, arm64, arm/v7), macOS (Intel & Apple Silicon), and Windows.
+
+**Linux:**
+```bash
+docker run -p 35256:35256 vpoluyaktov/gochess-board:latest
+```
+
+**macOS (Intel & Apple Silicon):**
+```bash
+# Install Docker Desktop for Mac first: https://www.docker.com/products/docker-desktop/
+docker run -p 35256:35256 vpoluyaktov/gochess-board:latest
+```
+
+**Windows:**
+```powershell
+# Install Docker Desktop for Windows first: https://www.docker.com/products/docker-desktop/
+docker run -p 35256:35256 vpoluyaktov/gochess-board:latest
+```
+
+Then open your browser to `http://localhost:35256`
+
+**Docker Run Options:**
+```bash
+# Run specific version
+docker run -p 35256:35256 vpoluyaktov/gochess-board:1.0.0
+
+# Run from GitHub Container Registry
+docker run -p 35256:35256 ghcr.io/vpoluyaktov/gochess-board:latest
+
+# Run with custom port
+docker run -p 8080:35256 vpoluyaktov/gochess-board:latest
+
+# Run in background (detached mode)
+docker run -d -p 35256:35256 vpoluyaktov/gochess-board:latest
+
+# Run with volume for logs
+docker run -p 35256:35256 -v $(pwd)/logs:/home/chess/logs vpoluyaktov/gochess-board:latest
+```
+
+**What's Included in Docker Image:**
+- Built-in GoChess engine (~1000-1200 ELO)
+- Stockfish (world's strongest engine)
+- Fruit, Toga II (UCI engines)
+- GNU Chess 6.2.9, Crafty (CECP engines)
+- Polyglot opening book support
+- All dependencies pre-installed
+
+### Option 2: Build from Source
+
 1. Clone the repository:
    ```bash
    git clone <repository-url>
