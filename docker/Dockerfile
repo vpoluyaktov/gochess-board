@@ -26,24 +26,13 @@ RUN apt-get update && \
     stockfish \
     fruit \
     toga2 \
+    glaurung \
+    ethereal-chess \
     # CECP Engines
     gnuchess \
-    crafty \
-    # Utilities for optional engines
-    wget \
-    unzip \
-    ca-certificates && \
+    crafty && \
     # Clean up apt cache
     rm -rf /var/lib/apt/lists/*
-
-# Install Dragon by Komodo Chess (Dragon 1 is free)
-RUN cd /tmp && \
-    (wget --no-check-certificate -O dragon.zip https://komodochess.com/pub/dragon.zip && \
-    unzip -q dragon.zip && \
-    find . -type f \( -name "*linux*" -o -name "*Linux*" \) -executable -exec cp {} /usr/games/dragon \; && \
-    chmod +x /usr/games/dragon 2>/dev/null && \
-    rm -rf dragon.zip dragon* || true) && \
-    (test -f /usr/games/dragon && /usr/games/dragon --version 2>&1 | head -1 && echo "Dragon installed successfully" || echo "Dragon download failed or wrong architecture - skipping")
 
 # Create non-root user for running the application
 RUN useradd -m chess && \
