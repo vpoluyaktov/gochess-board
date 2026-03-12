@@ -240,11 +240,11 @@ docker run -p 35256:35256 -v $(pwd)/logs:/home/chess/logs vpoluyaktov/gochess-bo
 
 **What's Included in Docker Image:**
 - Built-in GoChess engine (~1000-1200 ELO)
-- Stockfish (world's strongest engine)
-- Fruit, Toga II (UCI engines)
-- GNU Chess 6.2.9, Crafty (CECP engines)
+- **UCI Engines:** Stockfish (~3500 ELO), Ethereal (~3000 ELO), Fairy-Stockfish (~3000+ ELO), Fruit (~2700 ELO), Toga II (~2700 ELO), Glaurung (~2700 ELO)
+- **CECP Engines:** GNU Chess (~2400 ELO), Crafty (~2400 ELO), Hoichess (~2200 ELO), FairyMax (~1800 ELO)
 - Polyglot opening book support
 - All dependencies pre-installed
+- Works on all platforms: Linux (amd64, arm64, arm/v7), macOS, Windows
 
 ### Option 2: Build from Source
 
