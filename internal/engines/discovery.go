@@ -105,8 +105,6 @@ var uciEngineBaseNames = []string{
 	"stockfish",
 	"lc0",
 	"leela",
-	"komodo",
-	"dragon",
 	"houdini",
 	"rybka",
 	"fruit",
@@ -128,6 +126,8 @@ var uciEngineBaseNames = []string{
 var cecpEngineBaseNames = []string{
 	"crafty",
 	"gnuchess",
+	"hoichess",
+	"fairymax",
 	"sjeng",
 	"phalanx",
 }
