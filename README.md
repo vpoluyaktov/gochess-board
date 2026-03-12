@@ -2,6 +2,21 @@
 
 A Go web server that lets you play chess with a **built-in chess engine** or against multiple external engines including **Stockfish**, **Fruit**, **Toga**, **Crafty**, and **GNU Chess**. The application includes a native Go chess engine (~1000-1200 ELO) that works out-of-the-box with no external dependencies. It also supports UCI and CECP/XBoard protocol engines natively, with optional Polyglot opening book support. The chess game logic runs on the backend, while the frontend provides an interactive chess board. The application automatically opens your default browser when started.
 
+## Live Demo
+
+Try it now at **[https://demo.gochess-board.org](https://demo.gochess-board.org)**
+
+**Available engines on the demo:**
+- **GoChess (Built-in)** - Native Go engine (~1000-1200 ELO)
+- **Stockfish 16** - World's strongest open-source engine (ELO: 1320-3190)
+- **Fairy-Stockfish 11.1** - Multi-variant chess engine (ELO: 1350-2850)
+- **Fruit 2.1** - Strong tactical engine
+- **Toga II 3.0** - Fruit derivative
+- **Glaurung 2.2** - Early Stockfish predecessor
+- **Crafty 23.4** - Strong traditional CECP engine
+- **HoiChess** - Lightweight CECP engine
+- **Fairy-Max** - Multi-variant CECP engine
+
 ## Features
 
 - **Built-in Chess Engine**: Native Go engine (~1000-1200 ELO) - works immediately with no setup!
