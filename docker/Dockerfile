@@ -28,9 +28,12 @@ RUN apt-get update && \
     toga2 \
     glaurung \
     ethereal-chess \
+    fairy-stockfish \
     # CECP Engines
     gnuchess \
-    crafty && \
+    crafty \
+    hoichess \
+    fairymax && \
     # Clean up apt cache
     rm -rf /var/lib/apt/lists/*
 
