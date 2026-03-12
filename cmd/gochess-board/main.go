@@ -121,6 +121,17 @@ func main() {
 	// Start the web server in a goroutine
 	srv := server.New(addr, *bookFile)
 
+	// Display discovered engines
+	discoveredEngines := srv.GetEngines()
+	fmt.Printf("Discovered %d chess engines:\n", len(discoveredEngines))
+	for _, engine := range discoveredEngines {
+		if engine.Type == "internal" {
+			fmt.Printf("  - %s (Built-in)\n", engine.Name)
+		} else {
+			fmt.Printf("  - %s (%s)\n", engine.Name, strings.ToUpper(engine.Type))
+		}
+	}
+
 	// Display book information if loaded
 	if bookLoaded, entryCount := srv.GetPolyglotBookInfo(); bookLoaded {
 		fmt.Printf("Polyglot opening book loaded: %d entries\n", entryCount)
