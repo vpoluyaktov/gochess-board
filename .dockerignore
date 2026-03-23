@@ -1,0 +1,37 @@
+# Git files
+.git
+.gitignore
+
+# Documentation
+README.md
+Changelog/
+*.md
+
+# Test files
+tests/
+*_test.go
+
+# Scripts
+scripts/
+
+# Build artifacts
+gochess-board
+*.exe
+*.log
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Docker files (don't copy into build context)
+Dockerfile
+.dockerignore
+docker-compose.yml
+
+# Temporary files
+*.tmp
+.DS_Store
+game.*

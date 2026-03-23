@@ -23,26 +23,28 @@ The Docker image includes the following chess engines:
 
 ### Using Docker Compose (Recommended)
 
+All commands below should be run from the **project root** (`gochess-board/`), not from `docker/`.
+
 1. Build and start the container:
    ```bash
-   docker-compose up -d
+   docker-compose -f docker/docker-compose.yml up -d
    ```
 
 2. View logs:
    ```bash
-   docker-compose logs -f
+   docker-compose -f docker/docker-compose.yml logs -f
    ```
 
 3. Stop the container:
    ```bash
-   docker-compose down
+   docker-compose -f docker/docker-compose.yml down
    ```
 
 ### Using Docker CLI
 
-1. Build the image:
+1. Build the image (from the project root):
    ```bash
-   docker build -t gochess-board:latest .
+   docker build -t gochess-board:latest -f docker/Dockerfile .
    ```
 
 2. Run the container:
@@ -199,17 +201,17 @@ docker exec gochess-board ls -lh /usr/share/games/gnuchess/book.bin
 
 ### Build for ARM64 (e.g., Raspberry Pi, Apple Silicon)
 ```bash
-docker buildx build --platform linux/arm64 -t gochess-board:arm64 .
+docker buildx build --platform linux/arm64 -t gochess-board:arm64 -f docker/Dockerfile .
 ```
 
 ### Build for AMD64 (standard x86_64)
 ```bash
-docker buildx build --platform linux/amd64 -t gochess-board:amd64 .
+docker buildx build --platform linux/amd64 -t gochess-board:amd64 -f docker/Dockerfile .
 ```
 
 ### Multi-architecture Build
 ```bash
-docker buildx build --platform linux/amd64,linux/arm64 -t gochess-board:latest .
+docker buildx build --platform linux/amd64,linux/arm64 -t gochess-board:latest -f docker/Dockerfile .
 ```
 
 ## Production Deployment
@@ -218,7 +220,9 @@ docker buildx build --platform linux/amd64,linux/arm64 -t gochess-board:latest .
 ```yaml
 services:
   gochess-board:
-    build: .
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
     restart: unless-stopped
     ports:
       - "35256:35256"
