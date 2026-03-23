@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GoChess Board — Chess Game Analysis Tool</title>
+  <meta name="description" content="A web-based chess analysis tool written in Go. Load PGN libraries, navigate games, get real-time engine evaluation, explore variations, and view evaluation graphs.">
+  <meta property="og:title" content="GoChess Board">
+  <meta property="og:description" content="Analyze chess games with engine power. Load PGN libraries, step through moves, and explore variations with real-time engine evaluation.">
+  <meta property="og:url" content="https://gochess-board.org/">
+  <meta name="theme-color" content="#667eea">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --primary:     #667eea;
+      --primary-dark:#5568d3;
+      --secondary:   #764ba2;
+      --gradient:    linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --bg:          #f4f6ff;
+      --bg-card:     #ffffff;
+      --border:      #e2e8f0;
+      --text:        #333333;
+      --text-muted:  #666666;
+      --shadow-sm:   0 2px 8px rgba(102,126,234,.12);
+      --shadow:      0 10px 40px rgba(102,126,234,.20);
+      --radius:      10px;
+      --light-sq:    #f0d9b5;
+      --dark-sq:     #b58863;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      overflow-x: hidden;
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .chess-bg {
+      position: absolute; inset: 0;
+      background-image: repeating-conic-gradient(var(--light-sq) 0% 25%, var(--dark-sq) 0% 50%);
+      background-size: 56px 56px;
+      opacity: 0.08;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Nav ──────────────────────────────────────────────────────────────── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(255,255,255,.95);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 1.5rem;
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+      box-shadow: 0 1px 8px rgba(102,126,234,.10);
+    }
+    .nav-brand {
+      font-size: 1.15rem; font-weight: 700; color: var(--text);
+      display: flex; align-items: center; gap: .45rem;
+    }
+    .nav-brand .chess-icon { color: var(--primary); }
+    .nav-links { display: flex; align-items: center; gap: 1.2rem; }
+    .nav-links a { color: var(--text-muted); font-size: .9rem; font-weight: 500; }
+    .nav-links a:hover { color: var(--primary); text-decoration: none; }
+    .btn-nav {
+      padding: .4rem 1.1rem;
+      background: var(--gradient);
+      color: #fff !important;
+      border-radius: 6px; font-weight: 700; font-size: .85rem;
+      transition: opacity .15s, transform .15s;
+    }
+    .btn-nav:hover { opacity: .9; transform: translateY(-1px); text-decoration: none !important; }
+
+    /* ── Hero ─────────────────────────────────────────────────────────────── */
+    #hero {
+      position: relative;
+      background: var(--gradient);
+      min-height: 80vh;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      padding: 6rem 1.5rem 5rem;
+      overflow: hidden;
+    }
+    .hero-inner { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; }
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: rgba(255,255,255,.18);
+      border: 1px solid rgba(255,255,255,.35);
+      color: #fff;
+      font-size: .8rem; font-weight: 600; letter-spacing: .06em;
+      padding: .3rem .9rem; border-radius: 99px;
+      margin-bottom: 1.6rem;
+    }
+    h1 {
+      font-size: clamp(2.2rem, 6vw, 3.8rem);
+      font-weight: 800; line-height: 1.15; letter-spacing: -.02em;
+      color: #fff; margin-bottom: 1.3rem;
+      text-shadow: 0 2px 16px rgba(0,0,0,.15);
+    }
+    .hero-sub {
+      font-size: 1.1rem; color: rgba(255,255,255,.88);
+      max-width: 600px; margin: 0 auto 2.4rem;
+    }
+    .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
+    .btn {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .8rem 1.8rem; border-radius: 8px;
+      font-weight: 700; font-size: 1rem;
+      transition: transform .15s, box-shadow .15s;
+      cursor: pointer; text-decoration: none !important;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn-white { background: #fff; color: var(--primary); box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+    .btn-white:hover { box-shadow: 0 8px 28px rgba(0,0,0,.22); }
+    .btn-ghost {
+      background: rgba(255,255,255,.15);
+      border: 2px solid rgba(255,255,255,.5); color: #fff;
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.8); }
+
+    /* ── Demo banner ──────────────────────────────────────────────────────── */
+    .demo-banner {
+      background: #fff; border-bottom: 1px solid var(--border);
+      padding: 1rem 1.5rem; text-align: center;
+      font-size: .92rem; color: var(--text-muted);
+      box-shadow: var(--shadow-sm);
+    }
+    .demo-banner a { font-weight: 700; color: var(--primary); }
+    .pulse {
+      display: inline-block; width: 9px; height: 9px;
+      background: #22c55e; border-radius: 50%; margin-right: .4rem;
+      vertical-align: middle; animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(34,197,94,.6); }
+      50%       { opacity: .8; box-shadow: 0 0 0 5px rgba(34,197,94,0); }
+    }
+
+    /* ── Sections ─────────────────────────────────────────────────────────── */
+    section { padding: 5rem 1.5rem; }
+    .container { max-width: 1040px; margin: 0 auto; }
+    .section-label {
+      font-size: .75rem; font-weight: 700; letter-spacing: .12em;
+      text-transform: uppercase; color: var(--primary); margin-bottom: .7rem;
+    }
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800; letter-spacing: -.02em; color: var(--text); margin-bottom: .9rem;
+    }
+    .section-sub { color: var(--text-muted); font-size: 1.02rem; max-width: 580px; margin-bottom: 3rem; }
+
+    /* ── Analysis workflow ────────────────────────────────────────────────── */
+    .workflow {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 1rem; counter-reset: step;
+    }
+    .workflow-step {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem 1.4rem;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      counter-increment: step;
+    }
+    .workflow-step::before {
+      content: counter(step);
+      position: absolute; top: 1.2rem; right: 1.2rem;
+      width: 26px; height: 26px;
+      background: var(--gradient);
+      color: #fff; font-size: .78rem; font-weight: 800;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .step-icon { font-size: 1.7rem; margin-bottom: .7rem; }
+    .workflow-step h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .workflow-step p  { font-size: .88rem; color: var(--text-muted); }
+
+    /* ── Feature grid ─────────────────────────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1.2rem;
+    }
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem; box-shadow: var(--shadow-sm);
+      transition: border-color .2s, transform .2s, box-shadow .2s;
+    }
+    .feature-card:hover { border-color: var(--primary); transform: translateY(-3px); box-shadow: var(--shadow); }
+    .feature-icon { font-size: 1.7rem; margin-bottom: .7rem; }
+    .feature-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: .4rem; }
+    .feature-card p  { font-size: .88rem; color: var(--text-muted); }
+
+    /* ── Quick Start ──────────────────────────────────────────────────────── */
+    #quickstart { background: #fff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .tabs { display: flex; gap: .35rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
+    .tab {
+      padding: .5rem 1.2rem; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted);
+      cursor: pointer; font-size: .9rem; font-weight: 600;
+      transition: background .15s, color .15s, border-color .15s;
+      font-family: Arial, sans-serif;
+    }
+    .tab:hover { border-color: var(--primary); color: var(--primary); }
+    .tab.active { background: var(--gradient); color: #fff; border-color: transparent; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .code-block {
+      position: relative;
+      background: #1e1e2e; border: 1px solid #2d2d44;
+      border-radius: var(--radius);
+      padding: 1.25rem 3.5rem 1.25rem 1.5rem;
+      font-family: 'Courier New', Consolas, monospace;
+      font-size: .88rem; overflow-x: auto; line-height: 1.75; color: #cdd6f4;
+    }
+    .code-block pre { margin: 0; white-space: pre; }
+    .copy-btn {
+      position: absolute; top: .75rem; right: .75rem;
+      background: #313244; border: none; color: #cdd6f4;
+      padding: .3rem .75rem; border-radius: 5px;
+      cursor: pointer; font-size: .8rem; font-weight: 600;
+      transition: background .15s, color .15s; font-family: Arial, sans-serif;
+    }
+    .copy-btn:hover { background: var(--primary); color: #fff; }
+    .copy-btn.copied { background: #22c55e; color: #fff; }
+    .cmd-comment { color: #585b70; }
+    .cmd-kw   { color: #89b4fa; }
+    .cmd-str  { color: #a6e3a1; }
+    .cmd-flag { color: #f5c2e7; }
+
+    /* ── Engines ──────────────────────────────────────────────────────────── */
+    #engines { background: #fff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .engines-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+    @media (max-width: 640px) { .engines-cols { grid-template-columns: 1fr; } }
+    .table-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden; box-shadow: var(--shadow-sm);
+    }
+    .table-card h3 {
+      font-size: .85rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: #fff; background: var(--gradient); padding: .75rem 1rem; margin: 0;
+    }
+    table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+    th {
+      text-align: left; padding: .6rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted); font-weight: 600; font-size: .78rem;
+      text-transform: uppercase; letter-spacing: .05em; background: #f8f9ff;
+    }
+    td { padding: .55rem 1rem; border-bottom: 1px solid var(--border); }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f8f9ff; }
+    .badge {
+      display: inline-block; padding: .12rem .5rem; border-radius: 4px;
+      font-size: .72rem; font-weight: 700; letter-spacing: .04em;
+    }
+    .badge-go { background: rgba(34,197,94,.12); color: #16a34a; }
+
+    /* ── API ──────────────────────────────────────────────────────────────── */
+    .api-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem; margin-bottom: 2rem;
+    }
+    .api-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 1.1rem 1.3rem; box-shadow: var(--shadow-sm);
+    }
+    .api-method {
+      display: inline-block; padding: .12rem .5rem;
+      border-radius: 4px; font-size: .72rem; font-weight: 800;
+      margin-right: .45rem; letter-spacing: .04em;
+    }
+    .method-get  { background: rgba(34,197,94,.12);   color: #16a34a; }
+    .method-post { background: rgba(245,158,11,.15);  color: #b45309; }
+    .method-ws   { background: rgba(102,126,234,.12); color: var(--primary-dark); }
+    .api-path { font-family: 'Courier New', monospace; font-size: .9rem; }
+    .api-desc { font-size: .84rem; color: var(--text-muted); margin-top: .45rem; }
+
+    /* ── CTA ──────────────────────────────────────────────────────────────── */
+    #cta {
+      text-align: center;
+      background: var(--gradient);
+      position: relative; overflow: hidden;
+    }
+    #cta h2 { color: #fff; margin-bottom: .75rem; }
+    #cta p  { color: rgba(255,255,255,.85); margin-bottom: 2rem; font-size: 1.05rem; }
+
+    /* ── Footer ───────────────────────────────────────────────────────────── */
+    footer {
+      border-top: 1px solid var(--border); padding: 2rem 1.5rem;
+      text-align: center; color: var(--text-muted); font-size: .85rem; background: #fff;
+    }
+    footer a { color: var(--text-muted); }
+    footer a:hover { color: var(--primary); text-decoration: none; }
+    .footer-links { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: .7rem; }
+
+    @media (max-width: 600px) {
+      .nav-links .hide-sm { display: none; }
+      h1 { font-size: 2rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Navigation -->
+<nav>
+  <div class="nav-brand">
+    <span class="chess-icon">♟</span> GoChess Board
+  </div>
+  <div class="nav-links">
+    <a href="#workflow" class="hide-sm">How It Works</a>
+    <a href="#features" class="hide-sm">Features</a>
+    <a href="#quickstart" class="hide-sm">Quick Start</a>
+    <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="hide-sm">GitHub</a>
+    <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn-nav">Live Demo →</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section id="hero">
+  <div class="chess-bg"></div>
+  <div class="hero-inner">
+    <div class="hero-badge">♟ Open Source Chess Analysis Tool</div>
+    <h1>Analyze Chess Games<br>with Engine Power</h1>
+    <p class="hero-sub">
+      Load games from PGN libraries, navigate move by move, and get real-time
+      engine evaluation — all in your browser with a self-contained Go binary.
+      No cloud, no setup, no dependencies.
+    </p>
+    <div class="hero-actions">
+      <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn btn-white">
+        ▶ Try Live Demo
+      </a>
+      <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="btn btn-ghost">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.745 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        View on GitHub
+      </a>
+      <a href="#quickstart" class="btn btn-ghost">Quick Start</a>
+    </div>
+  </div>
+</section>
+
+<!-- Live demo banner -->
+<div class="demo-banner">
+  <span class="pulse"></span>
+  Live demo running at
+  <a href="https://demo.gochess-board.org" target="_blank" rel="noopener">demo.gochess-board.org</a>
+  — Stockfish 16, Fairy-Stockfish, Crafty, GNU Chess, and more pre-installed
+</div>
+
+<!-- How it works -->
+<section id="workflow">
+  <div class="container">
+    <div class="section-label">How It Works</div>
+    <h2>From PGN to Deep Analysis in Four Steps</h2>
+    <p class="section-sub">A streamlined workflow for studying any chess game.</p>
+    <div class="workflow">
+      <div class="workflow-step">
+        <div class="step-icon">📂</div>
+        <h3>Load a PGN</h3>
+        <p>Paste PGN text, load a <code>.pgn</code> file, or drag &amp; drop. Multi-game files are supported — a searchable table lets you pick any game by player, event, date, or opening.</p>
+      </div>
+      <div class="workflow-step">
+        <div class="step-icon">🔍</div>
+        <h3>Start Analysis</h3>
+        <p>Choose an engine (Stockfish, Crafty, GNU Chess, or the built-in Go engine) and click <em>Start Analysis</em>. Evaluation lines stream live over WebSocket as you step through the game.</p>
+      </div>
+      <div class="workflow-step">
+        <div class="step-icon">⏩</div>
+        <h3>Navigate Moves</h3>
+        <p>Use the navigation controls to step forward, backward, or jump to any position. The evaluation graph updates in real-time to show where the advantage shifted.</p>
+      </div>
+      <div class="workflow-step">
+        <div class="step-icon">🔀</div>
+        <h3>Explore Variations</h3>
+        <p>Open a variation window from any position to test alternative lines. Merge a variation back into the main game, or discard it — the original game is never altered.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">Features</div>
+    <h2>Everything You Need for Game Study</h2>
+    <p class="section-sub">All assets are embedded in a single binary — no internet required after download.</p>
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📚</div>
+        <h3>PGN Library Support</h3>
+        <p>Load multi-game PGN files and browse a table of all games. Each entry shows players, result, date, event, and identified opening name — select any game to analyze it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Evaluation Graph</h3>
+        <p>A live canvas graph tracks the engine evaluation across every move, making it easy to spot the moment a mistake was made or an advantage was squandered.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>Best Move &amp; PV Display</h3>
+        <p>Choose to highlight the single best move, show the top 3 alternatives with arrows, or animate the full principal variation — all rendered directly on the board.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🏷</div>
+        <h3>Opening Recognition</h3>
+        <p>Every position is identified in real-time against 3,594 openings from the Lichess ECO database. The current opening name and code are shown as you navigate.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🔀</div>
+        <h3>Variation Explorer</h3>
+        <p>Open a variation from any position in a separate window and explore freely. Merge the variation back into the main game or close it without affecting the original.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">📖</div>
+        <h3>Opening Book</h3>
+        <p>Optional Polyglot <code>.bin</code> opening book reader written in pure Go. Book moves return instantly before engine calculation begins.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">♟</div>
+        <h3>Play Against Engines</h3>
+        <p>Set either side to any discovered engine and play a full game with clocks, resign/draw controls, and PGN export. A useful complement to analysis mode.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">🐳</div>
+        <h3>Docker Ready</h3>
+        <p>Multi-platform images (amd64, arm64, armv7) with 10+ pre-installed engines. Deploy anywhere in seconds with <code>docker run</code>.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick Start -->
+<section id="quickstart">
+  <div class="container">
+    <div class="section-label">Get Started</div>
+    <h2>Up and Running in Seconds</h2>
+    <p class="section-sub">Choose the method that suits you best.</p>
+
+    <div class="tabs">
+      <button class="tab active" onclick="showTab('docker', this)">🐳 Docker</button>
+      <button class="tab" onclick="showTab('source', this)">🔨 Build from Source</button>
+      <button class="tab" onclick="showTab('flags', this)">⚙ CLI Flags</button>
+    </div>
+
+    <div id="tab-docker" class="tab-content active">
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="cmd-comment"># Pull and run — opens on port 35256</span>
+<span class="cmd-kw">docker</span> run -p 35256:35256 vpoluyaktov/gochess-board:latest
+
+<span class="cmd-comment"># Open your browser at</span>
+<span class="cmd-str">http://localhost:35256</span></pre>
+      </div>
+      <p style="margin-top:1rem;color:var(--text-muted);font-size:.9rem;">
+        The Docker image includes Stockfish 16, Fairy-Stockfish, Fruit, Toga II, Glaurung, Crafty, GNU Chess, HoiChess, and FairyMax pre-installed — ready for deep analysis.
+        See <a href="https://github.com/vpoluyaktov/gochess-board/blob/main/docker/DOCKER.md" target="_blank" rel="noopener">docker/DOCKER.md</a> for docker-compose and volume options.
+      </p>
+    </div>
+
+    <div id="tab-source" class="tab-content">
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="cmd-comment"># Prerequisites: Go 1.24+</span>
+<span class="cmd-kw">git</span> clone https://github.com/vpoluyaktov/gochess-board.git
+<span class="cmd-kw">cd</span> gochess-board
+<span class="cmd-kw">go</span> build -o gochess-board ./cmd/gochess-board
+<span class="cmd-str">./gochess-board</span>
+
+<span class="cmd-comment"># The built-in engine works immediately.
+# Install stronger engines for deeper analysis:</span>
+<span class="cmd-kw">sudo apt-get install</span> stockfish crafty</pre>
+      </div>
+    </div>
+
+    <div id="tab-flags" class="tab-content">
+      <div class="code-block">
+        <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+        <pre><span class="cmd-comment"># All flags and their defaults:</span>
+./gochess-board \
+  <span class="cmd-flag">--port</span>                35256    <span class="cmd-comment"># Web server port</span>
+  <span class="cmd-flag">--book-file</span>           &lt;path&gt;   <span class="cmd-comment"># Polyglot .bin opening book</span>
+  <span class="cmd-flag">--persistent-engines</span>           <span class="cmd-comment"># Keep engines alive between moves</span>
+  <span class="cmd-flag">--no-browser</span>                   <span class="cmd-comment"># Don't auto-open browser</span>
+  <span class="cmd-flag">--no-tui</span>                       <span class="cmd-comment"># Disable terminal UI</span>
+  <span class="cmd-flag">--log-level</span>           INFO     <span class="cmd-comment"># DEBUG | INFO | WARN | ERROR</span>
+  <span class="cmd-flag">--restart</span>                      <span class="cmd-comment"># Kill existing process on same port</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Engines -->
+<section id="engines">
+  <div class="container">
+    <div class="section-label">Analysis Engines</div>
+    <h2>Supported Chess Engines</h2>
+    <p class="section-sub">
+      Engines are discovered automatically at startup from the system PATH.
+      Any engine can be used for both analysis and playing.
+    </p>
+    <div class="engines-cols">
+      <div class="table-card">
+        <h3>UCI Engines</h3>
+        <table>
+          <thead><tr><th>Engine</th><th>ELO Range</th></tr></thead>
+          <tbody>
+            <tr><td>GoChess (built-in) <span class="badge badge-go">Go</span></td><td>~1000–1200</td></tr>
+            <tr><td>Stockfish 16</td><td>1320–3190</td></tr>
+            <tr><td>Fairy-Stockfish 11.1</td><td>1350–2850</td></tr>
+            <tr><td>Fruit 2.1</td><td>~2700</td></tr>
+            <tr><td>Toga II 3.0</td><td>~2700</td></tr>
+            <tr><td>Glaurung 2.2</td><td>~2700</td></tr>
+            <tr><td>Ethereal</td><td>~3000</td></tr>
+            <tr><td>Leela Chess Zero</td><td>3100+</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="table-card">
+        <h3>CECP / XBoard Engines</h3>
+        <table>
+          <thead><tr><th>Engine</th><th>ELO Range</th></tr></thead>
+          <tbody>
+            <tr><td>Crafty 23.4</td><td>~2400</td></tr>
+            <tr><td>GNU Chess 6</td><td>~2000</td></tr>
+            <tr><td>HoiChess</td><td>~2200</td></tr>
+            <tr><td>Fairy-Max</td><td>~1800</td></tr>
+            <tr><td>Sjeng</td><td>~2000</td></tr>
+            <tr><td>Phalanx</td><td>~1900</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section id="api">
+  <div class="container">
+    <div class="section-label">REST API</div>
+    <h2>Simple HTTP Interface</h2>
+    <p class="section-sub">The server exposes a clean REST + WebSocket API for all chess operations.</p>
+    <div class="api-grid">
+      <div class="api-card">
+        <div><span class="api-method method-get">GET</span><span class="api-path">/</span></div>
+        <p class="api-desc">Interactive chess board and analysis UI served as a single HTML page.</p>
+      </div>
+      <div class="api-card">
+        <div><span class="api-method method-get">GET</span><span class="api-path">/api/engines</span></div>
+        <p class="api-desc">List all discovered engines with name, protocol, and executable path.</p>
+      </div>
+      <div class="api-card">
+        <div><span class="api-method method-post">POST</span><span class="api-path">/api/computer-move</span></div>
+        <p class="api-desc">Send a FEN position and engine name, receive the engine's best move.</p>
+      </div>
+      <div class="api-card">
+        <div><span class="api-method method-post">POST</span><span class="api-path">/api/opening</span></div>
+        <p class="api-desc">Look up the opening name and ECO code for a given move sequence.</p>
+      </div>
+      <div class="api-card">
+        <div><span class="api-method method-ws">WS</span><span class="api-path">/ws/analysis</span></div>
+        <p class="api-desc">Real-time multi-PV analysis streamed via WebSocket as the engine thinks.</p>
+      </div>
+    </div>
+    <div class="code-block">
+      <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+      <pre><span class="cmd-comment"># Request a computer move (returns best move + new FEN)</span>
+<span class="cmd-kw">curl</span> -X POST http://localhost:35256/api/computer-move \
+  -H <span class="cmd-str">"Content-Type: application/json"</span> \
+  -d <span class="cmd-str">'{"fen":"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}'</span></pre>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section id="cta">
+  <div class="chess-bg"></div>
+  <div class="container" style="position:relative;z-index:1;">
+    <h2>Start Analyzing Your Games</h2>
+    <p>Try the live demo instantly, or run your own instance with Docker.</p>
+    <div class="hero-actions">
+      <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn btn-white">
+        ▶ Open Live Demo
+      </a>
+      <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="btn btn-ghost">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.745 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
+        Star on GitHub
+      </a>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <div class="footer-links">
+    <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener">GitHub</a>
+    <a href="https://github.com/vpoluyaktov/gochess-board/releases" target="_blank" rel="noopener">Releases</a>
+    <a href="https://github.com/vpoluyaktov/gochess-board/blob/main/docker/DOCKER.md" target="_blank" rel="noopener">Docker Docs</a>
+    <a href="https://hub.docker.com/r/vpoluyaktov/gochess-board" target="_blank" rel="noopener">Docker Hub</a>
+    <a href="https://demo.gochess-board.org" target="_blank" rel="noopener">Live Demo</a>
+  </div>
+  <p>MIT License · Built with Go · <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener">vpoluyaktov/gochess-board</a></p>
+</footer>
+
+<script>
+  function showTab(id, btn) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    btn.classList.add('active');
+  }
+
+  function copyCode(btn) {
+    const pre = btn.nextElementSibling;
+    navigator.clipboard.writeText(pre.innerText).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
