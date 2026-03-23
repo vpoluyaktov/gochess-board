@@ -14,16 +14,15 @@
 
     :root {
       --primary:     #667eea;
-      --primary-dark:#5568d3;
+      --primary-dark: #5568d3;
       --secondary:   #764ba2;
       --gradient:    linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      --bg:          #f4f6ff;
       --bg-card:     #ffffff;
       --border:      #e2e8f0;
       --text:        #333333;
       --text-muted:  #666666;
-      --shadow-sm:   0 2px 8px rgba(102,126,234,.12);
-      --shadow:      0 10px 40px rgba(102,126,234,.20);
+      --shadow-sm:   0 2px 8px rgba(0,0,0,.08);
+      --shadow:      0 10px 40px rgba(0,0,0,.20);
       --radius:      10px;
       --light-sq:    #f0d9b5;
       --dark-sq:     #b58863;
@@ -33,10 +32,14 @@
 
     body {
       font-family: Arial, sans-serif;
-      background: var(--bg);
+      background-color: var(--dark-sq);
+      background-image: repeating-conic-gradient(var(--light-sq) 0% 25%, var(--dark-sq) 0% 50%);
+      background-size: 80px 80px;
+      background-attachment: fixed;
       color: var(--text);
       line-height: 1.65;
       overflow-x: hidden;
+      min-height: 100vh;
     }
 
     a { color: var(--primary); text-decoration: none; }
@@ -46,7 +49,7 @@
       position: absolute; inset: 0;
       background-image: repeating-conic-gradient(var(--light-sq) 0% 25%, var(--dark-sq) 0% 50%);
       background-size: 56px 56px;
-      opacity: 0.08;
+      opacity: 0.06;
       pointer-events: none;
       z-index: 0;
     }
@@ -54,13 +57,12 @@
     /* ── Nav ──────────────────────────────────────────────────────────────── */
     nav {
       position: sticky; top: 0; z-index: 100;
-      background: rgba(255,255,255,.95);
-      backdrop-filter: blur(10px);
-      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(12px);
       padding: 0 1.5rem;
       display: flex; align-items: center; justify-content: space-between;
       height: 60px;
-      box-shadow: 0 1px 8px rgba(102,126,234,.10);
+      box-shadow: 0 2px 12px rgba(0,0,0,.12);
     }
     .nav-brand {
       font-size: 1.15rem; font-weight: 700; color: var(--text);
@@ -72,29 +74,32 @@
     .nav-links a:hover { color: var(--primary); text-decoration: none; }
     .btn-nav {
       padding: .4rem 1.1rem;
-      background: var(--gradient);
+      background: var(--primary);
       color: #fff !important;
-      border-radius: 6px; font-weight: 700; font-size: .85rem;
-      transition: opacity .15s, transform .15s;
+      border-radius: 5px; font-weight: 700; font-size: .85rem;
+      transition: background .2s, transform .15s;
     }
-    .btn-nav:hover { opacity: .9; transform: translateY(-1px); text-decoration: none !important; }
+    .btn-nav:hover { background: var(--primary-dark); transform: translateY(-1px); text-decoration: none !important; }
 
     /* ── Hero ─────────────────────────────────────────────────────────────── */
     #hero {
       position: relative;
-      background: var(--gradient);
-      min-height: 80vh;
       display: flex; align-items: center; justify-content: center;
       text-align: center;
-      padding: 6rem 1.5rem 5rem;
-      overflow: hidden;
+      padding: 5rem 1.5rem;
     }
-    .hero-inner { position: relative; z-index: 1; max-width: 780px; margin: 0 auto; }
+    .hero-inner {
+      position: relative; z-index: 1; max-width: 780px; margin: 0 auto;
+      background: white;
+      padding: 3rem 2.5rem;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
     .hero-badge {
       display: inline-flex; align-items: center; gap: .4rem;
-      background: rgba(255,255,255,.18);
-      border: 1px solid rgba(255,255,255,.35);
-      color: #fff;
+      background: #f0f4ff;
+      border: 1px solid var(--border);
+      color: var(--primary);
       font-size: .8rem; font-weight: 600; letter-spacing: .06em;
       padding: .3rem .9rem; border-radius: 99px;
       margin-bottom: 1.6rem;
@@ -102,36 +107,36 @@
     h1 {
       font-size: clamp(2.2rem, 6vw, 3.8rem);
       font-weight: 800; line-height: 1.15; letter-spacing: -.02em;
-      color: #fff; margin-bottom: 1.3rem;
-      text-shadow: 0 2px 16px rgba(0,0,0,.15);
+      color: var(--text); margin-bottom: 1.3rem;
     }
     .hero-sub {
-      font-size: 1.1rem; color: rgba(255,255,255,.88);
+      font-size: 1.1rem; color: var(--text-muted);
       max-width: 600px; margin: 0 auto 2.4rem;
     }
     .hero-actions { display: flex; gap: 1rem; justify-content: center; flex-wrap: wrap; }
     .btn {
       display: inline-flex; align-items: center; gap: .5rem;
-      padding: .8rem 1.8rem; border-radius: 8px;
+      padding: .8rem 1.8rem; border-radius: 5px;
       font-weight: 700; font-size: 1rem;
-      transition: transform .15s, box-shadow .15s;
+      transition: transform .15s, box-shadow .15s, background .2s;
       cursor: pointer; text-decoration: none !important;
     }
     .btn:hover { transform: translateY(-2px); }
-    .btn-white { background: #fff; color: var(--primary); box-shadow: 0 4px 20px rgba(0,0,0,.15); }
-    .btn-white:hover { box-shadow: 0 8px 28px rgba(0,0,0,.22); }
-    .btn-ghost {
-      background: rgba(255,255,255,.15);
-      border: 2px solid rgba(255,255,255,.5); color: #fff;
+    .btn-primary { background: var(--primary); color: #fff; box-shadow: 0 4px 20px rgba(0,0,0,.15); }
+    .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 8px 28px rgba(0,0,0,.22); }
+    .btn-outline {
+      background: white;
+      border: 2px solid var(--border); color: var(--text);
     }
-    .btn-ghost:hover { background: rgba(255,255,255,.25); border-color: rgba(255,255,255,.8); }
+    .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 
     /* ── Demo banner ──────────────────────────────────────────────────────── */
     .demo-banner {
-      background: #fff; border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.92);
+      backdrop-filter: blur(10px);
       padding: 1rem 1.5rem; text-align: center;
       font-size: .92rem; color: var(--text-muted);
-      box-shadow: var(--shadow-sm);
+      box-shadow: 0 2px 12px rgba(0,0,0,.08);
     }
     .demo-banner a { font-weight: 700; color: var(--primary); }
     .pulse {
@@ -147,6 +152,12 @@
     /* ── Sections ─────────────────────────────────────────────────────────── */
     section { padding: 5rem 1.5rem; }
     .container { max-width: 1040px; margin: 0 auto; }
+    .section-card {
+      background: white;
+      padding: 2.5rem;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
     .section-label {
       font-size: .75rem; font-weight: 700; letter-spacing: .12em;
       text-transform: uppercase; color: var(--primary); margin-bottom: .7rem;
@@ -164,19 +175,21 @@
       gap: 1rem; counter-reset: step;
     }
     .workflow-step {
-      background: var(--bg-card);
+      background: #f9f9f9;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 1.5rem 1.4rem;
       box-shadow: var(--shadow-sm);
       position: relative;
       counter-increment: step;
+      transition: border-color .2s, transform .2s;
     }
+    .workflow-step:hover { border-color: var(--primary); transform: translateY(-2px); }
     .workflow-step::before {
       content: counter(step);
       position: absolute; top: 1.2rem; right: 1.2rem;
       width: 26px; height: 26px;
-      background: var(--gradient);
+      background: var(--primary);
       color: #fff; font-size: .78rem; font-weight: 800;
       border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
@@ -192,7 +205,7 @@
       gap: 1.2rem;
     }
     .feature-card {
-      background: var(--bg-card);
+      background: #f9f9f9;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 1.5rem; box-shadow: var(--shadow-sm);
@@ -204,17 +217,16 @@
     .feature-card p  { font-size: .88rem; color: var(--text-muted); }
 
     /* ── Quick Start ──────────────────────────────────────────────────────── */
-    #quickstart { background: #fff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .tabs { display: flex; gap: .35rem; margin-bottom: 1.5rem; flex-wrap: wrap; }
     .tab {
-      padding: .5rem 1.2rem; border-radius: 6px; border: 1px solid var(--border);
+      padding: .5rem 1.2rem; border-radius: 5px; border: 2px solid var(--border);
       background: transparent; color: var(--text-muted);
       cursor: pointer; font-size: .9rem; font-weight: 600;
       transition: background .15s, color .15s, border-color .15s;
       font-family: Arial, sans-serif;
     }
     .tab:hover { border-color: var(--primary); color: var(--primary); }
-    .tab.active { background: var(--gradient); color: #fff; border-color: transparent; }
+    .tab.active { background: var(--primary); color: #fff; border-color: var(--primary); }
     .tab-content { display: none; }
     .tab-content.active { display: block; }
     .code-block {
@@ -241,29 +253,28 @@
     .cmd-flag { color: #f5c2e7; }
 
     /* ── Engines ──────────────────────────────────────────────────────────── */
-    #engines { background: #fff; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .engines-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
     @media (max-width: 640px) { .engines-cols { grid-template-columns: 1fr; } }
     .table-card {
-      background: var(--bg);
+      background: #f9f9f9;
       border: 1px solid var(--border);
       border-radius: var(--radius);
       overflow: hidden; box-shadow: var(--shadow-sm);
     }
     .table-card h3 {
       font-size: .85rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-      color: #fff; background: var(--gradient); padding: .75rem 1rem; margin: 0;
+      color: #fff; background: var(--primary); padding: .75rem 1rem; margin: 0;
     }
     table { width: 100%; border-collapse: collapse; font-size: .9rem; }
     th {
       text-align: left; padding: .6rem 1rem;
       border-bottom: 1px solid var(--border);
       color: var(--text-muted); font-weight: 600; font-size: .78rem;
-      text-transform: uppercase; letter-spacing: .05em; background: #f8f9ff;
+      text-transform: uppercase; letter-spacing: .05em; background: #f5f5f5;
     }
     td { padding: .55rem 1rem; border-bottom: 1px solid var(--border); }
     tr:last-child td { border-bottom: none; }
-    tr:hover td { background: #f8f9ff; }
+    tr:hover td { background: #f0f4ff; }
     .badge {
       display: inline-block; padding: .12rem .5rem; border-radius: 4px;
       font-size: .72rem; font-weight: 700; letter-spacing: .04em;
@@ -276,9 +287,11 @@
       gap: 1rem; margin-bottom: 2rem;
     }
     .api-card {
-      background: var(--bg-card); border: 1px solid var(--border);
+      background: #f9f9f9; border: 1px solid var(--border);
       border-radius: var(--radius); padding: 1.1rem 1.3rem; box-shadow: var(--shadow-sm);
+      transition: border-color .2s, transform .2s;
     }
+    .api-card:hover { border-color: var(--primary); transform: translateY(-2px); }
     .api-method {
       display: inline-block; padding: .12rem .5rem;
       border-radius: 4px; font-size: .72rem; font-weight: 800;
@@ -293,24 +306,28 @@
     /* ── CTA ──────────────────────────────────────────────────────────────── */
     #cta {
       text-align: center;
-      background: var(--gradient);
       position: relative; overflow: hidden;
+      padding: 5rem 1.5rem;
     }
-    #cta h2 { color: #fff; margin-bottom: .75rem; }
-    #cta p  { color: rgba(255,255,255,.85); margin-bottom: 2rem; font-size: 1.05rem; }
+    #cta h2 { color: var(--text); margin-bottom: .75rem; }
+    #cta p  { color: var(--text-muted); margin-bottom: 2rem; font-size: 1.05rem; }
 
     /* ── Footer ───────────────────────────────────────────────────────────── */
     footer {
-      border-top: 1px solid var(--border); padding: 2rem 1.5rem;
-      text-align: center; color: var(--text-muted); font-size: .85rem; background: #fff;
+      padding: 2rem 1.5rem;
+      text-align: center; color: var(--text-muted); font-size: .85rem;
+      background: rgba(255,255,255,.85);
+      backdrop-filter: blur(6px);
     }
     footer a { color: var(--text-muted); }
     footer a:hover { color: var(--primary); text-decoration: none; }
+    footer p { color: var(--text-muted); }
     .footer-links { display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; margin-bottom: .7rem; }
 
     @media (max-width: 600px) {
       .nav-links .hide-sm { display: none; }
       h1 { font-size: 2rem; }
+      .section-card { padding: 1.5rem; }
     }
   </style>
 </head>
@@ -332,7 +349,6 @@
 
 <!-- Hero -->
 <section id="hero">
-  <div class="chess-bg"></div>
   <div class="hero-inner">
     <div class="hero-badge">♟ Open Source Chess Analysis Tool</div>
     <h1>Analyze Chess Games<br>with Engine Power</h1>
@@ -342,14 +358,14 @@
       No cloud, no setup, no dependencies.
     </p>
     <div class="hero-actions">
-      <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn btn-white">
+      <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn btn-primary">
         ▶ Try Live Demo
       </a>
-      <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="btn btn-ghost">
+      <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="btn btn-outline">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.745 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
         View on GitHub
       </a>
-      <a href="#quickstart" class="btn btn-ghost">Quick Start</a>
+      <a href="#quickstart" class="btn btn-outline">Quick Start</a>
     </div>
   </div>
 </section>
@@ -365,6 +381,7 @@
 <!-- How it works -->
 <section id="workflow">
   <div class="container">
+    <div class="section-card">
     <div class="section-label">How It Works</div>
     <h2>From PGN to Deep Analysis in Four Steps</h2>
     <p class="section-sub">A streamlined workflow for studying any chess game.</p>
@@ -390,12 +407,14 @@
         <p>Open a variation window from any position to test alternative lines. Merge a variation back into the main game, or discard it — the original game is never altered.</p>
       </div>
     </div>
+    </div>
   </div>
 </section>
 
 <!-- Features -->
 <section id="features">
   <div class="container">
+    <div class="section-card">
     <div class="section-label">Features</div>
     <h2>Everything You Need for Game Study</h2>
     <p class="section-sub">All assets are embedded in a single binary — no internet required after download.</p>
@@ -441,12 +460,14 @@
         <p>Multi-platform images (amd64, arm64, armv7) with 10+ pre-installed engines. Deploy anywhere in seconds with <code>docker run</code>.</p>
       </div>
     </div>
+    </div>
   </div>
 </section>
 
 <!-- Quick Start -->
 <section id="quickstart">
   <div class="container">
+    <div class="section-card">
     <div class="section-label">Get Started</div>
     <h2>Up and Running in Seconds</h2>
     <p class="section-sub">Choose the method that suits you best.</p>
@@ -501,12 +522,14 @@
   <span class="cmd-flag">--restart</span>                      <span class="cmd-comment"># Kill existing process on same port</span></pre>
       </div>
     </div>
+    </div>
   </div>
 </section>
 
 <!-- Engines -->
 <section id="engines">
   <div class="container">
+    <div class="section-card">
     <div class="section-label">Analysis Engines</div>
     <h2>Supported Chess Engines</h2>
     <p class="section-sub">
@@ -545,12 +568,14 @@
         </table>
       </div>
     </div>
+    </div>
   </div>
 </section>
 
 <!-- API -->
 <section id="api">
   <div class="container">
+    <div class="section-card">
     <div class="section-label">REST API</div>
     <h2>Simple HTTP Interface</h2>
     <p class="section-sub">The server exposes a clean REST + WebSocket API for all chess operations.</p>
@@ -583,23 +608,25 @@
   -H <span class="cmd-str">"Content-Type: application/json"</span> \
   -d <span class="cmd-str">'{"fen":"rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1"}'</span></pre>
     </div>
+    </div>
   </div>
 </section>
 
 <!-- CTA -->
 <section id="cta">
-  <div class="chess-bg"></div>
-  <div class="container" style="position:relative;z-index:1;">
+  <div class="container">
+    <div class="section-card">
     <h2>Start Analyzing Your Games</h2>
     <p>Try the live demo instantly, or run your own instance with Docker.</p>
     <div class="hero-actions">
-      <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn btn-white">
+      <a href="https://demo.gochess-board.org" target="_blank" rel="noopener" class="btn btn-primary">
         ▶ Open Live Demo
       </a>
-      <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="btn btn-ghost">
+      <a href="https://github.com/vpoluyaktov/gochess-board" target="_blank" rel="noopener" class="btn btn-outline">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.745 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>
         Star on GitHub
       </a>
+    </div>
     </div>
   </div>
 </section>

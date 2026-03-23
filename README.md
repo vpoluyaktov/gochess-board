@@ -1,6 +1,6 @@
-# GoChess Board
+# Analyze Chess Games with Engine Power
 
-A web-based chess application written in Go that lets you play against a **built-in chess engine** or any installed **UCI/CECP engine** (Stockfish, GNU Chess, Crafty, and more). The application is fully self-contained — all assets are embedded in a single binary that works offline with no external dependencies.
+Load games from PGN libraries, navigate move by move, and get real-time engine evaluation — all in your browser with a self-contained Go binary. No cloud, no setup, no dependencies.
 
 ![Screenshot](docs/screenshot.png)
 <!-- TODO: Add an actual screenshot of the application -->

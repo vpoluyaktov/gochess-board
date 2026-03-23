@@ -7,7 +7,10 @@ body {
     min-height: 100vh;
     margin: 0;
     padding-top: 15px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background-color: #b58863;
+    background-image: repeating-conic-gradient(#f0d9b5 0% 25%, #b58863 0% 50%);
+    background-size: 80px 80px;
+    background-attachment: fixed;
 }
 
 .container {
